@@ -1,0 +1,16 @@
+version: '3'
+services:
+  production: &prod
+    build:
+      context: .
+  dev: &dev
+    <<: *prod
+    image: keboola/php-storage-driver-bigquery
+    network_mode: host
+    volumes:
+      - ./:/code
+  dev-xdebug:
+    <<: *dev
+    build: etc/docker/xdebug
+volumes:
+  bq-volume:
