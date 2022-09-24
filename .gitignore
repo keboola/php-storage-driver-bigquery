@@ -1,0 +1,8 @@
+/vendor/
+/.idea
+composer.lock
+.env
+tests/generated/*
+!tests/generated/.gitkeep
+/docs/
+phpunit-retry.xml
