@@ -14,9 +14,14 @@
             "Keboola\\StorageDriver\\BigQuery\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Keboola\\StorageDriver\\FunctionalTests\\": "tests/functional"
+        }
+    },
     "require": {
         "php": ">=7.4",
-        "keboola/storage-driver-common": "^0.1.0",
+        "keboola/storage-driver-common": "dev-kbc-2936-add-bigquery",
         "keboola/db-import-export": "^1.9",
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5"
