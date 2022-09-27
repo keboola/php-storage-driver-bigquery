@@ -3,6 +3,9 @@ services:
   production: &prod
     build:
       context: .
+    environment:
+        - BQ_KEYFILE_JSON
+        - BQ_FOLDER_ID
   dev: &dev
     <<: *prod
     image: keboola/php-storage-driver-bigquery
