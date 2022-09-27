@@ -4,12 +4,25 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests;
 
+use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Credentials\BigQueryCredentials;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 
 class BaseCase extends TestCase
 {
+    protected GCPClientManager $clientManager;
+
+    /**
+     * @param array<mixed> $data
+     * @param int|string $dataName
+     */
+    public function __construct(?string $name = null, array $data = [], $dataName = '')
+    {
+        parent::__construct($name, $data, $dataName);
+        $this->clientManager = new GCPClientManager();
+    }
+
     /**
      * Get credentials from envs
      */
