@@ -26,7 +26,7 @@
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
-        "google/cloud": "^0.189.0"
+        "google/cloud-resource-manager": "^0.3.5"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
