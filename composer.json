@@ -36,5 +36,25 @@
             "dealerdirect/phpcodesniffer-composer-installer": true
         },
         "lock": false
+    },
+    "scripts": {
+        "phplint": "parallel-lint -j 10 --exclude vendor --exclude bin .",
+        "phpcs": "phpcs --extensions=php tests",
+        "phpcbf": "phpcbf --extensions=php tests",
+        "phpstan": "phpstan analyse --no-progress",
+        "phpunit": "phpunit",
+        "tests": [
+            "@phpunit"
+        ],
+        "check": [
+            "@composer validate --no-check-all --strict",
+            "@phplint",
+            "@phpcs",
+            "@phpstan"
+        ],
+        "ci": [
+            "@check",
+            "@tests"
+        ]
     }
 }
