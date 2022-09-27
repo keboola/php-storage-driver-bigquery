@@ -17,5 +17,8 @@ jobs:
       - name: Build Image
         run: docker-compose build
 
-#      - name: Run Tests
-#        run: docker-compose run --rm production composer ci
+      - name: Run Tests
+        env:
+          BQ_KEYFILE_JSON: ${{ secrets.BQ_KEYFILE_JSON }}
+          BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
+        run: docker-compose run --rm production composer ci
