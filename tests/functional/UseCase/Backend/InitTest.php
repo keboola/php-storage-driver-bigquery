@@ -7,13 +7,13 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Backend;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\InitBackendResponse;
-use PHPUnit\Framework\TestCase;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
-class InitTest extends TestCase
+class InitTest extends BaseCase
 {
     public function testInitBackend(): void
     {
-        $handler = new InitBackendHandler($this->sessionManager);
+        $handler = new InitBackendHandler();
         $command = new InitBackendCommand();
         $response = $handler(
             $this->getCredentials(),
@@ -21,10 +21,5 @@ class InitTest extends TestCase
             []
         );
         $this->assertInstanceOf(InitBackendResponse::class, $response);
-    }
-
-    private function getCredentials()
-    {
-
     }
 }

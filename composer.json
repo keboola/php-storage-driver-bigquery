@@ -24,7 +24,9 @@
         "keboola/storage-driver-common": "dev-kbc-2936-add-bigquery",
         "keboola/db-import-export": "^1.9",
         "google/protobuf": "^3.21",
-        "keboola/php-file-storage-utils": "^0.2.5"
+        "keboola/php-file-storage-utils": "^0.2.5",
+        "ext-json": "*",
+        "google/cloud": "^0.189.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",

@@ -6,3 +6,4 @@ tests/generated/*
 !tests/generated/.gitkeep
 /docs/
 phpunit-retry.xml
+.phpunit.result.cache
