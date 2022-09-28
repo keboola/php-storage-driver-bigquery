@@ -17,5 +17,5 @@ jobs:
       - name: Build Image
         run: docker-compose build
 
-      - name: Run Tests
-        run: docker-compose run --rm production composer ci
+#      - name: Run Tests
+#        run: docker-compose run --rm production composer ci
