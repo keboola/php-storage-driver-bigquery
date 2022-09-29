@@ -21,7 +21,7 @@
     },
     "require": {
         "php": ">=7.4",
-        "keboola/storage-driver-common": "dev-kbc-2936-add-bigquery",
+        "keboola/storage-driver-common": "^0.2.0",
         "keboola/db-import-export": "^1.9",
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5",
