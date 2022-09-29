@@ -1,6 +1,6 @@
 {
-    "name": "keboola/storage-driver-big-query",
-    "description": "Keboola Big Query driver",
+    "name": "keboola/storage-driver-bigquery",
+    "description": "Keboola BigQuery driver",
     "type": "project",
     "license": "MIT",
     "authors": [
