@@ -38,7 +38,7 @@
         "lock": false
     },
     "scripts": {
-        "phplint": "parallel-lint -j 10 --exclude vendor --exclude bin .",
+        "phplint": "parallel-lint --exclude vendor --exclude bin .",
         "phpcs": "phpcs --extensions=php tests",
         "phpcbf": "phpcbf --extensions=php tests",
         "phpstan": "phpstan analyse --no-progress",
