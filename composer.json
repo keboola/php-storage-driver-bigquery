@@ -14,12 +14,19 @@
             "Keboola\\StorageDriver\\BigQuery\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Keboola\\StorageDriver\\FunctionalTests\\": "tests/functional"
+        }
+    },
     "require": {
         "php": ">=7.4",
-        "keboola/storage-driver-common": "^0.1.0",
+        "keboola/storage-driver-common": "^0.2.0",
         "keboola/db-import-export": "^1.9",
         "google/protobuf": "^3.21",
-        "keboola/php-file-storage-utils": "^0.2.5"
+        "keboola/php-file-storage-utils": "^0.2.5",
+        "ext-json": "*",
+        "google/cloud-resource-manager": "^0.3.5"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
