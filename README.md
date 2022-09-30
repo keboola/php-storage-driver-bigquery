@@ -44,16 +44,6 @@ docker-compose build
 
 To run with xdebug use `dev-xdebug` container instead of `dev`
 
-### Generate protobuf documentation
-
-Documentation will be placed in `docs` folder. Check [documentation](https://github.com/pseudomuto/protoc-gen-doc/blob/master/README.md) for more options.
-```bash
-docker run --rm \
-  -v $(pwd)/docs:/out \
-  -v $(pwd)/proto:/protos \
-  pseudomuto/protoc-gen-doc
-```
-
 ## Tests
 
 Run tests with following command.
