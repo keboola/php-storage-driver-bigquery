@@ -1,1 +1,60 @@
-{}
+{
+    "name": "keboola/storage-driver-bigquery",
+    "description": "Keboola BigQuery driver",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Roman Bracinik",
+            "email": "roman.bracinik@keboola.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Keboola\\StorageDriver\\BigQuery\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=7.4",
+        "keboola/storage-driver-common": "^0.1.0",
+        "keboola/db-import-export": "^1.9",
+        "google/protobuf": "^3.21",
+        "keboola/php-file-storage-utils": "^0.2.5"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "phpstan/phpstan": "^1.8",
+        "phpstan/phpstan-phpunit": "^1.1",
+        "phpstan/phpstan-symfony": "^1.2",
+        "keboola/coding-standard": "^14.0",
+        "php-parallel-lint/php-parallel-lint": "^1.3",
+        "symfony/finder": "^5.4",
+        "keboola/phpunit-retry-annotations": "^0.4.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "lock": false
+    },
+    "scripts": {
+        "phplint": "parallel-lint --exclude vendor --exclude bin .",
+        "phpcs": "phpcs --extensions=php tests",
+        "phpcbf": "phpcbf --extensions=php tests",
+        "phpstan": "phpstan analyse --no-progress",
+        "phpunit": "phpunit",
+        "tests": [
+            "@phpunit"
+        ],
+        "check": [
+            "@composer validate --no-check-all --strict",
+            "@phplint",
+            "@phpcs",
+            "@phpstan"
+        ],
+        "ci": [
+            "@check",
+            "@tests"
+        ]
+    }
+}

@@ -1,0 +1,21 @@
+name: Tests
+concurrency: tests # ensure that test are not running in same time
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v1
+
+      - name: Build Image
+        run: docker-compose build
+
+#      - name: Run Tests
+#        run: docker-compose run --rm production composer ci
