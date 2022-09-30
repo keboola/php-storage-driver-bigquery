@@ -15,44 +15,30 @@ variable "organization_id" {
   type = string
 }
 
-variable "backend_folder_display_name" {
+variable "backend_prefix" {
   type = string
-  default = "Keboola Storage Backend"
 }
 
-variable "service_project_name" {
-  type = string
-  default = "Service project"
-}
-
-variable "service_project_id" {
-  type = string
-  default = "backend-service-project"
-}
-
-variable "service_account_id" {
-  type = string
-  default = "backend-service-acc"
-}
-
-variable "service_account_name" {
-  type = string
-  default = "Backend Service Acc"
+locals {
+  backend_folder_display_name = "${var.backend_prefix}-bq-driver-folder"
+  service_project_name = "${var.backend_prefix}-bq-driver"
+  service_project_id = "${var.backend_prefix}-bq-driver"
+  service_account_id = "${var.backend_prefix}-main-service-acc"
 }
 
 resource "google_folder" "storage_backend_folder" {
-  display_name = var.backend_folder_display_name
+  display_name = local.backend_folder_display_name
   parent       = "organizations/${var.organization_id}"
 }
 
 resource "google_project" "service_project_in_a_folder" {
-  name       = var.service_project_name
-  project_id = var.service_project_id
+  name       = local.service_project_name
+  project_id = local.service_project_id
   folder_id  = google_folder.storage_backend_folder.id
 }
 
 resource "google_service_account" "service_account" {
-  account_id = var.service_account_id
+  account_id = local.service_account_id
   description = "Service account to managing keboola backend projects"
   project = google_project.service_project_in_a_folder.project_id
 }
