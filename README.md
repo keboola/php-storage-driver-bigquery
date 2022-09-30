@@ -37,13 +37,15 @@ After terraform apply ends go to the service project in folder created by terraf
 5. on to the top choose Keys and Add Key => Create new key
 6. select Key type JSON
 7. click on the Create button and the file will automatically download
+8. convert key to string `awk -v RS= '{$1=$1}1' <key_file>.json >> .env`
+9. set content on last line of .env as variable `GCS_CREDENTIALS`
 
 setup envs:
 ```bash
 # the id is printed by terraform at the end and it is just the numbers after `folders/`
 
-BQ_FOLDER_ID=<the id of the created folder>
 BQ_KEYFILE_JSON=<the content of the downloaded json key file>
+BQ_FOLDER_ID=<the id of the created folder>
 ```
 
 ## Build docker images
