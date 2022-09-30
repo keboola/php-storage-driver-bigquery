@@ -5,27 +5,13 @@ Keboola high level storage backend driver for Big Query
 ## Setup Big Query
 
 To prepare the backend you can use [Terraform template](./bq-storage-backend-init.tf).
+You must have the `resourcemanager.folders.create` permission for the organization.
 ```bash
 # you can copy it to a folder somewhere and make an init
 terraform init
 
 terraform apply -var organization_id=[organization_id]
-
-# in case if you want named resources by yourself there is variables
-# set name of folder where service acc and all project for BQ will be created
--var backend_folder_display_name=... 
-
-# the name of main service account
--var service_project_name=...
-
-# the id of main service account
--var service_project_id=...
-
-# the id of main service account using for manage projects in folder
--var service_account_id=...
-
-# the name of main service account
--var service_account_name=...
+# and enter name for your backend prefix for example your name, all resources will create with this prefx
 ```
 
 After terraform apply ends go to the service project in folder created by terraform.
