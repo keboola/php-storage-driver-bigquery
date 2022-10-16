@@ -23,7 +23,7 @@ After terraform apply ends go to the service project in folder created by terraf
 5. on to the top choose Keys and Add Key => Create new key
 6. select Key type JSON
 7. click on the Create button and the file will automatically download
-8. open keyFile.json set content `private_key` as variable `BQ_PRIVATE_KEY` and remove it from json file
+8. open keyFile.json set content `private_key` as variable `BQ_SECRET` and remove it from json file
 9. convert key to string `awk -v RS= '{$1=$1}1' <key_file>.json >> .env`
 10. set content on last line of .env as variable `BQ_PRINCIPAL`
 
@@ -32,7 +32,7 @@ setup envs:
 # the id is printed by terraform at the end and it is just the numbers after `folders/`
 
 BQ_PRINCIPAL=<the content without private_key of the downloaded json key file>
-BQ_PRIVATE_KEY=<private_key from downloaded json key file>
+BQ_SECRET=<private_key from downloaded json key file>
 BQ_FOLDER_ID=<the id of the created folder>
 ```
 

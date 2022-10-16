@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests;
 
+use Google\Protobuf\Any;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\Credentials\BigQueryCredentials;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 
@@ -26,21 +27,31 @@ class BaseCase extends TestCase
     /**
      * Get credentials from envs
      */
-    protected function getCredentials(): BigQueryCredentials
+    protected function getCredentials(): GenericBackendCredentials
     {
-        $keyFileJson = getenv('BQ_KEYFILE_JSON');
-        if ($keyFileJson === false) {
-            throw new LogicException('Env "BQ_KEYFILE_JSON" is empty');
+        $principal = getenv('BQ_PRINCIPAL');
+        if ($principal === false) {
+            throw new LogicException('Env "BQ_PRINCIPAL" is empty');
         }
+
+        $secret = getenv('BQ_SECRET');
+        if ($secret === false) {
+            throw new LogicException('Env "BQ_SECRET" is empty');
+        }
+        $secret = str_replace("\\n", "\n", $secret);
 
         $folderId = (string) getenv('BQ_FOLDER_ID');
         if ($folderId === '') {
             throw new LogicException('Env "BQ_FOLDER_ID" is empty');
         }
 
-        /** @var array<string, string> $credentialsArr */
-        $credentialsArr = json_decode($keyFileJson, true);
-
-        return (new BigQueryCredentials($credentialsArr))->setFolderId($folderId);
+        $any = new Any();
+        $any->pack((new GenericBackendCredentials\BigQueryCredentialsMeta())->setFolderId(
+            $folderId
+        ));
+        return (new GenericBackendCredentials())
+            ->setPrincipal($principal)
+            ->setSecret($secret)
+            ->setMeta($any);
     }
 }

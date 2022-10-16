@@ -6,7 +6,7 @@ services:
     environment:
         - BQ_PRINCIPAL
         - BQ_FOLDER_ID
-        - BQ_PRIVATE_KEY
+        - BQ_SECRET
   dev: &dev
     <<: *prod
     image: keboola/php-storage-driver-bigquery
