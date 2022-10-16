@@ -34,6 +34,7 @@ setup envs:
 BQ_PRINCIPAL=<the content without private_key of the downloaded json key file>
 BQ_SECRET=<private_key from downloaded json key file>
 BQ_FOLDER_ID=<the id of the created folder>
+BQ_STACK_PREFIX=<prefix of stack>
 ```
 
 ## Build docker images
