@@ -1,0 +1,139 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
+
+use Google\Service\Exception;
+use Google_Service_CloudResourceManager_GetIamPolicyRequest;
+use Google_Service_Iam_CreateServiceAccountRequest;
+use Keboola\StorageDriver\BigQuery\GCPServiceIds;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
+use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
+use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Project\DropProjectBigqueryCommand;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
+
+class CreateDropProjectTest extends BaseCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->cleanTestProject();
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        $this->cleanTestProject();
+    }
+
+    public function testCreateProject(): void
+    {
+        $handler = new CreateProjectHandler($this->clientManager);
+        $command = new CreateprojectCommand();
+        $command->setStackPrefix($this->getStackPrefix());
+        $command->setProjectId($this->getProjectId());
+
+        /** @var CreateProjectResponse $response */
+        $response = $handler(
+            $this->getCredentials(),
+            $command,
+            []
+        );
+
+        $this->assertInstanceOf(CreateProjectResponse::class, $response);
+
+        $credentials = $this->getCredentials();
+        $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
+
+        $meta = $response->getMeta();
+        if ($meta !== null) {
+            // override root user and use other database as root
+            $meta = $meta->unpack();
+            assert($meta instanceof CreateProjectResponse\CreateProjectBigQueryResponseMeta);
+        } else {
+            throw new Exception('BigQueryCredentialsMeta is required.');
+        }
+
+        /** @var array<string, string> $credentialsArr */
+        $credentialsArr = (array) json_decode(base64_decode($meta->getCredentials()), true, 512, JSON_THROW_ON_ERROR);
+
+        $projectId = $credentialsArr['project_id'];
+        $pagedResponse = $serviceUsageClient->listServices([
+            'parent' => 'projects/' . $projectId,
+            'filter' => 'state:ENABLED',
+        ]);
+
+        $enabledServices = [];
+        foreach ($pagedResponse->iteratePages() as $page) {
+            /** @var \Google\Cloud\ServiceUsage\V1\Service $element */
+            foreach ($page as $element) {
+                assert($element->getConfig() !== null);
+                $enabledServices[] = $element->getConfig()->getName();
+            }
+        }
+
+        $expectedEnabledServices = [
+            GCPServiceIds::IAM_SERVICE,
+            GCPServiceIds::IAM_CREDENTIALS_SERVICE,
+            GCPServiceIds::BIGQUERY_SERVICE,
+            GCPServiceIds::BIGQUERY_MIGRATION_SERVICE,
+            GCPServiceIds::BIGQUERY_STORAGE_SERVICE,
+            GCPServiceIds::SERVICE_USAGE_SERVICE,
+        ];
+
+        $this->assertEqualsArrays($expectedEnabledServices, $enabledServices);
+
+        $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
+        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+            'projects/' . $projectId,
+            (new Google_Service_CloudResourceManager_GetIamPolicyRequest()),
+            []
+        );
+        $actualPolicy = $actualPolicy->getBindings();
+
+        $serviceAccRoles = [];
+        foreach ($actualPolicy as $policy) {
+            if (in_array('serviceAccount:' . $credentialsArr['client_email'], $policy->getMembers())) {
+                $serviceAccRoles[] = $policy->getRole();
+            }
+        }
+        $expected = [
+            IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
+            IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR,
+        ];
+        $this->assertEqualsArrays($expected, $serviceAccRoles);
+
+        $handler = new DropProjectHandler($this->clientManager);
+        $command = (new DropProjectBigqueryCommand())
+            ->setProjectId($projectId);
+
+        $handler(
+            $this->getCredentials(),
+            $command,
+            []
+        );
+
+        $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $formattedName = $projectsClient->projectName($projectId);
+        $removedProject = $projectsClient->getProject($formattedName);
+        $this->assertTrue($removedProject->hasDeleteTime());
+
+        $iamService = $this->clientManager->getIamClient($credentials);
+        $serviceAccountsService = $iamService->projects_serviceAccounts;
+        $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
+
+        $createServiceAccountRequest->setAccountId($credentialsArr['client_email']);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionCode(404);
+        $serviceAccountsService->get(sprintf(
+            'projects/%s/serviceAccounts/%s',
+            $projectId,
+            $credentialsArr['client_email']
+        ));
+    }
+}
