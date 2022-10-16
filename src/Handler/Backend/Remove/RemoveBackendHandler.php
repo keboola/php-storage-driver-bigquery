@@ -8,6 +8,7 @@ use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\BigQueryCredentials;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
 final class RemoveBackendHandler implements DriverCommandHandlerInterface
 {
@@ -19,7 +20,7 @@ final class RemoveBackendHandler implements DriverCommandHandlerInterface
         Message $command,
         array $features
     ): ?Message {
-        assert($credentials instanceof BigQueryCredentials);
+        assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof RemoveBackendCommand);
 
         return null;

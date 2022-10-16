@@ -11,14 +11,14 @@ use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
-use Keboola\StorageDriver\Credentials\BigQueryCredentials;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
 
 class BigQueryDriverClient implements ClientInterface
 {
     public function runCommand(Message $credentials, Message $command, array $features): ?Message
     {
-        assert($credentials instanceof BigQueryCredentials);
+        assert($credentials instanceof GenericBackendCredentials);
         $manager = new GCPClientManager();
         $handler = $this->getHandler($command, $manager);
 
