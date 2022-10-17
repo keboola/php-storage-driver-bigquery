@@ -7,7 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 use Exception;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\Command\Project\DropProjectBigqueryCommand;
+use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
@@ -26,19 +26,19 @@ class DropProjectHandler implements DriverCommandHandlerInterface
         array $features
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
-        assert($command instanceof DropProjectBigqueryCommand);
+        assert($command instanceof DropProjectCommand);
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
 
-        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(sprintf("projects/%s", $command->getProjectId()));
+        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(sprintf("projects/%s", $command->getProjectUserName()));
         foreach ($serviceAccountsInProject as $item) {
-            $serviceAccountsService->delete(sprintf("projects/%s/serviceAccounts/%s", $command->getProjectId(), $item->getEmail()));
+            $serviceAccountsService->delete(sprintf("projects/%s/serviceAccounts/%s", $command->getProjectUserName(), $item->getEmail()));
         }
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
-        $formattedName = $projectsClient->projectName($command->getProjectId());
+        $formattedName = $projectsClient->projectName($command->getProjectUserName());
         $operationResponse = $projectsClient->deleteProject($formattedName);
         $operationResponse->pollUntilComplete();
         if (!$operationResponse->operationSucceeded()) {

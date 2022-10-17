@@ -13,7 +13,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
-use Keboola\StorageDriver\Command\Project\DropProjectBigqueryCommand;
+use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 class CreateDropProjectTest extends BaseCase
@@ -108,8 +108,8 @@ class CreateDropProjectTest extends BaseCase
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         $handler = new DropProjectHandler($this->clientManager);
-        $command = (new DropProjectBigqueryCommand())
-            ->setProjectId($projectId);
+        $command = (new DropProjectCommand())
+            ->setProjectUserName($projectId);
 
         $handler(
             $this->getCredentials(),
