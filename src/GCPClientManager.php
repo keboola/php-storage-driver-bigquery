@@ -61,6 +61,7 @@ class GCPClientManager
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
+        // note: the close method is not used in this client
         return new Google_Service_Iam($client);
     }
 
@@ -70,6 +71,8 @@ class GCPClientManager
             'credentials' => $this->getCredentialsArray($credentials),
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
+
+        // note: the close method is not used in this client
         return new Google_Service_CloudResourceManager($client);
     }
 
