@@ -62,7 +62,7 @@ class CreateDropProjectTest extends BaseCase
         foreach ($pagedResponse->iteratePages() as $page) {
             /** @var \Google\Cloud\ServiceUsage\V1\Service $element */
             foreach ($page as $element) {
-                assert($element->getConfig() !== null);
+                $this->assertNotNull($element->getConfig());
                 $enabledServices[] = $element->getConfig()->getName();
             }
         }
