@@ -19,6 +19,7 @@ use Google_Service_CloudResourceManager_SetIamPolicyRequest;
 use Google_Service_Iam;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
+use JsonException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
@@ -38,6 +39,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
     ];
 
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
+    public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
 
     public GCPClientManager $clientManager;
 
@@ -87,14 +89,16 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $this->setPermissionsToServiceAccount($cloudResourceManager, $projectName, $projectServiceAccount->getEmail());
-        $keyFileCredentials = $this->createKeyFileCredentials($iAmClient, $projectServiceAccount);
+        $keyData = $this->createKeyFileCredentials($iAmClient, $projectServiceAccount);
 
-        $meta = new \Google\Protobuf\Any();
-        $meta->pack(
-            (new CreateProjectResponse\CreateProjectBigQueryResponseMeta())
-                ->setCredentials($keyFileCredentials)
-        );
-        return (new CreateProjectResponse())->setMeta($meta);
+        $privateKey = $keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY];
+        unset($keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY]);
+        $publicPart = json_encode($keyData);
+        assert($publicPart !== false);
+
+        return (new CreateProjectResponse())
+            ->setProjectUserName($publicPart)
+            ->setProjectPassword($privateKey);
     }
 
     /**
@@ -178,13 +182,20 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $cloudResourceManagerClient->projects->setIamPolicy($projectName, $setIamPolicyRequest);
     }
 
-    private function createKeyFileCredentials(Google_Service_Iam $iamService, ServiceAccount $serviceAccount): string
+    private function createKeyFileCredentials(Google_Service_Iam $iamService, ServiceAccount $serviceAccount): array
     {
         $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
         $createServiceAccountKeyRequest = new Google_Service_Iam_CreateServiceAccountKeyRequest();
         $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
         $key = $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);
 
-        return $key->getPrivateKeyData();
+        $json = base64_decode($key->getPrivateKeyData());
+        $keyData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+        if (!is_array($keyData)) {
+            throw new \Exception('Project key credentials missing.');
+        }
+
+        return $keyData;
     }
 }

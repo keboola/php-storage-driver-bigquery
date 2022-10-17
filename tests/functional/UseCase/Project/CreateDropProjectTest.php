@@ -49,19 +49,10 @@ class CreateDropProjectTest extends BaseCase
         $credentials = $this->getCredentials();
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
 
-        $meta = $response->getMeta();
-        if ($meta !== null) {
-            // override root user and use other database as root
-            $meta = $meta->unpack();
-            assert($meta instanceof CreateProjectResponse\CreateProjectBigQueryResponseMeta);
-        } else {
-            throw new Exception('BigQueryCredentialsMeta is required.');
-        }
+        /** @var array<string, string> $publicPart */
+        $publicPart = (array) json_decode($response->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
 
-        /** @var array<string, string> $credentialsArr */
-        $credentialsArr = (array) json_decode(base64_decode($meta->getCredentials()), true, 512, JSON_THROW_ON_ERROR);
-
-        $projectId = $credentialsArr['project_id'];
+        $projectId = $publicPart['project_id'];
         $pagedResponse = $serviceUsageClient->listServices([
             'parent' => 'projects/' . $projectId,
             'filter' => 'state:ENABLED',
@@ -97,7 +88,7 @@ class CreateDropProjectTest extends BaseCase
 
         $serviceAccRoles = [];
         foreach ($actualPolicy as $policy) {
-            if (in_array('serviceAccount:' . $credentialsArr['client_email'], $policy->getMembers())) {
+            if (in_array('serviceAccount:' . $publicPart['client_email'], $policy->getMembers())) {
                 $serviceAccRoles[] = $policy->getRole();
             }
         }
@@ -126,14 +117,14 @@ class CreateDropProjectTest extends BaseCase
         $serviceAccountsService = $iamService->projects_serviceAccounts;
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
-        $createServiceAccountRequest->setAccountId($credentialsArr['client_email']);
+        $createServiceAccountRequest->setAccountId($publicPart['client_email']);
 
         $this->expectException(Exception::class);
         $this->expectExceptionCode(404);
         $serviceAccountsService->get(sprintf(
             'projects/%s/serviceAccounts/%s',
             $projectId,
-            $credentialsArr['client_email']
+            $publicPart['client_email']
         ));
     }
 }
