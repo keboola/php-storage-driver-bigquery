@@ -19,6 +19,7 @@ jobs:
 
       - name: Run Tests
         env:
-          BQ_KEYFILE_JSON: ${{ secrets.BQ_KEYFILE_JSON }}
+          BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
+          BQ_SECRET: ${{ secrets.BQ_SECRET }}
           BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
         run: docker-compose run --rm production composer ci
