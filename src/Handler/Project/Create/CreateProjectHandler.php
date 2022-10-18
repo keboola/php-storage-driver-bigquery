@@ -19,7 +19,6 @@ use Google_Service_CloudResourceManager_SetIamPolicyRequest;
 use Google_Service_Iam;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
-use JsonException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
