@@ -108,7 +108,7 @@ class BaseCase extends TestCase
     {
         $stackPrefix = getenv('BQ_STACK_PREFIX');
         if ($stackPrefix === false) {
-            throw new LogicException('Env "BQ_STACK_PREFIX" is empty');
+            $stackPrefix = 'local';
         }
         return $stackPrefix;
     }

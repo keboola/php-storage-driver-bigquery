@@ -91,6 +91,21 @@ This command will run all checks and run tests
 docker-compose run --rm dev composer ci
 ```
 
+## Using
+
+Project ID: A globally unique identifier for your project. This lib creating project id as combinations of `stackPrefix` and `projectId` from `CreateProjectCommand`
+
+A project ID is a unique string used to differentiate your project from all others in Google Cloud. 
+You can use the Google Cloud console to generate a project ID, or you can choose your own. You can only modify the project ID when you're creating the project.
+
+Project ID requirements:
+- Must be 6 to 30 characters in length.
+- Can only contain lowercase letters, numbers, and hyphens.
+- Must start with a letter.
+- Cannot end with a hyphen.
+- Cannot be in use or previously used; this includes deleted projects.
+- Cannot contain restricted strings, such as `google` and `ssl`.
+
 ## License
 
 MIT licensed, see [LICENSE](./LICENSE) file.
