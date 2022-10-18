@@ -31,14 +31,18 @@ class DropProjectHandler implements DriverCommandHandlerInterface
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
 
-        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(sprintf("projects/%s", $command->getProjectUserName()));
+        /** @var array<string, string>|false $publicPartKeyFile */
+        $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
+        assert($publicPartKeyFile !== false);
+        $projectId = (string) $publicPartKeyFile['project_id'];
+        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(sprintf("projects/%s", $projectId));
         foreach ($serviceAccountsInProject as $item) {
-            $serviceAccountsService->delete(sprintf("projects/%s/serviceAccounts/%s", $command->getProjectUserName(), $item->getEmail()));
+            $serviceAccountsService->delete(sprintf("projects/%s/serviceAccounts/%s", $projectId, $item->getEmail()));
         }
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
-        $formattedName = $projectsClient->projectName($command->getProjectUserName());
+        $formattedName = $projectsClient->projectName($projectId);
         $operationResponse = $projectsClient->deleteProject($formattedName);
         $operationResponse->pollUntilComplete();
         if (!$operationResponse->operationSucceeded()) {

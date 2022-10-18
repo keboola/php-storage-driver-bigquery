@@ -97,7 +97,8 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         return (new CreateProjectResponse())
             ->setProjectUserName($publicPart)
-            ->setProjectPassword($privateKey);
+            ->setProjectPassword($privateKey)
+            ->setProjectReadOnlyRoleName('readOnly'); // @todo tmp until we imlplement readOnly in connection is required this parameter
     }
 
     /**

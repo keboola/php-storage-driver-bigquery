@@ -100,7 +100,7 @@ class CreateDropProjectTest extends BaseCase
 
         $handler = new DropProjectHandler($this->clientManager);
         $command = (new DropProjectCommand())
-            ->setProjectUserName($projectId);
+            ->setProjectUserName($response->getProjectUserName());
 
         $handler(
             $this->getCredentials(),
