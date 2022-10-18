@@ -181,6 +181,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $cloudResourceManagerClient->projects->setIamPolicy($projectName, $setIamPolicyRequest);
     }
 
+    /** @return array<string, string> */
     private function createKeyFileCredentials(Google_Service_Iam $iamService, ServiceAccount $serviceAccount): array
     {
         $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
