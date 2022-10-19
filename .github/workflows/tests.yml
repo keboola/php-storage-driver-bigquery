@@ -22,4 +22,5 @@ jobs:
           BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
           BQ_SECRET: ${{ secrets.BQ_SECRET }}
           BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
+          BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
         run: docker-compose run --rm production composer ci
