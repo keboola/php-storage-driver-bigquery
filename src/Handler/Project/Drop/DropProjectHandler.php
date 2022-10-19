@@ -11,7 +11,7 @@ use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-class DropProjectHandler implements DriverCommandHandlerInterface
+final class DropProjectHandler implements DriverCommandHandlerInterface
 {
     public GCPClientManager $clientManager;
 
