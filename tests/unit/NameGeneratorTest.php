@@ -20,4 +20,11 @@ class NameGeneratorTest extends TestCase
         $nameGenerator = new NameGenerator('KBC_prefix_');
         $this->assertSame('kbc-prefix-acc-1', $nameGenerator->createProjectServiceAccountId('acc-1'));
     }
+
+    public function testObjectNameForBucketInProjectGenerator(): void
+    {
+        $nameGenerator = new NameGenerator('KBC_prefix_');
+
+        $this->assertSame('in_c_bucket', $nameGenerator->createObjectNameForBucketInProject('in.c-bucket'));
+    }
 }
