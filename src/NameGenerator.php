@@ -25,4 +25,9 @@ class NameGenerator
     {
         return sprintf('%s-%s', $this->stackPrefix, $projectId);
     }
+
+    public function createObjectNameForBucketInProject(string $bucketId): string
+    {
+        return str_replace(['.', '-'], '_', $bucketId);
+    }
 }

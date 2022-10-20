@@ -7,10 +7,14 @@ namespace Keboola\StorageDriver\BigQuery;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Contract\Driver\ClientInterface;
@@ -44,6 +48,10 @@ class BigQueryDriverClient implements ClientInterface
                 return new CreateProjectHandler($manager);
             case $command instanceof DropProjectCommand:
                 return new DropProjectHandler($manager);
+            case $command instanceof CreateBucketCommand:
+                return new CreateBucketHandler($manager);
+            case $command instanceof DropBucketCommand:
+                return new DropBucketHandle($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
