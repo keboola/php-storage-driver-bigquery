@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests;
 
 use Exception;
 use Google\Cloud\BigQuery\Dataset;
+use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Any;
 use Google\Service\CloudResourceManager\Project;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -68,6 +69,7 @@ class BaseCase extends TestCase
     protected function cleanTestProject(): void
     {
         $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
 
         $meta = $this->getCredentials()->getMeta();
         if ($meta !== null) {
@@ -88,6 +90,9 @@ class BaseCase extends TestCase
                 $exploded = explode('-', $element->getProjectId());
                 if ($exploded[0] === $this->getStackPrefix()) {
                     $formattedName = $projectsClient->projectName($element->getProjectId());
+                    $billingInfo = new ProjectBillingInfo();
+                    $billingInfo->setBillingEnabled(false);
+                    $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
                     $operationResponse = $projectsClient->deleteProject($formattedName);
                     $operationResponse->pollUntilComplete();
                     if (!$operationResponse->operationSucceeded()) {
@@ -175,6 +180,8 @@ class BaseCase extends TestCase
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
+        $bucketInfo = $dataset->info();
+        $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
         $this->assertInstanceOf(Dataset::class, $dataset);
         $this->assertEquals($response->getCreateBucketObjectName(), $dataset->identity()['datasetId']);
         $this->assertTrue($dataset->exists());

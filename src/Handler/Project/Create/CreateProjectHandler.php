@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Create;
 
 use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
+use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Cloud\ResourceManager\V3\Project;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
@@ -35,6 +36,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         GCPServiceIds::SERVICE_USAGE_SERVICE,
         GCPServiceIds::IAM_SERVICE,
         GCPServiceIds::BIGQUERY_SERVICE,
+        GCPServiceIds::CLOUD_BILLING_SERVICE,
     ];
 
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
@@ -76,11 +78,24 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
+        $principal = (array) json_decode($credentials->getPrincipal());
+        $formattedName = $projectsClient->projectName($principal['project_id']);
+        $billingClient = $this->clientManager->getBillingClient($credentials);
+        $billingInfo = $billingClient->getProjectBillingInfo($formattedName);
+        $mainBillingAccount = $billingInfo->getBillingAccountName();
+
         $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
         $projectName = $projectCreateResult->getName();
 
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
         $this->enableServicesForProject($serviceUsageClient, $projectName);
+
+        $billingInfo = new ProjectBillingInfo();
+        $billingInfo->setBillingAccountName($mainBillingAccount);
+        $billingInfo->setBillingEnabled(true);
+
+        //todo add Project Billing manager to main service acc pre org
+        $billingClient->updateProjectBillingInfo($projectName, ['projectBillingInfo' => $billingInfo]);
 
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
         $iAmClient = $this->clientManager->getIamClient($credentials);

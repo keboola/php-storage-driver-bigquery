@@ -35,7 +35,8 @@ variable services {
   default     = [
     "cloudresourcemanager.googleapis.com",
     "serviceusage.googleapis.com",
-    "iam.googleapis.com"
+    "iam.googleapis.com",
+    "cloudbilling.googleapis.com"
   ]
 }
 

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery;
 
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Billing\V1\CloudBillingClient;
 use Google\Cloud\ResourceManager\V3\FoldersClient;
+use GPBMetadata\Google\Cloud\Billing\V1\CloudBilling;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
@@ -82,6 +84,14 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new BigQueryClient([
             'keyFile' => $this->getCredentialsArray($credentials),
+        ]);
+    }
+
+    public function getBillingClient(GenericBackendCredentials $credentials): CloudBillingClient
+    {
+        // note: the close method is not used in this client
+        return new CloudBillingClient([
+            'credentials' => $this->getCredentialsArray($credentials),
         ]);
     }
 
