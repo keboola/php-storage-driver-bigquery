@@ -169,8 +169,13 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $serviceAccountCreatorBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $serviceAccountCreatorBinding->setRole(IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR);
 
+        $bigQueryJobUserBinding = new Google_Service_CloudResourceManager_Binding();
+        $bigQueryJobUserBinding->setMembers('serviceAccount:' . $serviceAccEmail);
+        $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
+
         $finalBinding[] = $actualPolicy->getBindings();
         $finalBinding[] = $bigQueryDataOwnerBinding;
+        $finalBinding[] = $bigQueryJobUserBinding;
         $finalBinding[] = $serviceAccountCreatorBinding;
 
         $policy = new Google_Service_CloudResourceManager_Policy();

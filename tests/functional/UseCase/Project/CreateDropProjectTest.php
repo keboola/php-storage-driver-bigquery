@@ -94,6 +94,7 @@ class CreateDropProjectTest extends BaseCase
         }
         $expected = [
             IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
+            IAmPermissions::ROLES_BIGQUERY_JOB_USER,
             IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR,
         ];
         $this->assertEqualsArrays($expected, $serviceAccRoles);
