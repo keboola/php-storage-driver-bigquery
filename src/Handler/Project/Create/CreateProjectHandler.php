@@ -78,6 +78,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
+        /** @var array<string, string> $principal */
         $principal = (array) json_decode($credentials->getPrincipal());
         $formattedName = $projectsClient->projectName($principal['project_id']);
         $billingClient = $this->clientManager->getBillingClient($credentials);

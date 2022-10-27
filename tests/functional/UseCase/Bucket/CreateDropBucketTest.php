@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
-use Google\Cloud\BigQuery\Dataset;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -108,6 +104,4 @@ class CreateDropBucketTest extends BaseCase
         $table = $dataset->table($tableName);
         $this->assertFalse($table->exists());
     }
-
-
 }
