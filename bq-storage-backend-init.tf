@@ -92,3 +92,19 @@ output "folder_id" {
 output "service_project_id" {
   value = google_project.service_project_in_a_folder.project_id
 }
+
+resource "google_organization_iam_binding" "org_service_acc_billing_user_role" {
+  org_id = var.organization_id
+  role = "roles/billing.user"
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
+resource "google_organization_iam_binding" "org_service_acc_billing_viewer_role" {
+  org_id = var.organization_id
+  role = "roles/billing.viewer"
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
