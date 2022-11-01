@@ -95,7 +95,6 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $billingInfo->setBillingAccountName($mainBillingAccount);
         $billingInfo->setBillingEnabled(true);
 
-        //todo add Project Billing manager to main service acc pre org
         $billingClient->updateProjectBillingInfo($projectName, ['projectBillingInfo' => $billingInfo]);
 
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
