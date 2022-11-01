@@ -22,7 +22,6 @@
     "require": {
         "php": ">=7.4",
         "google/protobuf": "^3.21",
-        "keboola/php-datatypes": "dev-add-bq-datatypes as 6.1.2",
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
         "google/cloud-resource-manager": "^0.3.5",
