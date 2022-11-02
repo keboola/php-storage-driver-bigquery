@@ -4,14 +4,8 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
-use Google\Cloud\BigQuery\Dataset;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
-use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
-use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -34,7 +28,7 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateDropBucket(): void
     {
-        $response = $this->createTestBucket();
+        $response = $this->createTestBucket($this->projectCredentials);
 
         $handler = new DropBucketHandle($this->clientManager);
         $command = (new DropBucketCommand())
@@ -53,7 +47,7 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateDropCascadeBucket(): void
     {
-        $bucket = $this->createTestBucket();
+        $bucket = $this->createTestBucket($this->projectCredentials);
 
         $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
         $createdDataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
@@ -109,59 +103,5 @@ class CreateDropBucketTest extends BaseCase
         $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
         $table = $dataset->table($tableName);
         $this->assertFalse($table->exists());
-    }
-
-    /**
-     * @return array{GenericBackendCredentials, CreateProjectResponse}
-     */
-    private function createTestProject(): array
-    {
-        $handler = new CreateProjectHandler($this->clientManager);
-        $command = new CreateprojectCommand();
-        $command->setStackPrefix($this->getStackPrefix());
-        $command->setProjectId($this->getProjectId());
-
-        $response = $handler(
-            $this->getCredentials(),
-            $command,
-            []
-        );
-
-        assert($response instanceof CreateProjectResponse);
-
-        return [
-            (new GenericBackendCredentials())
-                ->setPrincipal($response->getProjectUserName())
-                ->setSecret($response->getProjectPassword()),
-            $response,
-        ];
-    }
-
-    protected function createTestBucket(): CreateBucketResponse
-    {
-        $bucket = md5($this->getName()) . 'in.c-Test';
-
-        $handler = new CreateBucketHandler($this->clientManager);
-        $command = (new CreateBucketCommand())
-            ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($this->getProjectId())
-            ->setBucketId($bucket);
-
-        $response = $handler(
-            $this->projectCredentials,
-            $command,
-            []
-        );
-
-        $this->assertInstanceOf(CreateBucketResponse::class, $response);
-
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
-
-        $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
-
-        $this->assertInstanceOf(Dataset::class, $dataset);
-        $this->assertEquals($response->getCreateBucketObjectName(), $dataset->identity()['datasetId']);
-        $this->assertTrue($dataset->exists());
-        return $response;
     }
 }

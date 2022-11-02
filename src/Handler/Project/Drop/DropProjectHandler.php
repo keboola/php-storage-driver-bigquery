@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 
 use Exception;
+use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -41,6 +42,13 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         }
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);
+
+        $formattedName = $projectsClient->projectName($projectId);
+        $billingClient = $this->clientManager->getBillingClient($credentials);
+        $billingInfo = new ProjectBillingInfo();
+        $billingInfo->setBillingEnabled(false);
+
+        $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
 
         $formattedName = $projectsClient->projectName($projectId);
         $operationResponse = $projectsClient->deleteProject($formattedName);

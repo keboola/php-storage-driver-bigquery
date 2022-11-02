@@ -4,6 +4,9 @@ Keboola high level storage backend driver for Big Query
 
 ## Setup Big Query
 
+Install [Google Cloud client](https://cloud.google.com/sdk/docs/install-sdk) (via [Brew](https://formulae.brew.sh/cask/google-cloud-sdk#default)), initialize it
+and log in to [generate default credentials](https://cloud.google.com/docs/authentication/application-default-credentials#personal).
+
 To prepare the backend you can use [Terraform template](./bq-storage-backend-init.tf).
 You must have the `resourcemanager.folders.create` permission for the organization.
 ```bash
@@ -11,8 +14,10 @@ You must have the `resourcemanager.folders.create` permission for the organizati
 terraform init
 
 terraform apply -var organization_id=[organization_id]
-# and enter name for your backend prefix for example your name, all resources will create with this prefx
+# and enter name for your backend prefix for example your name, all resources will create with this prefix
 ```
+
+For missing pieces see [Connection repository](https://github.com/keboola/connection/blob/master/DOCKER.md#bigquery).
 
 After terraform apply ends go to the service project in folder created by terraform.
 
@@ -23,9 +28,9 @@ After terraform apply ends go to the service project in folder created by terraf
 5. on to the top choose Keys and Add Key => Create new key
 6. select Key type JSON
 7. click on the Create button and the file will automatically download
-8. open keyFile.json set content `private_key` as variable `BQ_SECRET` and remove it from json file
-9. convert key to string `awk -v RS= '{$1=$1}1' <key_file>.json >> .env`
-10. set content on last line of .env as variable `BQ_PRINCIPAL`
+8. open keyFile.json set content of `private_key` as variable `BQ_SECRET` and remove it from json file
+9. convert key to string and save to `.env` file: `awk -v RS= '{$1=$1}1' <key_file>.json >> .env`
+10. set content on the last line of `.env` as variable `BQ_PRINCIPAL`
 
 setup envs:
 ```bash

@@ -53,6 +53,11 @@ class CreateDropProjectTest extends BaseCase
         $publicPart = (array) json_decode($response->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
 
         $projectId = $publicPart['project_id'];
+
+        $billingClient = $this->clientManager->getBillingClient($credentials);
+        $billingInfo = $billingClient->getProjectBillingInfo('projects/'.$projectId);
+        $this->assertNotEmpty($billingInfo->getBillingAccountName());
+
         $pagedResponse = $serviceUsageClient->listServices([
             'parent' => 'projects/' . $projectId,
             'filter' => 'state:ENABLED',
@@ -74,6 +79,7 @@ class CreateDropProjectTest extends BaseCase
             GCPServiceIds::BIGQUERY_MIGRATION_SERVICE,
             GCPServiceIds::BIGQUERY_STORAGE_SERVICE,
             GCPServiceIds::SERVICE_USAGE_SERVICE,
+            GCPServiceIds::CLOUD_BILLING_SERVICE,
         ];
 
         $this->assertEqualsArrays($expectedEnabledServices, $enabledServices);
@@ -94,6 +100,7 @@ class CreateDropProjectTest extends BaseCase
         }
         $expected = [
             IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
+            IAmPermissions::ROLES_BIGQUERY_JOB_USER,
             IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR,
         ];
         $this->assertEqualsArrays($expected, $serviceAccRoles);
