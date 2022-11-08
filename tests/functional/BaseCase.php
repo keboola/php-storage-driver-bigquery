@@ -138,8 +138,14 @@ class BaseCase extends TestCase
     {
         $handler = new CreateProjectHandler($this->clientManager);
         $command = new CreateprojectCommand();
+
+        $meta = new Any();
+        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
+            (string) getenv('BQ_BUCKET_NAME')
+        ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
+        $command->setMeta($meta);
 
         $response = $handler(
             $this->getCredentials(),

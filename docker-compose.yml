@@ -8,6 +8,7 @@ services:
         - BQ_FOLDER_ID
         - BQ_SECRET
         - BQ_STACK_PREFIX
+        - BQ_BUCKET_NAME
         - BQ_KEY_FILE
   dev: &dev
     <<: *prod
