@@ -17,10 +17,17 @@ jobs:
       - name: Build Image
         run: docker-compose build
 
+      - name: Prepare stubs
+        env:
+          BQ_KEY_FILE: ${{ secrets.BQ_KEY_FILE }}
+          BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
+        run: docker-compose run --rm production composer loadGcs
+
       - name: Run Tests
         env:
           BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
           BQ_SECRET: ${{ secrets.BQ_SECRET }}
           BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
+          BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
         run: docker-compose run --rm production composer ci
