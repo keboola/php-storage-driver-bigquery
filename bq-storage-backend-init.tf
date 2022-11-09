@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source = "hashicorp/google"
-      version = "3.5.0"
+      version = "4.43.0"
     }
   }
 }
@@ -25,7 +25,7 @@ variable "billing_account_id" {
 
 locals {
   backend_folder_display_name = "${var.backend_prefix}-bq-driver-folder"
-  service_project_name = "${var.backend_prefix}-bq-driver"
+  service_project_name = "main-${var.backend_prefix}-bq-driver"
   service_project_id = "${var.backend_prefix}-bq-driver"
   service_account_id = "${var.backend_prefix}-main-service-acc"
 }
@@ -104,6 +104,38 @@ resource "google_organization_iam_binding" "org_service_acc_billing_user_role" {
 resource "google_organization_iam_binding" "org_service_acc_billing_viewer_role" {
   org_id = var.organization_id
   role = "roles/billing.viewer"
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
+resource "google_storage_bucket" "kbc_file_storage_backend" {
+  name = "${var.backend_prefix}-files-bq-driver"
+  project = google_project.service_project_in_a_folder.project_id
+  location = "US"
+  storage_class = "STANDARD"
+  force_destroy = true
+  public_access_prevention = "enforced"
+  versioning {
+    enabled = false
+  }
+}
+
+output "file_storage_bucket_id" {
+  value = google_storage_bucket.kbc_file_storage_backend.id
+}
+
+resource "google_project_iam_binding" "prj_service_acc_owner" {
+  project = google_project.service_project_in_a_folder.project_id
+  role = "roles/owner"
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
+resource "google_project_iam_binding" "prj_service_acc_objAdm" {
+  project = google_project.service_project_in_a_folder.project_id
+  role = "roles/storage.objectAdmin"
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
   ]
