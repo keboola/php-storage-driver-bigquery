@@ -76,6 +76,16 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
             throw new Exception('BigQueryCredentialsMeta is required.');
         }
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta !== null) {
+            // override root user and use other database as root
+            $commandMeta = $commandMeta->unpack();
+            assert($commandMeta instanceof CreateProjectCommand\CreateProjectBigqueryMeta);
+            $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
+        } else {
+            throw new Exception('CreateProjectBigqueryMeta is required.');
+        }
+
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
         /** @var array<string, string> $principal */
@@ -100,6 +110,16 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
         $iAmClient = $this->clientManager->getIamClient($credentials);
         $projectServiceAccount = $this->createServiceAccount($iAmClient, $projectServiceAccountId, $projectName);
+
+        $storageManager = $this->clientManager->getStorageClient($credentials);
+        $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+        $actualBucketPolicy = $fileStorageBucket->iam()->policy();
+
+        $actualBucketPolicy['bindings'][] = [
+            'role' => 'roles/storage.objectViewer',
+            'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
+        ];
+        $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $this->setPermissionsToServiceAccount($cloudResourceManager, $projectName, $projectServiceAccount->getEmail());

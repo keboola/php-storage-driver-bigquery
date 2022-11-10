@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
 
+use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
@@ -34,8 +35,14 @@ class CreateDropProjectTest extends BaseCase
     {
         $handler = new CreateProjectHandler($this->clientManager);
         $command = new CreateprojectCommand();
+
+        $meta = new Any();
+        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
+            (string) getenv('BQ_BUCKET_NAME')
+        ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
+        $command->setMeta($meta);
 
         /** @var CreateProjectResponse $response */
         $response = $handler(

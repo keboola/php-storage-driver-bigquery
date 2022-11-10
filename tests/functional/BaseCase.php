@@ -87,8 +87,7 @@ class BaseCase extends TestCase
         foreach ($pagedResponse->iteratePages() as $page) {
             /** @var Project $element */
             foreach ($page as $element) {
-                $exploded = explode('-', $element->getProjectId());
-                if ($exploded[0] === $this->getStackPrefix()) {
+                if (str_starts_with($element->getProjectId(), $this->getStackPrefix())) {
                     $formattedName = $projectsClient->projectName($element->getProjectId());
                     $billingInfo = new ProjectBillingInfo();
                     $billingInfo->setBillingEnabled(false);
@@ -138,8 +137,14 @@ class BaseCase extends TestCase
     {
         $handler = new CreateProjectHandler($this->clientManager);
         $command = new CreateprojectCommand();
+
+        $meta = new Any();
+        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
+            (string) getenv('BQ_BUCKET_NAME')
+        ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
+        $command->setMeta($meta);
 
         $response = $handler(
             $this->getCredentials(),

@@ -40,6 +40,11 @@ BQ_PRINCIPAL=<the content without private_key of the downloaded json key file>
 BQ_SECRET=<private_key from downloaded json key file>
 BQ_FOLDER_ID=<the id of the created folder>
 BQ_STACK_PREFIX=<prefix of stack>
+BQ_BUCKET_NAME=<bucket id created in main project>
+
+# in case you want to load test files into bucket create new key-file.json for main user and fill env
+BQ_KEY_FILE=<key file json owned by main service acc>
+# now you can use composer loadGcs script
 ```
 
 ## Build docker images
