@@ -43,7 +43,6 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         assert($command->getPath()->count() === 1, 'CreateTableCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'CreateTableCommand.tableName is required');
         assert($command->getColumns()->count() > 0, 'CreateTableCommand.columns is required');
-        assert($command->getPrimaryKeysNames()->count() === 0, 'CreateTableCommand.primaryKeysNames is not supported in Bigquery');
 
         // define columns
         $columns = [];
