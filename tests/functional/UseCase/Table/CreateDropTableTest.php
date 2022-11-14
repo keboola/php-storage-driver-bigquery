@@ -10,6 +10,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -77,48 +78,41 @@ class CreateDropTableTest extends BaseCase
             ->setPath($path)
             ->setTableName($tableName)
             ->setColumns($columns);
+        /** @var TableInfo $response */
         $response = $handler(
             $this->projectCredentials,
             $command,
             []
         );
-        $this->assertNull($response);
 
-        $table = new BigqueryTableReflection(
-            $this->clientManager->getBigQueryClient($this->projectCredentials),
-            $bucketDatasetName,
-            $tableName
-        );
-
-        /** @var BigqueryColumn[] $columns */
-        $columns = iterator_to_array($table->getColumnsDefinitions());
-        $this->assertCount(5, $columns);
+        $columns = $response->getColumns();
+        $this->assertCount(3, $columns);
 
         // check column ID
-        $column = $columns[0];
-        $this->assertSame('id', $column->getColumnName());
-        $columnDef = $column->getColumnDefinition();
-        $this->assertSame(Bigquery::TYPE_INT64, $columnDef->getType());
-        $this->assertFalse($columnDef->isNullable());
-        $this->assertNull($columnDef->getDefault());
+        /** @var TableInfo\TableColumn $column */
+        $column = $columns->offsetGet(0);
+        $this->assertSame('id', $column->getName());
+        $this->assertSame(Bigquery::TYPE_INT64, $column->getType());
+        $this->assertFalse($column->getNullable());
+        $this->assertSame('', $column->getDefault());
 
         // check column NAME
-        $column = $columns[1];
-        $this->assertSame('name', $column->getColumnName());
-        $columnDef = $column->getColumnDefinition();
-        $this->assertSame(Bigquery::TYPE_STRING, $columnDef->getType());
-        $this->assertSame('50', $columnDef->getLength());
-        $this->assertTrue($columnDef->isNullable());
-        $this->assertSame("'Some Default'", $columnDef->getDefault());
+        /** @var TableInfo\TableColumn $column */
+        $column = $columns->offsetGet(1);
+        $this->assertSame('name', $column->getName());
+        $this->assertSame(Bigquery::TYPE_STRING, $column->getType());
+        $this->assertSame('50', $column->getLength());
+        $this->assertTrue($column->getNullable());
+        $this->assertSame("'Some Default'", $column->getDefault());
 
         // check column LARGE
-        $column = $columns[2];
-        $this->assertSame('large', $column->getColumnName());
-        $columnDef = $column->getColumnDefinition();
-        $this->assertSame(Bigquery::TYPE_BIGNUMERIC, $columnDef->getType());
-        $this->assertSame('76,38', $columnDef->getLength());
-        $this->assertFalse($columnDef->isNullable());
-        $this->assertSame('185.554', $columnDef->getDefault());
+        /** @var TableInfo\TableColumn $column */
+        $column = $columns->offsetGet(2);
+        $this->assertSame('large', $column->getName());
+        $this->assertSame(Bigquery::TYPE_BIGNUMERIC, $column->getType());
+        $this->assertSame('76,38', $column->getLength());
+        $this->assertFalse($column->getNullable());
+        $this->assertSame('185.554', $column->getDefault());
 
         // check column array
         $column = $columns[3];

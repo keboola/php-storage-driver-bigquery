@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand\TableColumn;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -14,6 +15,7 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 final class CreateTableHandler implements DriverCommandHandlerInterface
 {
@@ -75,7 +77,14 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
 
         $query = $bqClient->query($createTableSql);
         $bqClient->runQuery($query);
-        return null;
+
+        $ref = new BigqueryTableReflection(
+            $bqClient,
+            $datasetName,
+            $command->getTableName()
+        );
+
+        return TableReflectionResponseTransformer::transformTableReflectionToResponse($datasetName, $ref);
     }
 }
 
