@@ -474,7 +474,6 @@ class PreviewTableTest extends BaseCase
             $createTableCommand,
             []
         );
-        $this->assertNull($createTableResponse);
     }
 
     /**
