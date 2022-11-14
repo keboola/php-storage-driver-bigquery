@@ -458,18 +458,12 @@ class PreviewTableTest extends BaseCase
                 ->setNullable($columnData['nullable']);
         }
 
-//        $primaryKeysNames = new RepeatedField(GPBType::STRING);
-//        foreach ($structure['primaryKeysNames'] as $primaryKeyName) {
-//            $primaryKeysNames[] = $primaryKeyName;
-//        }
-
         $createTableCommand = (new CreateTableCommand())
             ->setPath($path)
             ->setTableName($tableName)
             ->setColumns($columns);
-//            ->setPrimaryKeysNames($primaryKeysNames);
 
-        $createTableResponse = $createTableHandler(
+        $createTableHandler(
             $this->projectCredentials,
             $createTableCommand,
             []
