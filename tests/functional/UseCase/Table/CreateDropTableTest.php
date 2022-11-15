@@ -10,6 +10,8 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
@@ -78,19 +80,23 @@ class CreateDropTableTest extends BaseCase
             ->setPath($path)
             ->setTableName($tableName)
             ->setColumns($columns);
-        /** @var TableInfo $response */
+        /** @var ObjectInfoResponse $response */
         $response = $handler(
             $this->projectCredentials,
             $command,
             []
         );
 
-        $columns = $response->getColumns();
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertSame(ObjectType::TABLE, $response->getObjectType());
+        $this->assertNotNull($response->getTableInfo());
+
+        $columns = $response->getTableInfo()->getColumns();
         $this->assertCount(3, $columns);
 
         // check column ID
         /** @var TableInfo\TableColumn $column */
-        $column = $columns->offsetGet(0);
+        $column = $columns[0];
         $this->assertSame('id', $column->getName());
         $this->assertSame(Bigquery::TYPE_INT64, $column->getType());
         $this->assertFalse($column->getNullable());
@@ -98,7 +104,7 @@ class CreateDropTableTest extends BaseCase
 
         // check column NAME
         /** @var TableInfo\TableColumn $column */
-        $column = $columns->offsetGet(1);
+        $column = $columns[1];
         $this->assertSame('name', $column->getName());
         $this->assertSame(Bigquery::TYPE_STRING, $column->getType());
         $this->assertSame('50', $column->getLength());
@@ -107,7 +113,7 @@ class CreateDropTableTest extends BaseCase
 
         // check column LARGE
         /** @var TableInfo\TableColumn $column */
-        $column = $columns->offsetGet(2);
+        $column = $columns[2];
         $this->assertSame('large', $column->getName());
         $this->assertSame(Bigquery::TYPE_BIGNUMERIC, $column->getType());
         $this->assertSame('76,38', $column->getLength());

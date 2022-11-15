@@ -8,6 +8,8 @@ use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand\TableColumn;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -77,13 +79,17 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         $query = $bqClient->query($createTableSql);
         $bqClient->runQuery($query);
 
-        $ref = new BigqueryTableReflection(
-            $bqClient,
-            $datasetName,
-            $command->getTableName()
-        );
-
-        return TableReflectionResponseTransformer::transformTableReflectionToResponse($datasetName, $ref);
+        return (new ObjectInfoResponse())
+            ->setPath($command->getPath())
+            ->setObjectType(ObjectType::TABLE)
+            ->setTableInfo(TableReflectionResponseTransformer::transformTableReflectionToResponse(
+                $datasetName,
+                new BigqueryTableReflection(
+                    $bqClient,
+                    $datasetName,
+                    $command->getTableName()
+                )
+            ));
     }
 }
 

@@ -13,6 +13,8 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -463,11 +465,14 @@ class PreviewTableTest extends BaseCase
             ->setTableName($tableName)
             ->setColumns($columns);
 
-        $createTableHandler(
+        $createTableResponse = $createTableHandler(
             $this->projectCredentials,
             $createTableCommand,
             []
         );
+
+        $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
+        $this->assertSame(ObjectType::TABLE, $createTableResponse->getObjectType());
     }
 
     /**
