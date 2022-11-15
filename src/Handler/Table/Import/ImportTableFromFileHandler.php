@@ -13,6 +13,7 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Storage\GCS\SourceFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -191,27 +192,11 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
             $filePath->getFileName()
         );
 
-        /**
-         * @var array{
-         * type: string,
-         * project_id: string,
-         * private_key_id: string,
-         * private_key: string,
-         * client_email: string,
-         * client_id: string,
-         * auth_uri: string,
-         * token_uri: string,
-         * auth_provider_x509_cert_url: string,
-         * client_x509_cert_url: string,
-         * } $credentialsArr
-         */
-        $credentialsArr = (array) json_decode($credentials->getPrincipal(), true, 512, JSON_THROW_ON_ERROR);
-        $credentialsArr['private_key'] = $credentials->getSecret();
         return new SourceFile(
             $relativePath->getRoot(),
             $relativePath->getPathnameWithoutRoot(),
             'name',
-            $credentialsArr,
+            CredentialsHelper::getCredentialsArray($credentials),
             $csvOptions,
             $formatOptions->getSourceType() === TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE,
             ProtobufHelper::repeatedStringToArray($formatOptions->getColumnsNames()),

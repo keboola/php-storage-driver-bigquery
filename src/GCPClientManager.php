@@ -28,7 +28,7 @@ class GCPClientManager
     public function getFoldersClient(GenericBackendCredentials $credentials): FoldersClient
     {
         $client = new FoldersClient([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
         $this->clients[] = $client;
 
@@ -38,7 +38,7 @@ class GCPClientManager
     public function getProjectClient(GenericBackendCredentials $credentials): ProjectsClient
     {
         $client = new ProjectsClient([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
 
         $this->clients[] = $client;
@@ -49,7 +49,7 @@ class GCPClientManager
     public function getServiceUsageClient(GenericBackendCredentials $credentials): ServiceUsageClient
     {
         $client = new ServiceUsageClient([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
 
         $this->clients[] = $client;
@@ -60,7 +60,7 @@ class GCPClientManager
     public function getIamClient(GenericBackendCredentials $credentials): Google_Service_Iam
     {
         $client = new Google_Client([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
@@ -71,7 +71,7 @@ class GCPClientManager
     public function getCloudResourceManager(GenericBackendCredentials $credentials): Google_Service_CloudResourceManager
     {
         $client = new Google_Client([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
@@ -83,7 +83,7 @@ class GCPClientManager
     {
         // note: the close method is not used in this client
         return new BigQueryClient([
-            'keyFile' => $this->getCredentialsArray($credentials),
+            'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
     }
 
@@ -91,7 +91,7 @@ class GCPClientManager
     {
         // note: the close method is not used in this client
         return new CloudBillingClient([
-            'credentials' => $this->getCredentialsArray($credentials),
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
     }
 
@@ -99,16 +99,8 @@ class GCPClientManager
     {
         // note: the close method is not used in this client
         return new StorageClient([
-            'keyFile' => $this->getCredentialsArray($credentials),
+            'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
-    }
-
-    /** @return non-empty-array<string, string> */
-    private function getCredentialsArray(GenericBackendCredentials $credentials): array
-    {
-        $credentialsArr = (array) json_decode($credentials->getPrincipal(), true, 512, JSON_THROW_ON_ERROR);
-        $credentialsArr['private_key'] = $credentials->getSecret();
-        return $credentialsArr;
     }
 
     public function __destruct()
