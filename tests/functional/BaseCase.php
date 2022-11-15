@@ -7,8 +7,11 @@ namespace Keboola\StorageDriver\FunctionalTests;
 use Exception;
 use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
+use Google\Cloud\Storage\StorageClient;
+use Google\Cloud\Storage\StorageObject;
 use Google\Protobuf\Any;
 use Google\Service\CloudResourceManager\Project;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
@@ -191,5 +194,50 @@ class BaseCase extends TestCase
         $this->assertEquals($response->getCreateBucketObjectName(), $dataset->identity()['datasetId']);
         $this->assertTrue($dataset->exists());
         return $response;
+    }
+
+    protected function getGCSClient(): StorageClient
+    {
+        return new StorageClient(['keyFile' => CredentialsHelper::getCredentialsArray($this->getCredentials())]);
+    }
+
+    protected function clearGCSBucketDir(string $bucket, string $prefix): void
+    {
+        $client = $this->getGCSClient();
+        $bucket = $client->bucket($bucket);
+        $objects = $bucket->objects(['prefix' => $prefix]);
+        foreach ($objects as $object) {
+            $object->delete();
+        }
+    }
+
+    /**
+     * @return StorageObject[]
+     */
+    protected function listGCSFiles(string $bucket, string $prefix): array
+    {
+        $client = $this->getGCSClient();
+        $bucket = $client->bucket($bucket);
+        $objects = $bucket->objects(['prefix' => $prefix]);
+        return iterator_to_array($objects);
+    }
+
+    /**
+     * @return array{size: int, files: string[]}
+     */
+    protected function listFilesSimple(string $bucket, string $prefix): array
+    {
+        /** @var array{size: int, files: string[]} $result */
+        $result = array_reduce(
+            $this->listGCSFiles($bucket, $prefix),
+            static function (array $agg, StorageObject $file) {
+                $agg['size'] += (int) $file->info()['size'];
+                $agg['files'][] = $file->name();
+                return $agg;
+            },
+            ['size' => 0, 'files' => []]
+        );
+
+        return $result;
     }
 }
