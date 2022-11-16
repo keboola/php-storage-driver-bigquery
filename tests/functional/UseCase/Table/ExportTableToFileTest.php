@@ -343,10 +343,10 @@ class ExportTableToFileTest extends BaseCase
             true, // compression
             505, // bytes including manifest
             [
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000000.csv.gz',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000001.csv.gz',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000002.csv.gz',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/expmanifest',
+                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000000.csv.gz',
+                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000001.csv.gz',
+                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000002.csv.gz',
+                'export/testExportTableToFile-with-data-set-_gzipped-csv_/expmanifest',
             ],
         ];
     }
