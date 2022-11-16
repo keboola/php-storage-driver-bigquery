@@ -92,7 +92,7 @@ class CreateDropTableTest extends BaseCase
         $this->assertNotNull($response->getTableInfo());
 
         $columns = $response->getTableInfo()->getColumns();
-        $this->assertCount(3, $columns);
+        $this->assertCount(5, $columns);
 
         // check column ID
         /** @var TableInfo\TableColumn $column */
@@ -121,20 +121,20 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('185.554', $column->getDefault());
 
         // check column array
+        /** @var TableInfo\TableColumn $column */
         $column = $columns[3];
-        $this->assertSame('ordes', $column->getColumnName());
-        $columnDef = $column->getColumnDefinition();
-        $this->assertSame(Bigquery::TYPE_ARRAY, $columnDef->getType());
-        $this->assertSame('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>', $columnDef->getLength());
-        $this->assertFalse($columnDef->isNullable());
+        $this->assertSame('ordes', $column->getName());
+        $this->assertSame(Bigquery::TYPE_ARRAY, $column->getType());
+        $this->assertSame('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>', $column->getLength());
+        $this->assertFalse($column->getNullable());
 
         // check column array
+        /** @var TableInfo\TableColumn $column */
         $column = $columns[4];
-        $this->assertSame('organization', $column->getColumnName());
-        $columnDef = $column->getColumnDefinition();
-        $this->assertSame(Bigquery::TYPE_STRUCT, $columnDef->getType());
-        $this->assertSame('x ARRAY<INT64>', $columnDef->getLength());
-        $this->assertTrue($columnDef->isNullable());
+        $this->assertSame('organization', $column->getName());
+        $this->assertSame(Bigquery::TYPE_STRUCT, $column->getType());
+        $this->assertSame('x ARRAY<INT64>', $column->getLength());
+        $this->assertTrue($column->getNullable());
 
         // DROP TABLE
         $handler = new DropTableHandler($this->clientManager);
