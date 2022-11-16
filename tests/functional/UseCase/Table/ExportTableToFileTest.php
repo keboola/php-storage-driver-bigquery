@@ -60,7 +60,7 @@ class ExportTableToFileTest extends BaseCase
      * @dataProvider simpleExportProvider
      * @param string[] $expectedFiles
      */
-    public function testExportTableToFile(bool $isCompressed, int $exportSize, array $expectedFiles): void
+    public function testExportTableToFile(bool $isCompressed, array $expectedFiles): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table_export';
@@ -134,7 +134,6 @@ class ExportTableToFileTest extends BaseCase
             (string) getenv('BQ_BUCKET_NAME'),
             $exportDir
         );
-        $this->assertEquals($exportSize, $files['size']);
         $this->assertSame($expectedFiles, $files['files']);
 
         // cleanup
@@ -146,7 +145,7 @@ class ExportTableToFileTest extends BaseCase
      * @dataProvider slicedExportProvider
      * @param string[] $expectedFiles
      */
-    public function testExportTableToSlicedFile(bool $isCompressed, int $exportSize, array $expectedFiles): void
+    public function testExportTableToSlicedFile(bool $isCompressed, array $expectedFiles): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table_export_sliced';
@@ -228,7 +227,6 @@ class ExportTableToFileTest extends BaseCase
             (string) getenv('BQ_BUCKET_NAME'),
             $exportDir
         );
-        $this->assertEquals($exportSize, $files['size']);
         $this->assertSame($expectedFiles, $files['files']);
 
         // cleanup
@@ -330,7 +328,6 @@ class ExportTableToFileTest extends BaseCase
     {
         yield 'plain csv' => [
             false, // compression
-            430, // bytes including manifest
             [
                 'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000000.csv',
                 'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000001.csv',
@@ -341,7 +338,6 @@ class ExportTableToFileTest extends BaseCase
         ];
         yield 'gzipped csv' => [
             true, // compression
-            505, // bytes including manifest
             [
                 'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000000.csv.gz',
                 'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000001.csv.gz',
@@ -355,7 +351,6 @@ class ExportTableToFileTest extends BaseCase
     {
         yield 'plain csv' => [
             false, // compression
-            87731849,
             [
                 'export/1d855d619357989e2544891957ffd565/exp000000000000.csv',
                 'export/1d855d619357989e2544891957ffd565/exp000000000001.csv',
@@ -364,7 +359,6 @@ class ExportTableToFileTest extends BaseCase
         ];
         yield 'gzipped csv' => [
             true, // compression
-            391323,
             [
                 'export/fedd6d661573483354212e9303f96743/exp000000000000.csv.gz',
                 'export/fedd6d661573483354212e9303f96743/exp000000000001.csv.gz',
