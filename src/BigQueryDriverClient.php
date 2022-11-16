@@ -13,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
@@ -24,6 +25,7 @@ use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
+use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -71,6 +73,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new ImportTableFromFileHandler($manager);
             case $command instanceof PreviewTableCommand:
                 return new PreviewTableHandler($manager);
+            case $command instanceof TableExportToFileCommand:
+                return new ExportTableToFileHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
