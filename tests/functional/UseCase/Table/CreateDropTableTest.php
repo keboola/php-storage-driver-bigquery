@@ -65,6 +65,14 @@ class CreateDropTableTest extends BaseCase
             ->setType(Bigquery::TYPE_BIGNUMERIC)
             ->setLength('76,38')
             ->setDefault('185.554');
+        $columns[] = (new CreateTableCommand\TableColumn())
+            ->setName('ordes')
+            ->setType(Bigquery::TYPE_ARRAY)
+            ->setLength('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>');
+        $columns[] = (new CreateTableCommand\TableColumn())
+            ->setName('organization')
+            ->setType(Bigquery::TYPE_STRUCT)
+            ->setLength('x ARRAY<INT64>');
         $command = (new CreateTableCommand())
             ->setPath($path)
             ->setTableName($tableName)
@@ -84,7 +92,7 @@ class CreateDropTableTest extends BaseCase
 
         /** @var BigqueryColumn[] $columns */
         $columns = iterator_to_array($table->getColumnsDefinitions());
-        $this->assertCount(3, $columns);
+        $this->assertCount(5, $columns);
 
         // check column ID
         $column = $columns[0];
@@ -111,6 +119,22 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('76,38', $columnDef->getLength());
         $this->assertFalse($columnDef->isNullable());
         $this->assertSame('185.554', $columnDef->getDefault());
+
+        // check column array
+        $column = $columns[3];
+        $this->assertSame('ordes', $column->getColumnName());
+        $columnDef = $column->getColumnDefinition();
+        $this->assertSame(Bigquery::TYPE_ARRAY, $columnDef->getType());
+        $this->assertSame('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>', $columnDef->getLength());
+        $this->assertFalse($columnDef->isNullable());
+
+        // check column array
+        $column = $columns[4];
+        $this->assertSame('organization', $column->getColumnName());
+        $columnDef = $column->getColumnDefinition();
+        $this->assertSame(Bigquery::TYPE_STRUCT, $columnDef->getType());
+        $this->assertSame('x ARRAY<INT64>', $columnDef->getLength());
+        $this->assertTrue($columnDef->isNullable());
 
         // DROP TABLE
         $handler = new DropTableHandler($this->clientManager);
