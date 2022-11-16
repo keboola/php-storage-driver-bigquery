@@ -32,6 +32,9 @@ use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
 
 class BigQueryDriverClient implements ClientInterface
 {
+    /**
+     * @param string[] $features
+     */
     public function runCommand(Message $credentials, Message $command, array $features): ?Message
     {
         assert($credentials instanceof GenericBackendCredentials);

@@ -56,8 +56,8 @@
     "scripts": {
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup",
         "phplint": "parallel-lint --exclude vendor --exclude bin .",
-        "phpcs": "phpcs --extensions=php tests",
-        "phpcbf": "phpcbf --extensions=php tests",
+        "phpcs": "phpcs --extensions=php src tests",
+        "phpcbf": "phpcbf --extensions=php src tests",
         "phpstan": "phpstan analyse --no-progress",
         "phpunit": "phpunit",
         "tests": [

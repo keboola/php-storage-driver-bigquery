@@ -10,15 +10,16 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\ImportOptions as ImportOptionsLib;
 use Keboola\Db\ImportExport\Storage\GCS\SourceFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -206,8 +207,8 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
 
     private function createOptions(
         ImportOptions $options
-    ): \Keboola\Db\ImportExport\ImportOptions {
-        return new \Keboola\Db\ImportExport\ImportOptions(
+    ): ImportOptionsLib {
+        return new ImportOptionsLib(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
             $options->getImportType() === ImportType::INCREMENTAL,
             $options->getTimestampColumn() === '_timestamp',

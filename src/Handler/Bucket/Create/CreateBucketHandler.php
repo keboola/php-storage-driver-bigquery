@@ -21,6 +21,9 @@ final class CreateBucketHandler implements DriverCommandHandlerInterface
         $this->clientManager = $clientManager;
     }
 
+    /**
+     * @inheritDoc
+     */
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,

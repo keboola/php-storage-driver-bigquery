@@ -7,13 +7,13 @@ namespace Keboola\StorageDriver\BigQuery;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Billing\V1\CloudBillingClient;
 use Google\Cloud\ResourceManager\V3\FoldersClient;
-use Google\Cloud\Storage\StorageClient;
-use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
+use Google\Cloud\Storage\StorageClient;
 use Google_Client;
 use Google_Service_CloudResourceManager;
 use Google_Service_Iam;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
 class GCPClientManager
 {

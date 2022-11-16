@@ -21,6 +21,9 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         $this->clientManager = $clientManager;
     }
 
+    /**
+     * @inheritDoc
+     */
     public function __invoke(
         Message $credentials,
         Message $command,
@@ -36,9 +39,11 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
         assert($publicPartKeyFile !== false);
         $projectId = (string) $publicPartKeyFile['project_id'];
-        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(sprintf("projects/%s", $projectId));
+        $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(
+            sprintf('projects/%s', $projectId)
+        );
         foreach ($serviceAccountsInProject as $item) {
-            $serviceAccountsService->delete(sprintf("projects/%s/serviceAccounts/%s", $projectId, $item->getEmail()));
+            $serviceAccountsService->delete(sprintf('projects/%s/serviceAccounts/%s', $projectId, $item->getEmail()));
         }
 
         $projectsClient = $this->clientManager->getProjectClient($credentials);

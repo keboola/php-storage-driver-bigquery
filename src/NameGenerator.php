@@ -11,8 +11,8 @@ class NameGenerator
     public function __construct(
         string $stackPrefix
     ) {
-        $stackPrefix = rtrim($stackPrefix, "_");
-        $stackPrefix = str_replace("_", "-", strtolower($stackPrefix));
+        $stackPrefix = rtrim($stackPrefix, '_');
+        $stackPrefix = str_replace('_', '-', strtolower($stackPrefix));
         $this->stackPrefix = $stackPrefix;
     }
 
