@@ -9,6 +9,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Throwable;
 
 class DropTableHandler implements DriverCommandHandlerInterface
 {
@@ -45,7 +46,7 @@ class DropTableHandler implements DriverCommandHandlerInterface
         // drop table
         try {
             $table->delete();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (!$command->getIgnoreErrors()) {
                 throw $e;
             }

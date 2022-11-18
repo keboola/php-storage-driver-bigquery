@@ -10,14 +10,16 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\ImportOptions as ImportOptionsLib;
 use Keboola\Db\ImportExport\Storage\GCS\SourceFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -191,27 +193,11 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
             $filePath->getFileName()
         );
 
-        /**
-         * @var array{
-         * type: string,
-         * project_id: string,
-         * private_key_id: string,
-         * private_key: string,
-         * client_email: string,
-         * client_id: string,
-         * auth_uri: string,
-         * token_uri: string,
-         * auth_provider_x509_cert_url: string,
-         * client_x509_cert_url: string,
-         * } $credentialsArr
-         */
-        $credentialsArr = (array) json_decode($credentials->getPrincipal(), true, 512, JSON_THROW_ON_ERROR);
-        $credentialsArr['private_key'] = $credentials->getSecret();
         return new SourceFile(
             $relativePath->getRoot(),
             $relativePath->getPathnameWithoutRoot(),
             'name',
-            $credentialsArr,
+            CredentialsHelper::getCredentialsArray($credentials),
             $csvOptions,
             $formatOptions->getSourceType() === TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE,
             ProtobufHelper::repeatedStringToArray($formatOptions->getColumnsNames()),
@@ -221,8 +207,8 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
 
     private function createOptions(
         ImportOptions $options
-    ): \Keboola\Db\ImportExport\ImportOptions {
-        return new \Keboola\Db\ImportExport\ImportOptions(
+    ): ImportOptionsLib {
+        return new ImportOptionsLib(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
             $options->getImportType() === ImportType::INCREMENTAL,
             $options->getTimestampColumn() === '_timestamp',

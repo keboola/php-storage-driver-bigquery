@@ -34,7 +34,7 @@
         "google/cloud-billing": "^1.4",
         "keboola/table-backend-utils": "^1.8",
         "react/async": "^3.0",
-        "keboola/db-import-export": "^1.11",
+        "keboola/db-import-export": "^1.12",
         "symfony/polyfill-php80": "^1.26"
     },
     "require-dev": {
@@ -56,8 +56,8 @@
     "scripts": {
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup",
         "phplint": "parallel-lint --exclude vendor --exclude bin .",
-        "phpcs": "phpcs --extensions=php tests",
-        "phpcbf": "phpcbf --extensions=php tests",
+        "phpcs": "phpcs --extensions=php src tests",
+        "phpcbf": "phpcbf --extensions=php src tests",
         "phpstan": "phpstan analyse --no-progress",
         "phpunit": "phpunit",
         "tests": [

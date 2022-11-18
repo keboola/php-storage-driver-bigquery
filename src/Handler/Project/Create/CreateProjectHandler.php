@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Project\Create;
 
+use Exception as NativeException;
 use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
@@ -50,6 +51,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
     }
 
     /**
+     * @inheritDoc
      * @throws ValidationException
      * @throws Exception
      * @throws ApiException
@@ -115,8 +117,12 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
         $actualBucketPolicy = $fileStorageBucket->iam()->policy();
 
-        $actualBucketPolicy['bindings'][] = [
+        $actualBucketPolicy['bindings'][] = [ // project service account can list and get files
             'role' => 'roles/storage.objectViewer',
+            'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
+        ];
+        $actualBucketPolicy['bindings'][] = [ // project service account can export to bucket
+            'role' => 'roles/storage.objectCreator',
             'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
         ];
         $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
@@ -133,7 +139,8 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         return (new CreateProjectResponse())
             ->setProjectUserName($publicPart)
             ->setProjectPassword($privateKey)
-            ->setProjectReadOnlyRoleName('readOnly'); // @todo tmp until we imlplement readOnly in connection is required this parameter
+            // @todo tmp until we implement readOnly in connection is required this parameter
+            ->setProjectReadOnlyRoleName('readOnly');
     }
 
     /**
@@ -182,8 +189,11 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         }
     }
 
-    private function createServiceAccount(Google_Service_Iam $iamService, string $projectServiceAccountId, string $projectName): ServiceAccount
-    {
+    private function createServiceAccount(
+        Google_Service_Iam $iamService,
+        string $projectServiceAccountId,
+        string $projectName
+    ): ServiceAccount {
         $serviceAccountsService = $iamService->projects_serviceAccounts;
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
@@ -191,8 +201,11 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         return $serviceAccountsService->create($projectName, $createServiceAccountRequest);
     }
 
-    private function setPermissionsToServiceAccount(Google_Service_CloudResourceManager $cloudResourceManagerClient, string $projectName, string $serviceAccEmail): void
-    {
+    private function setPermissionsToServiceAccount(
+        Google_Service_CloudResourceManager $cloudResourceManagerClient,
+        string $projectName,
+        string $serviceAccEmail
+    ): void {
         $getIamPolicyRequest = new Google_Service_CloudResourceManager_GetIamPolicyRequest();
         $actualPolicy = $cloudResourceManagerClient->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
 
@@ -234,7 +247,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $keyData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
         if (!is_array($keyData)) {
-            throw new \Exception('Project key credentials missing.');
+            throw new NativeException('Project key credentials missing.');
         }
 
         return $keyData;

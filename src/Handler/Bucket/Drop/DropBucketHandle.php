@@ -9,6 +9,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Throwable;
 
 class DropBucketHandle implements DriverCommandHandlerInterface
 {
@@ -19,6 +20,9 @@ class DropBucketHandle implements DriverCommandHandlerInterface
         $this->clientManager = $clientManager;
     }
 
+    /**
+     * @inheritDoc
+     */
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,
@@ -35,7 +39,7 @@ class DropBucketHandle implements DriverCommandHandlerInterface
 
         try {
             $dataset->delete(['deleteContents' => $command->getIsCascade()]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (!$ignoreErrors) {
                 throw $e;
             }
