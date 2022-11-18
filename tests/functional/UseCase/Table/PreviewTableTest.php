@@ -13,6 +13,8 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -458,23 +460,19 @@ class PreviewTableTest extends BaseCase
                 ->setNullable($columnData['nullable']);
         }
 
-//        $primaryKeysNames = new RepeatedField(GPBType::STRING);
-//        foreach ($structure['primaryKeysNames'] as $primaryKeyName) {
-//            $primaryKeysNames[] = $primaryKeyName;
-//        }
-
         $createTableCommand = (new CreateTableCommand())
             ->setPath($path)
             ->setTableName($tableName)
             ->setColumns($columns);
-//            ->setPrimaryKeysNames($primaryKeysNames);
 
         $createTableResponse = $createTableHandler(
             $this->projectCredentials,
             $createTableCommand,
             []
         );
-        $this->assertNull($createTableResponse);
+
+        $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
+        $this->assertSame(ObjectType::TABLE, $createTableResponse->getObjectType());
     }
 
     /**

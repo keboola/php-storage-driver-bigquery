@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\UnitTests\Shared\NameGenerator;
+namespace Keboola\StorageDriver\UnitTests;
 
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use PHPUnit\Framework\TestCase;
