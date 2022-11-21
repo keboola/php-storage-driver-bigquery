@@ -38,7 +38,7 @@ class NameGenerator
 
     public function createWorkspaceUserNameForWorkspaceId(string $workspaceId): string
     {
-        return str_replace('_', '-', strtoupper($this->createWorkspaceCredentialsPrefix($workspaceId)));
+        return str_replace('_', '-', strtolower($this->createWorkspaceCredentialsPrefix($workspaceId)));
     }
 
     private function createWorkspaceCredentialsPrefix(string $workspaceId): string
