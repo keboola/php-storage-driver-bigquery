@@ -16,6 +16,8 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -27,6 +29,8 @@ use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
+use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
+use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -75,6 +79,10 @@ class BigQueryDriverClient implements ClientInterface
                 return new PreviewTableHandler($manager);
             case $command instanceof TableExportToFileCommand:
                 return new ExportTableToFileHandler($manager);
+            case $command instanceof CreateWorkspaceCommand:
+                return new CreateWorkspaceHandler($manager);
+            case $command instanceof DropWorkspaceCommand:
+                return new DropWorkspaceHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
