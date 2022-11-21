@@ -15,10 +15,14 @@ use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
+use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Bucket\CreateDropBucketTest;
 use LogicException;
@@ -239,5 +243,40 @@ class BaseCase extends TestCase
         );
 
         return $result;
+    }
+
+    protected function getWorkspaceId(): string
+    {
+        return substr(md5($this->getName()), 0, 9) . '_test';
+    }
+
+    /**
+     * @return array{GenericBackendCredentials, CreateWorkspaceResponse}
+     */
+    protected function createTestWorkspace(
+        GenericBackendCredentials $projectCredentials,
+        CreateProjectResponse $projectResponse
+    ): array {
+        $handler = new CreateWorkspaceHandler($this->clientManager);
+        $command = (new CreateWorkspaceCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setProjectId($this->getProjectId())
+            ->setWorkspaceId($this->getWorkspaceId())
+            ->setProjectUserName($projectResponse->getProjectUserName())
+            ->setProjectRoleName($projectResponse->getProjectRoleName())
+            ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
+        $response = $handler(
+            $projectCredentials,
+            $command,
+            []
+        );
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+
+        $credentials = (new GenericBackendCredentials())
+            ->setHost($projectCredentials->getHost())
+            ->setPrincipal($response->getWorkspaceUserName())
+            ->setSecret($response->getWorkspacePassword())
+            ->setPort($projectCredentials->getPort());
+        return [$credentials, $response];
     }
 }
