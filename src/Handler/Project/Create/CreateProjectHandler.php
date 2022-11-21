@@ -38,6 +38,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         GCPServiceIds::IAM_SERVICE,
         GCPServiceIds::BIGQUERY_SERVICE,
         GCPServiceIds::CLOUD_BILLING_SERVICE,
+        GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
     ];
 
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
@@ -221,9 +222,14 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $bigQueryJobUserBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
 
+        $ownerBinding = new Google_Service_CloudResourceManager_Binding();
+        $ownerBinding->setMembers('serviceAccount:' . $serviceAccEmail);
+        $ownerBinding->setRole('roles/owner');
+
         $finalBinding[] = $actualPolicy->getBindings();
         $finalBinding[] = $bigQueryDataOwnerBinding;
         $finalBinding[] = $bigQueryJobUserBinding;
+        $finalBinding[] = $ownerBinding;
         $finalBinding[] = $serviceAccountCreatorBinding;
 
         $policy = new Google_Service_CloudResourceManager_Policy();
