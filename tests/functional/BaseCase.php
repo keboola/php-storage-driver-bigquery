@@ -262,8 +262,6 @@ class BaseCase extends TestCase
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($this->getProjectId())
             ->setWorkspaceId($this->getWorkspaceId())
-            ->setProjectUserName($projectResponse->getProjectUserName())
-            ->setProjectRoleName($projectResponse->getProjectRoleName())
             ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
         $response = $handler(
             $projectCredentials,
