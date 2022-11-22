@@ -10,21 +10,26 @@ use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Cloud\Storage\StorageClient;
 use Google\Cloud\Storage\StorageObject;
 use Google\Protobuf\Any;
+use Google\Protobuf\Internal\GPBType;
+use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\CloudResourceManager\Project;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
-use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\FunctionalTests\UseCase\Bucket\CreateDropBucketTest;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 
@@ -276,5 +281,69 @@ class BaseCase extends TestCase
             ->setSecret($response->getWorkspacePassword())
             ->setPort($projectCredentials->getPort());
         return [$credentials, $response];
+    }
+
+    /**
+     * @param array{columns: array<string, array<string, mixed>>, primaryKeysNames: array<int, string>} $structure
+     */
+    protected function createTable(
+        GenericBackendCredentials $credentials,
+        string $databaseName,
+        string $tableName,
+        array $structure
+    ): void {
+        $createTableHandler = new CreateTableHandler($this->clientManager);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $databaseName;
+
+        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
+        /** @var array{type: string, length: string, nullable: bool} $columnData */
+        foreach ($structure['columns'] as $columnName => $columnData) {
+            $columns[] = (new CreateTableCommand\TableColumn())
+                ->setName($columnName)
+                ->setType($columnData['type'])
+                ->setLength($columnData['length'])
+                ->setNullable($columnData['nullable']);
+        }
+
+        $createTableCommand = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns);
+
+        $createTableResponse = $createTableHandler(
+            $credentials,
+            $createTableCommand,
+            []
+        );
+
+        $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
+        $this->assertSame(ObjectType::TABLE, $createTableResponse->getObjectType());
+    }
+
+    /**
+     * @param array{columns: string, rows: array<int, string>}[] $insertGroups
+     */
+    protected function fillTableWithData(
+        GenericBackendCredentials $credentials,
+        string $databaseName,
+        string $tableName,
+        array $insertGroups
+    ): void {
+        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        foreach ($insertGroups as $insertGroup) {
+            foreach ($insertGroup['rows'] as $insertRow) {
+                $insertSql = sprintf(
+                    "INSERT INTO %s.%s\n(%s) VALUES\n(%s);",
+                    BigqueryQuote::quoteSingleIdentifier($databaseName),
+                    BigqueryQuote::quoteSingleIdentifier($tableName),
+                    $insertGroup['columns'],
+                    $insertRow
+                );
+                $inserted = $bqClient->runQuery($bqClient->query($insertSql));
+                $this->assertEquals(1, $inserted->info()['numDmlAffectedRows']);
+            }
+        }
     }
 }
