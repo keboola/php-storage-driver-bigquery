@@ -6,6 +6,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
 use Exception;
 use Google\Protobuf\Internal\Message;
+use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\GetIamPolicyRequest;
+use Google\Service\CloudResourceManager\Policy;
+use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google\Service\Iam\CreateServiceAccountKeyRequest;
+use Google\Service\Iam\CreateServiceAccountRequest;
 use Google_Service_CloudResourceManager_Binding;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Google_Service_CloudResourceManager_Policy;
@@ -64,7 +70,7 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         // create WS service acc
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
-        $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
+        $createServiceAccountRequest = new CreateServiceAccountRequest();
         $createServiceAccountRequest->setAccountId($newWsServiceAccName);
         $projectName = 'projects/' . $projectCredentials['project_id'];
         $wsServiceAcc = $serviceAccountsService->create($projectName, $createServiceAccountRequest);
@@ -79,30 +85,30 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-        $getIamPolicyRequest = new Google_Service_CloudResourceManager_GetIamPolicyRequest();
+        $getIamPolicyRequest = new GetIamPolicyRequest();
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
         $finalBinding[] = $actualPolicy->getBindings();
 
-        $bigQueryJobUserBinding = new Google_Service_CloudResourceManager_Binding();
+        $bigQueryJobUserBinding = new Binding();
         $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
         $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
         $finalBinding[] = $bigQueryJobUserBinding;
 
         // set read only access to the datasets in project
-        $bigQueryDataViewerBinding = new Google_Service_CloudResourceManager_Binding();
+        $bigQueryDataViewerBinding = new Binding();
         $bigQueryDataViewerBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
         $bigQueryDataViewerBinding->setRole(IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER);
         $finalBinding[] = $bigQueryDataViewerBinding;
 
-        $policy = new Google_Service_CloudResourceManager_Policy();
+        $policy = new Policy();
         $policy->setBindings($finalBinding);
-        $setIamPolicyRequest = new Google_Service_CloudResourceManager_SetIamPolicyRequest();
+        $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
         $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
 
         // generate credentials
         $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
-        $createServiceAccountKeyRequest = new Google_Service_Iam_CreateServiceAccountKeyRequest();
+        $createServiceAccountKeyRequest = new CreateServiceAccountKeyRequest();
         $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
         $key = $serviceAccKeysService->create($wsServiceAcc->getName(), $createServiceAccountKeyRequest);
         $json = base64_decode($key->getPrivateKeyData());
