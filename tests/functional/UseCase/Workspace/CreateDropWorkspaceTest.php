@@ -4,13 +4,30 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
+use Google\Cloud\Core\Exception\ServerException;
 use Google\Cloud\Core\Exception\ServiceException;
+use Google\Protobuf\Any;
+use Google\Protobuf\Internal\GPBType;
+use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
+use Keboola\CsvOptions\CsvOptions;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
+use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
+use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -103,9 +120,7 @@ FROM
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         try {
-            $wsBqClient->runQuery($wsBqClient->query(sprintf(
-                'CREATE SCHEMA `should_fail`',
-            )));
+            $this->createBucketInProject($credentials, 'should_fail');
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
             $this->assertSame(403, $exception->getCode());
@@ -115,19 +130,37 @@ FROM
             );
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
-            'CREATE SCHEMA `testReadOnlySchema`;',
-        )));
+        $bucketName = 'testReadOnlySchema';
+        $tableName = 'testTable';
 
-        $bqClient->runQuery($bqClient->query(sprintf(
-            'CREATE TABLE `testReadOnlySchema`.`testTable` (`id` INTEGER);',
-        )));
+        $bucketDatasetName = $this->createBucketInProject($this->projectCredentials, $bucketName);
+        $this->createNonEmptyTableInBucket($bucketDatasetName, $tableName);
 
-        $bqClient->runQuery($bqClient->query(sprintf(
-            'INSERT `testReadOnlySchema`.`testTable` (`id`) VALUES (1), (2), (3);',
-        )));
+        // FILL DATA
+        $insertGroups = [
+            [
+                'columns' => '`id`',
+                'rows' => [
+                    '4',
+                    '5',
+                    '6',
+                ],
+            ],
+        ];
 
-        $result = $wsBqClient->runQuery($wsBqClient->query('SELECT * FROM `testReadOnlySchema`.`testTable`;'));
+        try {
+            $this->fillTableWithData($credentials, $bucketDatasetName, $tableName, $insertGroups);
+            $this->fail('Insert to read only table should failed');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('Access Denied: ', $e->getMessage());
+        }
+
+        $result = $wsBqClient->runQuery($wsBqClient->query(sprintf(
+            'SELECT * FROM %s.%s;',
+            BigqueryQuote::quoteSingleIdentifier($bucketName),
+            BigqueryQuote::quoteSingleIdentifier($tableName)
+        )));
 
         $this->assertCount(3, $result);
         // try to create table
@@ -274,5 +307,108 @@ FROM
   %s.INFORMATION_SCHEMA.SCHEMATA;', BigqueryQuote::quoteSingleIdentifier($projectId))));
 
         $this->assertNull($datasets->getIterator()->current());
+    }
+
+    private function createNonEmptyTableInBucket(string $bucketDatasetName, string $tableName): void
+    {
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'col1' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                'col2' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                'col3' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                '_timestamp' => [
+                    'type' => Bigquery::TYPE_TIMESTAMP,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+            ],
+            'primaryKeysNames' => [''],
+        ];
+
+        $this->createTable($this->projectCredentials, $bucketDatasetName, $tableName, $tableStructure);
+
+        $cmd = new TableImportFromFileCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $cmd->setFileProvider(FileProvider::GCS);
+        $cmd->setFileFormat(FileFormat::CSV);
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'col1';
+        $columns[] = 'col2';
+        $columns[] = 'col3';
+        $formatOptions = new Any();
+        $formatOptions->pack(
+            (new TableImportFromFileCommand\CsvTypeOptions())
+                ->setColumnsNames($columns)
+                ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
+                ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
+                ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+        );
+        $cmd->setFormatTypeOptions($formatOptions);
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath('import')
+                ->setFileName('a_b_c-3row.csv')
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($tableName)
+        );
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupCols)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(1)
+                ->setTimestampColumn('_timestamp')
+        );
+
+        $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            []
+        );
+    }
+
+    private function createBucketInProject(GenericBackendCredentials $credentials, string $bucketName): string
+    {
+        $handler = new CreateBucketHandler($this->clientManager);
+        $command = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setProjectId($this->getProjectId())
+            ->setBucketId($bucketName);
+
+        /** @var CreateBucketResponse $bucketResponse */
+        $bucketResponse = $handler(
+            $credentials,
+            $command,
+            []
+        );
+
+        return $bucketResponse->getCreateBucketObjectName();
     }
 }
