@@ -18,6 +18,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandl
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -31,6 +32,7 @@ use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
+use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordCommand;
 use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -83,6 +85,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new CreateWorkspaceHandler($manager);
             case $command instanceof DropWorkspaceCommand:
                 return new DropWorkspaceHandler($manager);
+            case $command instanceof ResetWorkspacePasswordCommand:
+                return new ResetWorkspacePasswordHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
