@@ -35,7 +35,8 @@
         "keboola/table-backend-utils": "^1.8",
         "react/async": "^3.0",
         "keboola/db-import-export": "^1.12",
-        "symfony/polyfill-php80": "^1.26"
+        "symfony/polyfill-php80": "^1.26",
+        "keboola/retry": "^0.5.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",

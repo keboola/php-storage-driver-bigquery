@@ -87,6 +87,7 @@ class CreateDropProjectTest extends BaseCase
             GCPServiceIds::BIGQUERY_STORAGE_SERVICE,
             GCPServiceIds::SERVICE_USAGE_SERVICE,
             GCPServiceIds::CLOUD_BILLING_SERVICE,
+            GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
         ];
 
         $this->assertEqualsArrays($expectedEnabledServices, $enabledServices);
@@ -109,6 +110,7 @@ class CreateDropProjectTest extends BaseCase
             IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
             IAmPermissions::ROLES_BIGQUERY_JOB_USER,
             IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR,
+            IAmPermissions::ROLES_OWNER,
         ];
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 

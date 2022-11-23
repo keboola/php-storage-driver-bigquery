@@ -95,7 +95,7 @@ class PreviewTableTest extends BaseCase
             ],
             'primaryKeysNames' => ['id'],
         ];
-        $this->createTable($bucketDatabaseName, $tableName, $tableStructure);
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
 
         // FILL DATA
         $insertGroups = [
@@ -111,7 +111,7 @@ class PreviewTableTest extends BaseCase
                 ],
             ],
         ];
-        $this->fillTableWithData($bucketDatabaseName, $tableName, $insertGroups);
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
 
         // CHECK: all records + truncated
         $filter = [
@@ -375,7 +375,7 @@ class PreviewTableTest extends BaseCase
             ],
             'primaryKeysNames' => ['id'],
         ];
-        $this->createTable($bucketDatabaseName, $tableName, $tableStructure);
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
 
         // PREVIEW
         // empty path
@@ -437,62 +437,6 @@ class PreviewTableTest extends BaseCase
                 'Data type %s not recognized. Possible datatypes are',
                 DataType::DECIMAL
             ), $e->getMessage());
-        }
-    }
-
-    /**
-     * @param array{columns: array<string, array<string, mixed>>, primaryKeysNames: array<int, string>} $structure
-     */
-    private function createTable(string $databaseName, string $tableName, array $structure): void
-    {
-        $createTableHandler = new CreateTableHandler($this->clientManager);
-
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $databaseName;
-
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        /** @var array{type: string, length: string, nullable: bool} $columnData */
-        foreach ($structure['columns'] as $columnName => $columnData) {
-            $columns[] = (new CreateTableCommand\TableColumn())
-                ->setName($columnName)
-                ->setType($columnData['type'])
-                ->setLength($columnData['length'])
-                ->setNullable($columnData['nullable']);
-        }
-
-        $createTableCommand = (new CreateTableCommand())
-            ->setPath($path)
-            ->setTableName($tableName)
-            ->setColumns($columns);
-
-        $createTableResponse = $createTableHandler(
-            $this->projectCredentials,
-            $createTableCommand,
-            []
-        );
-
-        $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
-        $this->assertSame(ObjectType::TABLE, $createTableResponse->getObjectType());
-    }
-
-    /**
-     * @param array{columns: string, rows: array<int, string>}[] $insertGroups
-     */
-    private function fillTableWithData(string $databaseName, string $tableName, array $insertGroups): void
-    {
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
-        foreach ($insertGroups as $insertGroup) {
-            foreach ($insertGroup['rows'] as $insertRow) {
-                $insertSql = sprintf(
-                    "INSERT INTO %s.%s\n(%s) VALUES\n(%s);",
-                    BigqueryQuote::quoteSingleIdentifier($databaseName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                    $insertGroup['columns'],
-                    $insertRow
-                );
-                $inserted = $bqClient->runQuery($bqClient->query($insertSql));
-                $this->assertEquals(1, $inserted->info()['numDmlAffectedRows']);
-            }
         }
     }
 

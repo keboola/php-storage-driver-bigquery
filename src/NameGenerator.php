@@ -30,4 +30,19 @@ class NameGenerator
     {
         return str_replace(['.', '-'], '_', $bucketId);
     }
+
+    public function createWorkspaceObjectNameForWorkspaceId(string $workspaceId): string
+    {
+        return str_replace('-', '_', strtoupper('workspace_' . $workspaceId));
+    }
+
+    public function createWorkspaceUserNameForWorkspaceId(string $workspaceId): string
+    {
+        return str_replace('_', '-', strtolower($this->createWorkspaceCredentialsPrefix($workspaceId)));
+    }
+
+    private function createWorkspaceCredentialsPrefix(string $workspaceId): string
+    {
+        return $this->stackPrefix . '-workspace-' . $workspaceId;
+    }
 }

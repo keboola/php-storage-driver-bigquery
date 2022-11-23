@@ -27,4 +27,18 @@ class NameGeneratorTest extends TestCase
 
         $this->assertSame('in_c_bucket', $nameGenerator->createObjectNameForBucketInProject('in.c-bucket'));
     }
+
+    public function testCreateWorkspaceObjectNameForWorkspaceId(): void
+    {
+        $nameGenerator = new NameGenerator('KBC_prefix_');
+
+        $this->assertSame('WORKSPACE_123', $nameGenerator->createWorkspaceObjectNameForWorkspaceId('123'));
+    }
+
+    public function testCreateWorkspaceUserNameForWorkspaceId(): void
+    {
+        $nameGenerator = new NameGenerator('KBC_prefix_');
+
+        $this->assertSame('kbc-prefix-workspace-123', $nameGenerator->createWorkspaceUserNameForWorkspaceId('123'));
+    }
 }
