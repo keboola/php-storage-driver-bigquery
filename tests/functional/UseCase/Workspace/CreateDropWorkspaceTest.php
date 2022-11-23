@@ -33,6 +33,9 @@ use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
 use Throwable;
 
 class CreateDropWorkspaceTest extends BaseCase
@@ -204,8 +207,18 @@ FROM
         $this->assertNull($dropResponse);
 
         try {
-            $serviceAccountsService->get(sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail));
-            $this->fail('Service account should be deleted.');
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+                if ($e->getMessage() === 'Service account should be deleted.') {
+                    return true;
+                }
+                return false;
+            });
+            $proxy = new RetryProxy($retryPolicy, new ExponentialBackOffPolicy());
+            $proxy->call(function () use ($serviceAccountsService, $projectId, $wsServiceAccEmail): void {
+                // deleting can take a while before it shows up
+                $serviceAccountsService->get(sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail));
+                $this->fail('Service account should be deleted.');
+            });
         } catch (GoogleServiceException $e) {
             $this->assertEquals(404, $e->getCode());
             $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
