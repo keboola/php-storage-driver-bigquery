@@ -39,17 +39,32 @@ final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
 
+        $tablesInDataset = $bqClient->dataset($command->getWorkspaceObjectName())->tables();
         try {
-            $tablesInDataset = $bqClient->dataset($command->getWorkspaceObjectName())->tables();
-            /** @var Table $table */
-            foreach ($tablesInDataset as $table) {
-                $table->delete();
-            }
+            /*
+             * Bigquery doesn't support something like DELETE ALL FROM SCHEMA
+             * in case if dataset not exist fetch and in case of error
+             * throw exception or return null in case of ignore error
+            */
+            $tablesInDataset->current();
         } catch (Throwable $e) {
             if (!$command->getIgnoreErrors()) {
                 throw $e;
             }
+            return null;
         }
+
+        /** @var Table $table */
+        foreach ($tablesInDataset as $table) {
+            try {
+                $table->delete();
+            } catch (Throwable $e) {
+                if (!$command->getIgnoreErrors()) {
+                    throw $e;
+                }
+            }
+        }
+
         return null;
     }
 }
