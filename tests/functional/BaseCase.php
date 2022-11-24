@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests;
 
 use Exception;
+use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Cloud\Storage\StorageClient;
@@ -13,6 +14,8 @@ use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\CloudResourceManager\Project;
+use Google\Service\Exception as GoogleServiceException;
+use Google_Service_Iam;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
@@ -345,5 +348,44 @@ class BaseCase extends TestCase
                 $this->assertEquals(1, $inserted->info()['numDmlAffectedRows']);
             }
         }
+    }
+
+    public function isTableExists(BigQueryClient $projectBqClient, string $datasetName, string $tableName): bool
+    {
+        $dataset = $projectBqClient->dataset($datasetName);
+        $table = $dataset->table($tableName);
+        return $table->exists();
+    }
+
+    public function isDatabaseExists(BigQueryClient $projectBqClient, string $datasetName): bool
+    {
+        $dataset = $projectBqClient->dataset($datasetName);
+        return $dataset->exists();
+    }
+
+    public function isUserExists(Google_Service_Iam $iamService, string $workspacePublicCredentialsPart): bool
+    {
+        /** @var array<string, string> $credentialsArr */
+        $credentialsArr = (array) json_decode($workspacePublicCredentialsPart, true, 512, JSON_THROW_ON_ERROR);
+        $serviceAccountsService = $iamService->projects_serviceAccounts;
+
+        try {
+            $serviceAcc = $serviceAccountsService->get(
+                sprintf(
+                    'projects/%s/serviceAccounts/%s',
+                    $credentialsArr['project_id'],
+                    $credentialsArr['client_email']
+                )
+            );
+        } catch (GoogleServiceException $e) {
+            if ($e->getCode() === 404) {
+                return false;
+            } else {
+                throw $e;
+            }
+        }
+
+        assert($serviceAcc !== null);
+        return true;
     }
 }
