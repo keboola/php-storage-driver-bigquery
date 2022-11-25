@@ -16,6 +16,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\CloudResourceManager\Project;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_Iam;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
@@ -387,5 +388,55 @@ class BaseCase extends TestCase
 
         assert($serviceAcc !== null);
         return true;
+    }
+
+    protected function createTestTable(
+        GenericBackendCredentials $credentials,
+        string $database,
+        ?string $tableName = null
+    ): string {
+        if ($tableName === null) {
+            $tableName = md5($this->getName()) . '_Test_table';
+        }
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+
+        $metaIsLatinEnabled = new Any();
+        $metaIsLatinEnabled->pack(
+            (new CreateTableCommand\TableColumn\TeradataTableColumnMeta())->setIsLatin(true)
+        );
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $database;
+        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
+        $columns[] = (new CreateTableCommand\TableColumn())
+            ->setName('id')
+            ->setType(Bigquery::TYPE_INTEGER);
+        $columns[] = (new CreateTableCommand\TableColumn())
+            ->setName('name')
+            ->setType(Bigquery::TYPE_STRING)
+            ->setLength('50')
+            ->setNullable(true)
+            ->setDefault("'Some Default'");
+        $columns[] = (new CreateTableCommand\TableColumn())
+            ->setName('large')
+            ->setType(Bigquery::TYPE_STRING)
+            ->setLength('10000')
+            ->setMeta($metaIsLatinEnabled);
+        $primaryKeysNames = new RepeatedField(GPBType::STRING);
+        $primaryKeysNames[] = 'id';
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns)
+            ->setPrimaryKeysNames($primaryKeysNames);
+
+        $handler(
+            $credentials,
+            $command,
+            []
+        );
+        return $tableName;
     }
 }

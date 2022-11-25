@@ -9,6 +9,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
@@ -26,6 +27,7 @@ use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
+use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
@@ -99,6 +101,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new ClearWorkspaceHandler($manager);
             case $command instanceof DropWorkspaceObjectCommand:
                 return new DropWorkspaceObjectHandler($manager);
+            case $command instanceof ObjectInfoCommand:
+                return new ObjectInfoHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
