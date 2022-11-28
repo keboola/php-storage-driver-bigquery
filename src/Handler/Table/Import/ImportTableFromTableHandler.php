@@ -11,6 +11,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
+use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -61,7 +62,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
 
         $source = $this->createSource($bqClient, $command);
-        $bigqueryImportOptions = $this->createOptions($importOptions, $credentials);
+        $bigqueryImportOptions = $this->createOptions($importOptions);
 
         $stagingTable = null;
         try {
@@ -139,8 +140,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
     }
 
     private function createOptions(
-        ImportOptions $options,
-        GenericBackendCredentials $credentials
+        ImportOptions $options
     ): BigqueryImportOptions {
         return new BigqueryImportOptions(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
@@ -168,17 +168,14 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
             $destination->getTableName()
         ))->getTableDefinition();
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
-        if ($options->getImportType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
-            // @todo dudupColumns should be pasted to destination table as primary keys to work
-            // this should change in import export lib
-            //$destinationDefinition = new TeradataTableDefinition(
-            //    $destinationRef->getSchemaName(),
-            //    $destinationRef->getTableName(),
-            //    $destinationRef->isTemporary(),
-            //    $destinationRef->getColumnsDefinitions(),
-            //    $dedupColumns,
-            //);
-            throw new LogicException('Deduplication is not implemented.');
+        if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
+            $destinationDefinition = new BigqueryTableDefinition(
+                $destinationDefinition->getSchemaName(),
+                $destinationDefinition->getTableName(),
+                $destinationDefinition->isTemporary(),
+                $destinationDefinition->getColumnsDefinitions(),
+                $dedupColumns, // add dedup columns separately as BQ has no primary keys
+            );
         }
 
         $isFullImport = $options->getImportType() === ImportType::FULL;
@@ -207,8 +204,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         // import data to destination
         $toFinalTableImporter = new FullImporter($bqClient);
         if ($importOptions->isIncremental()) {
-            throw new LogicException('Not implemented');
-            //$toFinalTableImporter = new IncrementalImporter($db);
+            $toFinalTableImporter = new IncrementalImporter($bqClient);
         }
         $importResult = $toFinalTableImporter->importToTable(
             $stagingTable,

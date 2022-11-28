@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import;
 
+use DateTime;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -123,5 +124,28 @@ class BaseImportTestCase extends BaseCase
         yield 'GZIP' => [
             TableImportFromFileCommand\CsvTypeOptions\Compression::GZIP,
         ];
+    }
+
+
+    protected function assertTimestamp(
+        BigQueryClient $bqClient,
+        string $database,
+        string $tableName
+    ): void {
+        /** @var array<string, array<string>> $timestamps */
+        $timestamps = $bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT _timestamp FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($database),
+            BigqueryQuote::quoteSingleIdentifier($tableName)
+        )))->getIterator()->current();
+        $timestamps = $timestamps['_timestamp'];
+        foreach ($timestamps as $timestamp) {
+            $this->assertNotEmpty($timestamp);
+            $this->assertEqualsWithDelta(
+                new DateTime('now'),
+                new DateTime($timestamp),
+                60 // set to 1 minute, it's important that timestamp is there
+            );
+        }
     }
 }

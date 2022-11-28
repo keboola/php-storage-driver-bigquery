@@ -26,12 +26,10 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
-use LogicException;
 
 class ImportTableFromFileTest extends BaseImportTestCase
 {
-
-    public function testImportTableFromTableFullLoadWithDeduplication(): void
+    public function testImportTableFromFileFullLoadWithDeduplication(): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -83,21 +81,16 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setTimestampColumn('_timestamp')
         );
 
-        try {
-            $handler = new ImportTableFromFileHandler($this->clientManager);
-            $handler(
-                $this->projectCredentials,
-                $cmd,
-                []
-            );
-            $this->fail('Should fail full load with deduplication is not implemented');
-            //$ref = new BigqueryTableReflection($db, $bucketDatabaseName, $destinationTableName);
-            // nothing from destination and 3 rows from source dedup to two
-            //$this->assertSame(2, $ref->getRowsCount());
-            // @todo test updated values
-        } catch (LogicException $e) {
-            $this->assertSame('Deduplication is not implemented.', $e->getMessage());
-        }
+        $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            []
+        );
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        // nothing from destination and 3 rows from source dedup to two
+        $this->assertSame(2, $ref->getRowsCount());
+        // @todo test updated values
 
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
@@ -133,7 +126,11 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $bqClient->runQuery($query);
         // init some values
         // phpcs:ignore
-        foreach ([['1', '2', '4', '2014-11-10 13:12:06.000000+00:00'], ['2', '3', '3', '2014-11-10 13:12:06.000000+00:00'], ['3', '3', '3', '2014-11-10 13:12:06.000000+00:00']] as $i) {
+        foreach ([
+                     ['1', '2', '4', '2014-11-10 13:12:06.000000+00:00'],
+                     ['2', '3', '3', '2014-11-10 13:12:06.000000+00:00'],
+                     ['3', '3', '3', '2014-11-10 13:12:06.000000+00:00'],
+                 ] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
                 $quotedValues[] = BigqueryQuote::quote($item);
@@ -149,7 +146,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         return $tableDestDef;
     }
 
-    public function testImportTableFromTableFullLoadWithoutDeduplication(): void
+    public function testImportTableFromFileFullLoadWithoutDeduplication(): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -246,13 +243,11 @@ class ImportTableFromFileTest extends BaseImportTestCase
         )));
     }
 
-
     /**
      * @return Generator<string,array{int}>
      */
     public function importCompressionProvider(): Generator
     {
-
         yield 'NO Compression' => [
             TableImportFromFileCommand\CsvTypeOptions\Compression::NONE,
         ];
@@ -264,7 +259,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     /**
      * @dataProvider importCompressionProvider
      */
-    public function testImportTableFromTableFullLoadSlicedWithoutDeduplication(int $compression): void
+    public function testImportTableFromFileFullLoadSlicedWithoutDeduplication(int $compression): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();

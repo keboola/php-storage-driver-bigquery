@@ -17,7 +17,7 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
-use LogicException;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class IncrementalImportTableFromTableTest extends BaseImportTestCase
 {
@@ -96,10 +96,10 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         );
         $bqClient->runQuery($bqClient->query($sql));
         foreach ([
-                ['1', '1', '2022-11-23 14:46:00'],
-                ['2', '2', '2022-11-23 14:47:00'],
-                ['3', '3', '2022-11-23 14:48:00'],
-            ] as $i
+                     ['1', '1', '2022-11-23 14:46:00'],
+                     ['2', '2', '2022-11-23 14:47:00'],
+                     ['3', '3', '2022-11-23 14:48:00'],
+                 ] as $i
         ) {
             $quotedValues = [];
             foreach ($i as $item) {
@@ -137,32 +137,30 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($destinationTableName)
         );
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $dedupCols[] = 'col1';
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
+                ->setDedupColumnsNames($dedupCols)
                 ->setTimestampColumn('_timestamp')
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
 
-        try {
-            $handler(
-                $this->projectCredentials,
-                $cmd,
-                []
-            );
-            $this->fail('Should fail incremental import is not implemented');
-            //$ref = new BigqueryTableReflection($db, $bucketDatabaseName, $destinationTableName);
-            // 1 row unique from source, 3 rows deduped from source and destination
-            //$this->assertSame(4, $ref->getRowsCount());
-            //$this->assertTimestamp($db, $bucketDatabaseName, $destinationTableName);
-            // @todo test updated values
-        } catch (LogicException $e) {
-            $this->assertSame('Not implemented', $e->getMessage());
-        }
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            []
+        );
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+//             1 row unique from source, 3 rows deduped from source and destination
+        $this->assertSame(4, $ref->getRowsCount());
+        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
+        // @todo test updated values
 
         // cleanup
         $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
