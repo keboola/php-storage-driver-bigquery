@@ -12,7 +12,7 @@ use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
-class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
+final class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
 {
     public GCPClientManager $clientManager;
 
