@@ -196,7 +196,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
             return [null, $importState->getResult()];
         }
 
-        $stagingTable = $this->createStateTable($destinationDefinition, $sourceMapping, $bqClient);
+        $stagingTable = $this->createStageTable($destinationDefinition, $sourceMapping, $bqClient);
         // load to staging table
         $toStageImporter = new ToStageImporter($bqClient);
         $importState = $toStageImporter->importToStagingTable(
@@ -219,7 +219,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         return [$stagingTable, $importResult];
     }
 
-    private function createStateTable(
+    private function createStageTable(
         BigqueryTableDefinition $destinationDefinition,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
         BigQueryClient $bqClient
@@ -238,8 +238,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
                 $stagingTable->getSchemaName(),
                 $stagingTable->getTableName(),
                 $stagingTable->getColumnsDefinitions(),
-                [] //<-- dont create stage table with primary keys to allow duplicates
-                // @todo maybe set primary keys if source table has them
+                [] //<-- there are no PK in BQ
             )
         ));
         return $stagingTable;
