@@ -7,6 +7,8 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import;
 use DateTime;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Timestamp;
+use Keboola\Db\ImportExport\Backend\Snowflake\Helper\DateTimeHelper;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -69,7 +71,11 @@ class BaseImportTestCase extends BaseCase
         $bqClient->runQuery($query);
         // init some values
         // phpcs:ignore
-        foreach ([['1', '2', '4', '2014-11-10 13:12:06.000000+00:00'], ['2', '3', '3', '2014-11-10 13:12:06.000000+00:00'], ['3', '3', '3', '2014-11-10 13:12:06.000000+00:00']] as $i) {
+        foreach ([
+                     ['1', '2', '4', '2014-11-10 13:12:06.000000+00:00'],
+                     ['2', '3', '3', '2014-11-10 13:12:06.000000+00:00'],
+                     ['3', '3', '3', '2014-11-10 13:12:06.000000+00:00'],
+                 ] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
                 $quotedValues[] = BigqueryQuote::quote($item);
@@ -111,13 +117,11 @@ class BaseImportTestCase extends BaseCase
         )));
     }
 
-
     /**
      * @return Generator<string,array{int}>
      */
     public function importCompressionProvider(): Generator
     {
-
         yield 'NO Compression' => [
             TableImportFromFileCommand\CsvTypeOptions\Compression::NONE,
         ];
@@ -125,7 +129,6 @@ class BaseImportTestCase extends BaseCase
             TableImportFromFileCommand\CsvTypeOptions\Compression::GZIP,
         ];
     }
-
 
     protected function assertTimestamp(
         BigQueryClient $bqClient,
@@ -147,5 +150,45 @@ class BaseImportTestCase extends BaseCase
                 60 // set to 1 minute, it's important that timestamp is there
             );
         }
+    }
+
+    /**
+     * @param string[] $columns
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchTable(
+        BigQueryClient $client,
+        string $schemaName,
+        string $tableName,
+        array $columns = []
+    ): array {
+        if (count($columns) === 0) {
+            $result = $client->runQuery($client->query(sprintf(
+                'SELECT * FROM %s.%s',
+                $schemaName,
+                $tableName
+            )));
+        } else {
+            $result = $client->runQuery($client->query(sprintf(
+                'SELECT %s FROM %s.%s',
+                implode(', ', array_map(static function ($item) {
+                    return BigqueryQuote::quoteSingleIdentifier($item);
+                }, $columns)),
+                BigqueryQuote::quoteSingleIdentifier($schemaName),
+                BigqueryQuote::quoteSingleIdentifier($tableName)
+            )));
+        }
+
+        $result = iterator_to_array($result);
+        /** @var array<int, array<string, mixed>> $result */
+        foreach ($result as &$row) {
+            foreach ($row as &$item) {
+                if ($item instanceof Timestamp) {
+                    $item = $item->get()->format(DateTimeHelper::FORMAT);
+                }
+            }
+        }
+
+        return $result;
     }
 }

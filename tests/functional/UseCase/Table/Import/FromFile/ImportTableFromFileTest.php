@@ -90,7 +90,25 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // nothing from destination and 3 rows from source dedup to two
         $this->assertSame(2, $ref->getRowsCount());
-        // @todo test updated values
+        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col2', 'col3']
+        );
+        $this->assertEqualsCanonicalizing([
+            [
+                'col1' => '5',
+                'col2' => '2',
+                'col3' => '3',
+            ],
+            [
+                'col1' => '1',
+                'col2' => '2',
+                'col3' => '3',
+            ],
+        ], $data);
 
         // cleanup
         $qb = new BigqueryTableQueryBuilder();

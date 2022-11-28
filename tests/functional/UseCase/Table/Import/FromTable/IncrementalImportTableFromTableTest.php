@@ -157,10 +157,33 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             []
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
-//             1 row unique from source, 3 rows deduped from source and destination
+        // 1 row unique from source, 3 rows deduped from source and destination
         $this->assertSame(4, $ref->getRowsCount());
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
-        // @todo test updated values
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col4']
+        );
+        $this->assertEqualsCanonicalizing([
+            [
+                0 => '1',
+                1 => '1',
+            ],
+            [
+                0 => '2',
+                1 => '2',
+            ],
+            [
+                0 => '2',
+                1 => '3',
+            ],
+            [
+                0 => '4',
+                1 => '4',
+            ],
+        ], $data);
 
         // cleanup
         $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());

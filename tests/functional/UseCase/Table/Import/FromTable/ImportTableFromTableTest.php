@@ -377,8 +377,27 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col4']
+        );
+        $this->assertEqualsCanonicalizing([
+            [
+                'col1' => '1',
+                'col4' => '1',
+            ],
+            [
+                'col1' => '3',
+                'col4' => '3',
+            ],
+            [
+                'col1' => '2',
+                'col4' => '2',
+            ],
+        ], $data);
 
         // cleanup
         $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());

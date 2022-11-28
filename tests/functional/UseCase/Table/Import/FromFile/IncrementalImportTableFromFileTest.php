@@ -90,7 +90,35 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         // 2 not unique rows from destination + 1 unique row from source
         // + 1 row which is dedup of two duplicates in source and one from destination
         $this->assertSame(4, $ref->getRowsCount());
-        // @todo test updated values
+        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col2', 'col3']
+        );
+        $this->assertEqualsCanonicalizing([
+            [
+                'col1' => '3',
+                'col2' => '3',
+                'col3' => '3',
+            ],
+            [
+                'col1' => '2',
+                'col2' => '3',
+                'col3' => '3',
+            ],
+            [
+                'col1' => '1',
+                'col2' => '2',
+                'col3' => '3',
+            ],
+            [
+                'col1' => '5',
+                'col2' => '2',
+                'col3' => '3',
+            ],
+        ], $data);
 
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
