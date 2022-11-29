@@ -43,7 +43,7 @@ class BaseImportTestCase extends BaseCase
         $this->cleanTestProject();
     }
 
-    private function createDestinationTable(
+    protected function createDestinationTable(
         string $bucketDatabaseName,
         string $destinationTableName,
         BigQueryClient $bqClient
@@ -91,7 +91,7 @@ class BaseImportTestCase extends BaseCase
         return $tableDestDef;
     }
 
-    private function createAccountsTable(
+    protected function createAccountsTable(
         BigQueryClient $bqClient,
         string $bucketDatabaseName,
         string $destinationTableName
