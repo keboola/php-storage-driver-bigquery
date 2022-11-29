@@ -168,20 +168,20 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         );
         $this->assertEqualsCanonicalizing([
             [
-                0 => '1',
-                1 => '1',
+                'col1' => '1',
+                'col4' => '1',
             ],
             [
-                0 => '2',
-                1 => '2',
+                'col1' => '2',
+                'col4' => '2',
             ],
             [
-                0 => '2',
-                1 => '3',
+                'col1' => '2',
+                'col4' => '3',
             ],
             [
-                0 => '4',
-                1 => '4',
+                'col1' => '4',
+                'col4' => '4',
             ],
         ], $data);
 
