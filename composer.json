@@ -34,7 +34,7 @@
         "google/cloud-billing": "^1.4",
         "keboola/table-backend-utils": "^1.10",
         "react/async": "^3.0",
-        "keboola/db-import-export": "^1.14",
+        "keboola/db-import-export": "^1.16",
         "symfony/polyfill-php80": "^1.26",
         "keboola/retry": "^0.5.1"
     },

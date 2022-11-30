@@ -8,9 +8,10 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
+use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
-use Keboola\Db\ImportExport\ImportOptions as ImportOptionsLib;
 use Keboola\Db\ImportExport\Storage\GCS\SourceFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
@@ -29,7 +30,6 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
-use LogicException;
 use Throwable;
 
 class ImportTableFromFileHandler implements DriverCommandHandlerInterface
@@ -89,9 +89,6 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         $bigqueryImportOptions = $this->createOptions($importOptions);
 
         $stagingTable = null;
-        if ($importOptions->getImportType() === ImportType::INCREMENTAL) {
-            throw new LogicException('Not implemented');
-        }
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
@@ -102,19 +99,16 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
             /** @var BigqueryTableDefinition $destinationDefinition */
             $destinationDefinition = $destinationRef->getTableDefinition();
             $dedupColumns = ProtobufHelper::repeatedStringToArray($importOptions->getDedupColumnsNames());
-            if ($importOptions->getImportType() === ImportOptions\DedupType::UPDATE_DUPLICATES
+            if ($importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
                 && count($dedupColumns) !== 0
             ) {
-                // @todo dudupColumns should be pasted to destination table as primary keys to work
-                // this should change in import export lib
-                //$destinationDefinition = new TeradataTableDefinition(
-                //    $destinationDefinition->getSchemaName(),
-                //    $destination->getTableName(),
-                //    $destinationDefinition->isTemporary(),
-                //    $destinationDefinition->getColumnsDefinitions(),
-                //    $dedupColumns,
-                //);
-                throw new LogicException('Deduplication is not implemented.');
+                $destinationDefinition = new BigqueryTableDefinition(
+                    $destinationDefinition->getSchemaName(),
+                    $destination->getTableName(),
+                    $destinationDefinition->isTemporary(),
+                    $destinationDefinition->getColumnsDefinitions(),
+                    $dedupColumns, // add dedup columns separately as BQ has no primary keys
+                );
             }
             // prepare staging table definition
             $stagingTable = StageTableDefinitionFactory::createStagingTableDefinition(
@@ -137,9 +131,9 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
             );
             // import data to destination
             $toFinalTableImporter = new FullImporter($bqClient);
-            //if ($importOptions->getImportType() === ImportType::INCREMENTAL) {
-            //    //$toFinalTableImporter = new IncrementalImporter($db);
-            //}
+            if ($bigqueryImportOptions->isIncremental()) {
+                $toFinalTableImporter = new IncrementalImporter($bqClient);
+            }
             $importResult = $toFinalTableImporter->importToTable(
                 $stagingTable,
                 $destinationDefinition,
@@ -207,8 +201,8 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
 
     private function createOptions(
         ImportOptions $options
-    ): ImportOptionsLib {
-        return new ImportOptionsLib(
+    ): BigqueryImportOptions {
+        return new BigqueryImportOptions(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
             $options->getImportType() === ImportType::INCREMENTAL,
             $options->getTimestampColumn() === '_timestamp',
