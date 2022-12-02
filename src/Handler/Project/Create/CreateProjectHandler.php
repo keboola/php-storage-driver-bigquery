@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Create;
 use Exception as NativeException;
 use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Cloud\ResourceManager\V3\Project;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
@@ -39,6 +40,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         GCPServiceIds::BIGQUERY_SERVICE,
         GCPServiceIds::CLOUD_BILLING_SERVICE,
         GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
+        GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
     ];
 
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
@@ -137,11 +139,20 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $publicPart = json_encode($keyData);
         assert($publicPart !== false);
 
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+        $location = 'US';// @todo ticket
+        $formattedParent = $analyticHubClient->locationName($projectCreateResult->getProjectId(), $location);
+
+        $dataExchangeId = $nameGenerator->createDataExchangeId($projectCreateResult->getProjectId());
+        $dataExchange = new DataExchange();
+        $dataExchange->setDisplayName($dataExchangeId);
+        $analyticHubClient->createDataExchange($formattedParent, $dataExchangeId, $dataExchange);
+
         return (new CreateProjectResponse())
             ->setProjectUserName($publicPart)
             ->setProjectPassword($privateKey)
             // @todo tmp until we implement readOnly in connection is required this parameter
-            ->setProjectReadOnlyRoleName('readOnly');
+            ->setProjectReadOnlyRoleName($dataExchangeId);
     }
 
     /**

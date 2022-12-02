@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery;
 
+use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Billing\V1\CloudBillingClient;
 use Google\Cloud\ResourceManager\V3\FoldersClient;
@@ -19,7 +20,7 @@ class GCPClientManager
 {
     public const SCOPES_CLOUD_PLATFORM = 'https://www.googleapis.com/auth/cloud-platform';
 
-    /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient> */
+    /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */
     private array $clients = [];
 
     /**
@@ -101,6 +102,17 @@ class GCPClientManager
         return new StorageClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
+    }
+
+    public function getAnalyticHubClient(GenericBackendCredentials $credentials): AnalyticsHubServiceClient
+    {
+        $client = new AnalyticsHubServiceClient([
+            'credentials' => CredentialsHelper::getCredentialsArray($credentials),
+        ]);
+
+        $this->clients[] = $client;
+
+        return $client;
     }
 
     public function __destruct()

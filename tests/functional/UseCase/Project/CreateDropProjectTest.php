@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
 
+use Google\ApiCore\ApiException;
 use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
@@ -88,6 +89,7 @@ class CreateDropProjectTest extends BaseCase
             GCPServiceIds::SERVICE_USAGE_SERVICE,
             GCPServiceIds::CLOUD_BILLING_SERVICE,
             GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
+            GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
         ];
 
         $this->assertEqualsArrays($expectedEnabledServices, $enabledServices);
@@ -114,9 +116,17 @@ class CreateDropProjectTest extends BaseCase
         ];
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+        $location = 'US';
+        $dataExchangeId = $response->getProjectReadOnlyRoleName();
+        $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
+        $readOnlyExchanger = $analyticHubClient->getDataExchange($formattedName);
+        $this->assertNotNull($readOnlyExchanger);
+
         $handler = new DropProjectHandler($this->clientManager);
         $command = (new DropProjectCommand())
-            ->setProjectUserName($response->getProjectUserName());
+            ->setProjectUserName($response->getProjectUserName())
+            ->setReadOnlyRoleName($response->getProjectReadOnlyRoleName());
 
         $handler(
             $this->getCredentials(),
@@ -134,6 +144,17 @@ class CreateDropProjectTest extends BaseCase
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
         $createServiceAccountRequest->setAccountId($publicPart['client_email']);
+
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+        $location = 'US';
+        $dataExchangeId = $response->getProjectReadOnlyRoleName();
+        $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
+        try {
+            $analyticHubClient->getDataExchange($formattedName)->getName();
+            $this->fail('Should fail!');
+        } catch (ApiException $e) {
+            $this->assertSame('NOT_FOUND', $e->getStatus());
+        }
 
         $this->expectException(Exception::class);
         $this->expectExceptionCode(404);
