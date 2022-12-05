@@ -12,6 +12,8 @@ use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -80,7 +82,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
             $orderByParts = [];
             /**
              * @var int $index
-             * @var PreviewTableCommand\PreviewTableOrderBy $orderBy
+             * @var OrderBy $orderBy
              */
             foreach ($command->getOrderBy() as $index => $orderBy) {
                 assert($orderBy->getColumnName() !== '', sprintf(
@@ -91,7 +93,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                 $orderByParts[] = sprintf(
                     '%s %s',
                     $this->applyDataType($quotedColumnName, $orderBy->getDataType()),
-                    $orderBy->getOrder() === PreviewTableCommand\PreviewTableOrderBy\Order::DESC ? 'DESC' : 'ASC'
+                    $orderBy->getOrder() === Order::DESC ? 'DESC' : 'ASC'
                 );
             }
             $selectTableSql .= sprintf(
