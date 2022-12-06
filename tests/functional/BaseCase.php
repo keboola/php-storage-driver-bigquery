@@ -41,6 +41,9 @@ class BaseCase extends TestCase
 {
     protected GCPClientManager $clientManager;
 
+    // to distinguish projects if you need more projects in one test case
+    protected string $projectSuffix = '';
+
     /**
      * @param array<mixed> $data
      * @param int|string $dataName
@@ -143,7 +146,7 @@ class BaseCase extends TestCase
 
     protected function getProjectId(): string
     {
-        return 'project-' . date('m-d-H-i-s');
+        return 'project-' . date('m-d-H-i-s') . $this->projectSuffix;
     }
 
     /**
