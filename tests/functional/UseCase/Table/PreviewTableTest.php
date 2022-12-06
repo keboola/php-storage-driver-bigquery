@@ -105,11 +105,13 @@ class PreviewTableTest extends BaseCase
                 'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `varchar`',
                 'rows' => [
                     "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:01', 'Variable character 1'",
+                    // chanched `time` and `varchar`
+                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', 'Variable character 2'",
                     sprintf(
-                        "2, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '%s'",
+                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '%s'",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    '3, NULL, NULL, NULL, NULL, NULL, NULL',
+                    '4, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
             ],
         ];
@@ -164,6 +166,36 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['string_value' => '100.23'],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['string_value' => '100.23456'],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['string_value' => '2022-01-01'],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['string_value' => '12:00:02.000000'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
                         'value' => ['string_value' => '200'],
                         'truncated' => false,
                     ],
@@ -190,7 +222,7 @@ class PreviewTableTest extends BaseCase
                 ],
                 [
                     'id' => [
-                        'value' => ['string_value' => '3'],
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                     'int' => [
@@ -226,33 +258,23 @@ class PreviewTableTest extends BaseCase
         // CHECK: order by
         $filter = [
             'input' => [
-                'columns' => ['id', 'int'],
+                'columns' => ['id'],
                 'orderBy' => [
                     new OrderBy([
-                        'columnName' => 'int',
+                        'columnName' => 'time',
                         'order' => Order::DESC,
+                    ]),
+                    new OrderBy([
+                        'columnName' => 'int',
+                        'order' => Order::ASC,
                     ]),
                 ],
             ],
-            'expectedColumns' => ['id', 'int'],
+            'expectedColumns' => ['id'],
             'expectedRows' => [
                 [
                     'id' => [
                         'value' => ['string_value' => '2'],
-                        'truncated' => false,
-                    ],
-                    'int' => [
-                        'value' => ['string_value' => '200'],
-                        'truncated' => false,
-                    ],
-                ],
-                [
-                    'id' => [
-                        'value' => ['string_value' => '1'],
-                        'truncated' => false,
-                    ],
-                    'int' => [
-                        'value' => ['string_value' => '100'],
                         'truncated' => false,
                     ],
                 ],
@@ -261,8 +283,16 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
-                    'int' => [
-                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                 ],
@@ -280,6 +310,10 @@ class PreviewTableTest extends BaseCase
                         'columnName' => 'date',
                         'order' => Order::ASC,
                         'dataType' => DataType::STRING,
+                    ]),
+                    new OrderBy([
+                        'columnName' => 'id',
+                        'order' => Order::ASC,
                     ]),
                 ],
             ],
@@ -300,6 +334,12 @@ class PreviewTableTest extends BaseCase
                 [
                     'id' => [
                         'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
                 ],
@@ -338,7 +378,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'int' => [
-                        'value' => ['string_value' => '200'],
+                        'value' => ['string_value' => '100'],
                         'truncated' => false,
                     ],
                 ],
