@@ -14,4 +14,5 @@ class GCPServiceIds
     public const BIGQUERY_STORAGE_SERVICE = 'bigquerystorage.googleapis.com';
     public const CLOUD_BILLING_SERVICE = 'cloudbilling.googleapis.com';
     public const CLOUD_RESOURCE_MANAGER_SERVICE = 'cloudresourcemanager.googleapis.com';
+    public const CLOUD_ANALYTIC_HUB_SERVICE = 'analyticshub.googleapis.com';
 }

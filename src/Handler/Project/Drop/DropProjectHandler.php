@@ -8,6 +8,7 @@ use Exception;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -54,6 +55,13 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         $billingInfo->setBillingEnabled(false);
 
         $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
+
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+
+        $location = GCPClientManager::DEFAULT_LOCATION;
+        $dataExchangeId = $command->getReadOnlyRoleName();
+        $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
+        $analyticHubClient->deleteDataExchange($formattedName);
 
         $formattedName = $projectsClient->projectName($projectId);
         $operationResponse = $projectsClient->deleteProject($formattedName);
