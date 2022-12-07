@@ -12,6 +12,8 @@ use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -76,15 +78,27 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
             BigqueryQuote::quoteSingleIdentifier($command->getTableName())
         );
 
-        if ($command->hasOrderBy() && $command->getOrderBy()) {
-            /** @var PreviewTableCommand\PreviewTableOrderBy $orderBy */
-            $orderBy = $command->getOrderBy();
-            assert($orderBy->getColumnName() !== '', 'PreviewTableCommand.orderBy.columnName is required');
-            $quotedColumnName = BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName());
+        if ($command->getOrderBy()->count()) {
+            $orderByParts = [];
+            /**
+             * @var int $index
+             * @var OrderBy $orderBy
+             */
+            foreach ($command->getOrderBy() as $index => $orderBy) {
+                assert($orderBy->getColumnName() !== '', sprintf(
+                    'PreviewTableCommand.orderBy.%d.columnName is required',
+                    $index,
+                ));
+                $quotedColumnName = BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName());
+                $orderByParts[] = sprintf(
+                    '%s %s',
+                    $this->applyDataType($quotedColumnName, $orderBy->getDataType()),
+                    $orderBy->getOrder() === Order::DESC ? 'DESC' : 'ASC'
+                );
+            }
             $selectTableSql .= sprintf(
-                "\nORDER BY %s %s",
-                $this->applyDataType($quotedColumnName, $orderBy->getDataType()),
-                $orderBy->getOrder() === PreviewTableCommand\PreviewTableOrderBy\Order::DESC ? 'DESC' : 'ASC'
+                "\nORDER BY %s",
+                implode(', ', $orderByParts),
             );
         }
 

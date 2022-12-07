@@ -31,7 +31,9 @@ After terraform apply ends go to the service project in folder created by terraf
 8. open keyFile.json set content of `private_key` as variable `BQ_SECRET` and remove it from json file
 9. convert key to string and save to `.env` file: `awk -v RS= '{$1=$1}1' <key_file>.json >> .env`
 10. set content on the last line of `.env` as variable `BQ_PRINCIPAL`
-
+11. go to https://console.cloud.google.com/iam-admin/iam?organizationId=[organization_id]
+12. click Grant Access and fill new principal with your email of service account (from step 4)
+13. add to new roles `Billing Account User` and `Billing Account Viewer` and click save.
 setup envs:
 ```bash
 # the id is printed by terraform at the end and it is just the numbers after `folders/`

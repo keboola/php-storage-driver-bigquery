@@ -9,21 +9,18 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
-use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
-use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Throwable;
 
 class PreviewTableTest extends BaseCase
@@ -103,11 +100,13 @@ class PreviewTableTest extends BaseCase
                 'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `varchar`',
                 'rows' => [
                     "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:01', 'Variable character 1'",
+                    // chanched `time` and `varchar`
+                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', 'Variable character 2'",
                     sprintf(
-                        "2, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '%s'",
+                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '%s'",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    '3, NULL, NULL, NULL, NULL, NULL, NULL',
+                    '4, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
             ],
         ];
@@ -117,7 +116,12 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', 'varchar'],
-                'orderBy' => ['id' => PreviewTableCommand\PreviewTableOrderBy\Order::ASC],
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => 'id',
+                        'order' => Order::ASC,
+                    ]),
+                ],
             ],
             'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', 'varchar'],
             'expectedRows' => [
@@ -157,6 +161,36 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['string_value' => '100.23'],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['string_value' => '100.23456'],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['string_value' => '2022-01-01'],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['string_value' => '12:00:02.000000'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
                         'value' => ['string_value' => '200'],
                         'truncated' => false,
                     ],
@@ -183,7 +217,7 @@ class PreviewTableTest extends BaseCase
                 ],
                 [
                     'id' => [
-                        'value' => ['string_value' => '3'],
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                     'int' => [
@@ -219,28 +253,23 @@ class PreviewTableTest extends BaseCase
         // CHECK: order by
         $filter = [
             'input' => [
-                'columns' => ['id', 'int'],
-                'orderBy' => ['int' => PreviewTableCommand\PreviewTableOrderBy\Order::DESC],
+                'columns' => ['id'],
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => 'time',
+                        'order' => Order::DESC,
+                    ]),
+                    new OrderBy([
+                        'columnName' => 'int',
+                        'order' => Order::ASC,
+                    ]),
+                ],
             ],
-            'expectedColumns' => ['id', 'int'],
+            'expectedColumns' => ['id'],
             'expectedRows' => [
                 [
                     'id' => [
                         'value' => ['string_value' => '2'],
-                        'truncated' => false,
-                    ],
-                    'int' => [
-                        'value' => ['string_value' => '200'],
-                        'truncated' => false,
-                    ],
-                ],
-                [
-                    'id' => [
-                        'value' => ['string_value' => '1'],
-                        'truncated' => false,
-                    ],
-                    'int' => [
-                        'value' => ['string_value' => '100'],
                         'truncated' => false,
                     ],
                 ],
@@ -249,8 +278,16 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
-                    'int' => [
-                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                 ],
@@ -259,18 +296,27 @@ class PreviewTableTest extends BaseCase
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
         $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
-        // CHECK: order by with dataType
+        // CHECK: order by with dataType - null value is the first because of cast to string
         $filter = [
             'input' => [
                 'columns' => ['id'],
-                'orderBy' => ['date' => PreviewTableCommand\PreviewTableOrderBy\Order::ASC],
-                'orderByDataType' => DataType::STRING,
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => 'date',
+                        'order' => Order::ASC,
+                        'dataType' => DataType::STRING,
+                    ]),
+                    new OrderBy([
+                        'columnName' => 'id',
+                        'order' => Order::ASC,
+                    ]),
+                ],
             ],
             'expectedColumns' => ['id'],
             'expectedRows' => [
                 [
                     'id' => [
-                        'value' => ['string_value' => '3'],
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                 ],
@@ -283,6 +329,12 @@ class PreviewTableTest extends BaseCase
                 [
                     'id' => [
                         'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
                 ],
@@ -295,7 +347,12 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 'columns' => ['id', 'int'],
-                'orderBy' => ['id' => PreviewTableCommand\PreviewTableOrderBy\Order::ASC],
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => 'id',
+                        'order' => Order::ASC,
+                    ]),
+                ],
                 'limit' => 2,
             ],
             'expectedColumns' => ['id', 'int'],
@@ -316,7 +373,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'int' => [
-                        'value' => ['string_value' => '200'],
+                        'value' => ['string_value' => '100'],
                         'truncated' => false,
                     ],
                 ],
@@ -417,19 +474,29 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'orderBy' => ['' => PreviewTableCommand\PreviewTableOrderBy\Order::ASC],
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => '',
+                        'order' => Order::ASC,
+                    ]),
+                ],
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
-            $this->assertStringContainsString('PreviewTableCommand.orderBy.columnName is required', $e->getMessage());
+            $this->assertStringContainsString('PreviewTableCommand.orderBy.0.columnName is required', $e->getMessage());
         }
 
         // wrong order by dataType
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'orderBy' => ['id' => PreviewTableCommand\PreviewTableOrderBy\Order::ASC],
-                'orderByDataType' => DataType::DECIMAL,
+                'orderBy' => [
+                    new OrderBy([
+                        'columnName' => 'id',
+                        'order' => Order::ASC,
+                        'dataType' => DataType::DECIMAL,
+                    ]),
+                ],
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -459,7 +526,11 @@ class PreviewTableTest extends BaseCase
 
     /**
      * @phpcs:ignore
-     * @param array{columns: array<string>, orderBy?: array<string, int>, orderByDataType?: int, limit?: int} $commandInput
+     * @param array{
+     *     columns: array<string>,
+     *     orderBy?: OrderBy[],
+     *     limit?: int
+     * } $commandInput
      */
     private function previewTable(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
     {
@@ -484,15 +555,9 @@ class PreviewTableTest extends BaseCase
         $command->setColumns($columns);
 
         if (isset($commandInput['orderBy'])) {
-            /** @var string $inputOrderByKey */
-            $inputOrderByKey = key($commandInput['orderBy']);
-            /** @var int $inputOrderByValue */
-            $inputOrderByValue = current($commandInput['orderBy']);
-            $orderBy = (new PreviewTableCommand\PreviewTableOrderBy())
-                ->setColumnName($inputOrderByKey)
-                ->setOrder($inputOrderByValue);
-            if (isset($commandInput['orderByDataType'])) {
-                $orderBy->setDataType($commandInput['orderByDataType']);
+            $orderBy = new RepeatedField(GPBType::MESSAGE, OrderBy::class);
+            foreach ($commandInput['orderBy'] as $orderByOrig) {
+                $orderBy[] = $orderByOrig;
             }
             $command->setOrderBy($orderBy);
         }
