@@ -9,13 +9,9 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
-use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
-use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
@@ -25,7 +21,6 @@ use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Throwable;
 
 class PreviewTableTest extends BaseCase
@@ -301,7 +296,7 @@ class PreviewTableTest extends BaseCase
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
         $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
-        // CHECK: order by with dataType
+        // CHECK: order by with dataType - null value is the first because of cast to string
         $filter = [
             'input' => [
                 'columns' => ['id'],
@@ -321,7 +316,7 @@ class PreviewTableTest extends BaseCase
             'expectedRows' => [
                 [
                     'id' => [
-                        'value' => ['string_value' => '3'],
+                        'value' => ['string_value' => '4'],
                         'truncated' => false,
                     ],
                 ],
