@@ -37,7 +37,8 @@ variable services {
     "serviceusage.googleapis.com",
     "iam.googleapis.com",
     "cloudbilling.googleapis.com",
-    "analyticshub.googleapis.com"
+    "analyticshub.googleapis.com",
+    "bigquery.googleapis.com",
   ]
 }
 
