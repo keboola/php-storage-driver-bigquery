@@ -343,19 +343,7 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
-        //@todo drop lisnting do not drop the linked dataset or fail, we can list all
+        //@todo drop listing do not drop the linked dataset or fail, we can list all
         // linked datasets and drop it but is not an atomic operation
-    }
-
-
-    public function tmpCreateShareRoleNameForBucket(
-        string $projectId,
-        string $bucketId
-    ): string {
-        return strtoupper(sprintf(
-            '%s_%s_SHARE',
-            str_replace('-', '_', $projectId),
-            $bucketId
-        ));
     }
 }
