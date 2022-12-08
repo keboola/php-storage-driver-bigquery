@@ -115,7 +115,7 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
-        assert($result instanceof ShareBucketResponse);
+        $this->assertInstanceOf(ShareBucketResponse::class, $result);
         $listing = $result->getBucketShareRoleName();
 
         $publicPart = (array) json_decode(
@@ -141,7 +141,7 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
-        assert($result instanceof LinkedBucketResponse);
+        $this->assertInstanceOf(LinkedBucketResponse::class, $result);
         $linkedBucketSchemaName = $result->getLinkedBucketObjectName();
 
         $handler = new CreateTableHandler($this->clientManager);
