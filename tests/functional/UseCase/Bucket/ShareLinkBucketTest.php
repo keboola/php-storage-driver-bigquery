@@ -28,6 +28,8 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 class ShareLinkBucketTest extends BaseCase
 {
+    private const TESTTABLE_BEFORE_NAME = 'TESTTABLE_BEFORE';
+    private const TESTTABLE_AFTER_NAME = 'TESTTABLE_AFTER';
     protected GenericBackendCredentials $sourceProjectCredentials;
     protected CreateProjectResponse $sourceProjectResponse;
 
@@ -76,7 +78,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())
             ->setPath($path)
-            ->setTableName('TESTTABLE_BEFORE')
+            ->setTableName(self::TESTTABLE_BEFORE_NAME)
             ->setColumns($columns);
         $handler(
             $this->sourceProjectCredentials,
@@ -151,7 +153,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())
             ->setPath($path)
-            ->setTableName('TESTTABLE_AFTER')
+            ->setTableName(self::TESTTABLE_AFTER_NAME)
             ->setColumns($columns);
         $handler(
             $this->sourceProjectCredentials,
@@ -166,11 +168,11 @@ class ShareLinkBucketTest extends BaseCase
 
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
-        $testTableBefore = $targetDataset->table('TESTTABLE_BEFORE');
+        $testTableBefore = $targetDataset->table(self::TESTTABLE_BEFORE_NAME);
         $this->assertTrue($testTableBefore->exists());
         $dataBefore = iterator_to_array($testTableBefore->rows());
 
-        $testTableAfter = $targetDataset->table('TESTTABLE_AFTER');
+        $testTableAfter = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
         $this->assertTrue($testTableAfter->exists());
         $dataAfter = iterator_to_array($testTableAfter->rows());
 
@@ -284,7 +286,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())
             ->setPath($path)
-            ->setTableName('TESTTABLE_AFTER')
+            ->setTableName(self::TESTTABLE_AFTER_NAME)
             ->setColumns($columns);
         $handler(
             $this->sourceProjectCredentials,
