@@ -119,7 +119,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $this->assertInstanceOf(ShareBucketResponse::class, $result);
         $listing = $result->getBucketShareRoleName();
-
+        $this->assertNotEmpty($listing);
         $publicPart = (array) json_decode(
             $this->targetProjectResponse->getProjectUserName(),
             true,
@@ -145,7 +145,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $this->assertInstanceOf(LinkedBucketResponse::class, $result);
         $linkedBucketSchemaName = $result->getLinkedBucketObjectName();
-
+        $this->assertNotEmpty($linkedBucketSchemaName);
         $handler = new CreateTableHandler($this->clientManager);
         $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
         $columns[] = (new CreateTableCommand\TableColumn())
