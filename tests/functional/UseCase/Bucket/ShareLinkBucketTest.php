@@ -343,7 +343,14 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
-        //@todo drop listing do not drop the linked dataset or fail, we can list all
-        // linked datasets and drop it but is not an atomic operation
+        /*
+        After unshare, big query does not link datasets (buckets) from target projects.
+        But connection ensures that sharing for a bucket that is linked cannot be disabled
+        */
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
+        $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
+        $this->assertTrue($targetDataset->exists());
+        $testTableBefore = $targetDataset->table(self::TESTTABLE_BEFORE_NAME);
+        $this->assertTrue($testTableBefore->exists());
     }
 }
