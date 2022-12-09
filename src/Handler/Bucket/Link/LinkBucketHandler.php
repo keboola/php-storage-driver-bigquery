@@ -35,10 +35,10 @@ final class LinkBucketHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof LinkBucketCommand);
 
-        assert($command->getStackPrefix() !== '');
-        assert($command->getTargetProjectId() !== '');
-        assert($command->getTargetBucketId() !== '');
-        assert($command->getSourceShareRoleName() !== '');
+        assert($command->getStackPrefix() !== '', 'LinkBucketCommand.stackPrefix must be filled in');
+        assert($command->getTargetProjectId() !== '', 'LinkBucketCommand.targetProjectId must be filled in');
+        assert($command->getTargetBucketId() !== '', 'LinkBucketCommand.targetBucketId must be filled in');
+        assert($command->getSourceShareRoleName() !== '', 'LinkBucketCommand.sourceShareRoleName must be filled in');
 
         $listing = $command->getSourceShareRoleName();
         $targetProjectId = $command->getTargetProjectId();

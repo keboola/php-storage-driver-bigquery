@@ -35,9 +35,15 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ShareBucketCommand);
 
-        assert($command->getSourceProjectId() !== '');
-        assert($command->getSourceProjectReadOnlyRoleName() !== '');
-        assert($command->getSourceBucketObjectName() !== '');
+        assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
+        assert(
+            $command->getSourceProjectReadOnlyRoleName() !== '',
+            'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in'
+        );
+        assert(
+            $command->getSourceBucketObjectName() !== '',
+            'ShareBucketCommand.sourceBucketObjectName must be filled in'
+        );
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $projectStringId = $command->getSourceProjectId();

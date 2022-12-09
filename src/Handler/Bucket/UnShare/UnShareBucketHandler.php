@@ -31,7 +31,7 @@ final class UnShareBucketHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnshareBucketCommand);
 
-        assert($command->getBucketShareRoleName() !== '');
+        assert($command->getBucketShareRoleName() !== '', 'UnlinkBucketCommand.bucketShareRoleName must be filled in');
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
 

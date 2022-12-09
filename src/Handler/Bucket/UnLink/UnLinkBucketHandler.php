@@ -31,7 +31,7 @@ final class UnLinkBucketHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnlinkBucketCommand);
 
-        assert($command->getBucketObjectName() !== '');
+        assert($command->getBucketObjectName() !== '', 'UnlinkBucketCommand.bucketObjectName must be filled in');
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
         $dataset = $bqClient->dataset($command->getBucketObjectName());
