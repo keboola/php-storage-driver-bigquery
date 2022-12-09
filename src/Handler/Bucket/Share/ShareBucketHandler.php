@@ -37,7 +37,7 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
 
         assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
         assert(
-            !str_contains($command->getSourceProjectId(), '/'),
+            str_contains($command->getSourceProjectId(), '/') === true,
             'ShareBucketCommand.sourceProjectId cannot contain "/"'
         );
         assert(
@@ -49,7 +49,7 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
             'ShareBucketCommand.sourceBucketObjectName must be filled in'
         );
         assert(
-            !str_contains($command->getSourceProjectId(), '/'),
+            str_contains($command->getSourceProjectId(), '/') === true,
             'ShareBucketCommand.sourceBucketObjectName cannot contain "/"'
         );
 
