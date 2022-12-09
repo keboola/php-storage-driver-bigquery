@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
 use Google\Cloud\Core\Exception\BadRequestException;
+use Google\Cloud\Core\Exception\ServiceException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
@@ -59,7 +60,7 @@ class ResetWorkspacePasswordTest extends BaseCase
             $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
             $this->fail('Should fail');
         } catch (Throwable $e) {
-            $this->assertInstanceOf(BadRequestException::class, $e);
+            $this->assertInstanceOf(ServiceException::class, $e);
         }
 
         // check new password
