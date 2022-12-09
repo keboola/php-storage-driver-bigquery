@@ -37,12 +37,20 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
 
         assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
         assert(
+            !str_contains($command->getSourceProjectId(), '/'),
+            'ShareBucketCommand.sourceProjectId cannot contain "/"'
+        );
+        assert(
             $command->getSourceProjectReadOnlyRoleName() !== '',
             'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in'
         );
         assert(
             $command->getSourceBucketObjectName() !== '',
             'ShareBucketCommand.sourceBucketObjectName must be filled in'
+        );
+        assert(
+            !str_contains($command->getSourceProjectId(), '/'),
+            'ShareBucketCommand.sourceBucketObjectName cannot contain "/"'
         );
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);

@@ -86,8 +86,9 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
-            'INSERT INTO %s.`TESTTABLE_BEFORE` (`ID`) VALUES (1)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName)
+            'INSERT INTO %s.%s (`ID`) VALUES (1)',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
         )));
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
@@ -162,8 +163,9 @@ class ShareLinkBucketTest extends BaseCase
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
-            'INSERT INTO %s.`TESTTABLE_AFTER` (`ID`) VALUES (1)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName)
+            'INSERT INTO %s.%s (`ID`) VALUES (1)',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_AFTER_NAME),
         )));
 
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
@@ -295,8 +297,9 @@ class ShareLinkBucketTest extends BaseCase
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
-            'INSERT INTO %s.`TESTTABLE_AFTER` (`ID`) VALUES (1)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName)
+            'INSERT INTO %s.%s (`ID`) VALUES (1)',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_AFTER_NAME),
         )));
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->getCredentials());
@@ -350,7 +353,7 @@ class ShareLinkBucketTest extends BaseCase
         $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
-        $testTableBefore = $targetDataset->table(self::TESTTABLE_BEFORE_NAME);
+        $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
         $this->assertTrue($testTableBefore->exists());
     }
 }
