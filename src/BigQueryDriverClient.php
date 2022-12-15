@@ -9,6 +9,10 @@ use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
@@ -27,6 +31,10 @@ use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -48,6 +56,7 @@ use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
 
 class BigQueryDriverClient implements ClientInterface
 {
+
     /**
      * @param string[] $features
      */
@@ -79,6 +88,14 @@ class BigQueryDriverClient implements ClientInterface
                 return new CreateBucketHandler($manager);
             case $command instanceof DropBucketCommand:
                 return new DropBucketHandle($manager);
+            case $command instanceof ShareBucketCommand:
+                return new ShareBucketHandler($manager);
+            case $command instanceof UnshareBucketCommand:
+                return new UnShareBucketHandler($manager);
+            case $command instanceof LinkBucketCommand:
+                return new LinkBucketHandler($manager);
+            case $command instanceof UnlinkBucketCommand:
+                return new UnLinkBucketHandler($manager);
             case $command instanceof CreateTableCommand:
                 return new CreateTableHandler($manager);
             case $command instanceof DropTableCommand:

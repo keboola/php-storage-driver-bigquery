@@ -45,4 +45,9 @@ class NameGenerator
     {
         return $this->stackPrefix . '-workspace-' . $workspaceId;
     }
+
+    public function createDataExchangeId(string $projectStringId): string
+    {
+        return str_replace('-', '_', $projectStringId) . '_SHARE_exchanger';
+    }
 }
