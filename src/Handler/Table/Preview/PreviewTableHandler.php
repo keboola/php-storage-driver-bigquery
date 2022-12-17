@@ -11,9 +11,14 @@ use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\TablePreviewFilterQueryBuilderFactory;
+use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -36,9 +41,15 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
     private GCPClientManager $manager;
 
-    public function __construct(GCPClientManager $manager)
-    {
+    private TablePreviewFilterQueryBuilderFactory $queryBuilderFactory;
+
+
+    public function __construct(
+        GCPClientManager $manager,
+        TablePreviewFilterQueryBuilderFactory $queryBuilderFactory
+    ) {
         $this->manager = $manager;
+        $this->queryBuilderFactory = $queryBuilderFactory;
     }
 
     /**
@@ -68,44 +79,21 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
         $columnsSql = implode(', ', array_map([BigqueryQuote::class, 'quoteSingleIdentifier'], $columns));
 
-        // TODO fulltextSearch
-        // TODO whereFilters
-        // TODO truncated: rewrite to SQL
-        $selectTableSql = sprintf(
-            "SELECT %s\nFROM %s.%s",
-            $columnsSql,
-            BigqueryQuote::quoteSingleIdentifier($databaseName),
-            BigqueryQuote::quoteSingleIdentifier($command->getTableName())
+        // build sql
+        $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $databaseName);
+        $queryBuilder = $this->queryBuilderFactory->create($bqClient, $tableInfo);
+        $queryData = $queryBuilder->buildQueryFromCommand($command, $databaseName);
+
+        /** @var array<string> $queryDataBindings */
+        $queryDataBindings = $queryData->getBindings();
+        $sql = $queryBuilder::processSqlWithBindingParameters(
+            $queryData->getQuery(),
+            $queryDataBindings,
+            $queryData->getTypes(),
         );
 
-        if ($command->getOrderBy()->count()) {
-            $orderByParts = [];
-            /**
-             * @var int $index
-             * @var OrderBy $orderBy
-             */
-            foreach ($command->getOrderBy() as $index => $orderBy) {
-                $quotedColumnName = BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName());
-                $orderByParts[] = sprintf(
-                    '%s %s',
-                    $this->applyDataType($quotedColumnName, $orderBy->getDataType()),
-                    $orderBy->getOrder() === Order::DESC ? 'DESC' : 'ASC'
-                );
-            }
-            $selectTableSql .= sprintf(
-                "\nORDER BY %s",
-                implode(', ', $orderByParts),
-            );
-        }
-
-        $selectTableSql .= sprintf(
-            ' LIMIT %d',
-            ($command->getLimit() > 0 && $command->getLimit() < self::MAX_LIMIT)
-                ? $command->getLimit()
-                : self::MAX_LIMIT
-        );
         // select table
-        $result = $bqClient->runQuery($bqClient->query($selectTableSql));
+        $result = $bqClient->runQuery($bqClient->query($sql));
 
         // set response
         $response = new PreviewTableResponse();
@@ -149,6 +137,33 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         }
         $response->setRows($rows);
         return $response;
+    }
+
+    /**
+     * fulltext search need table info data
+     */
+    private function getTableInfoResponseIfNeeded(
+        GenericBackendCredentials $credentials,
+        PreviewTableCommand $command,
+        string $databaseName
+    ): ?TableInfo {
+        if ($command->getFulltextSearch() !== '') {
+            $objectInfoHandler = (new ObjectInfoHandler($this->manager));
+            $tableInfoCommand = (new ObjectInfoCommand())
+                ->setExpectedObjectType(ObjectType::TABLE)
+                ->setPath(ProtobufHelper::arrayToRepeatedString([
+                    $databaseName,
+                    $command->getTableName(),
+                ]));
+            /** @var ObjectInfoResponse $response */
+            $response = $objectInfoHandler($credentials, $tableInfoCommand, []);
+
+            assert($response instanceof ObjectInfoResponse);
+            assert($response->getObjectType() === ObjectType::TABLE);
+
+            return $response->getTableInfo();
+        }
+        return null;
     }
 
     private function applyDataType(string $columnName, int $dataType): string
