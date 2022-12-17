@@ -14,6 +14,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
@@ -26,14 +27,21 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class IncrementalImportTableFromFileTest extends BaseImportTestCase
 {
-    public function testImportTableFromFileIncrementalLoad(): void
+    /**
+     * @dataProvider typedTablesProvider
+     */
+    public function testImportTableFromFileIncrementalLoad(bool $isTypedTable): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
 
         // create tables
-        $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        if ($isTypedTable) {
+            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        } else {
+            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        }
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
 
@@ -76,6 +84,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
                 ->setNumberOfIgnoredLines(1)
                 ->setTimestampColumn('_timestamp')
         );
