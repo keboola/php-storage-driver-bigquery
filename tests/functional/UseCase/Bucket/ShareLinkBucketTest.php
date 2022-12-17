@@ -22,6 +22,7 @@ use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -72,8 +73,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler = new CreateTableHandler($this->clientManager);
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
             ->setName('ID')
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())
@@ -148,8 +149,8 @@ class ShareLinkBucketTest extends BaseCase
         $linkedBucketSchemaName = $result->getLinkedBucketObjectName();
         $this->assertNotEmpty($linkedBucketSchemaName);
         $handler = new CreateTableHandler($this->clientManager);
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared())
             ->setName('ID')
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())
@@ -282,8 +283,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler = new CreateTableHandler($this->clientManager);
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared())
             ->setName('ID')
             ->setType(Bigquery::TYPE_INTEGER);
         $command = (new CreateTableCommand())

@@ -15,6 +15,7 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
+use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
@@ -53,26 +54,26 @@ class CreateDropTableTest extends BaseCase
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
             ->setName('id')
             ->setType(Bigquery::TYPE_INT64);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('name')
             ->setType(Bigquery::TYPE_STRING)
             ->setLength('50')
             ->setNullable(true)
             ->setDefault("'Some Default'");
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('large')
             ->setType(Bigquery::TYPE_BIGNUMERIC)
             ->setLength('76,38')
             ->setDefault('185.554');
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('ordes')
             ->setType(Bigquery::TYPE_ARRAY)
             ->setLength('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>');
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('organization')
             ->setType(Bigquery::TYPE_STRUCT)
             ->setLength('x ARRAY<INT64>');
