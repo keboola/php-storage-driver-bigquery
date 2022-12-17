@@ -16,6 +16,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use LogicException;
 
 abstract class CommonFilterQueryBuilder
 {
@@ -222,5 +223,45 @@ abstract class CommonFilterQueryBuilder
             BigqueryQuote::quoteSingleIdentifier($schemaName),
             BigqueryQuote::quoteSingleIdentifier($tableName)
         ));
+    }
+
+    /**
+     * @param list<mixed>|array<string, mixed> $bindings
+     * @param array<string, string|int> $types
+     */
+    public static function processSqlWithBindingParameters(string $sql, array $bindings, array $types): string
+    {
+        foreach ($bindings as $name => $value) {
+            assert(is_string($name));
+            assert(is_string($value) || is_numeric($value));
+            // check type
+            $type = $types[$name] ?? 'unknown';
+//            if ($type !== ParameterType::STRING) { //todo
+//                throw new LogicException(sprintf(
+//                    'Error while process SQL with bindings: type %s not supported',
+//                    $type,
+//                ));
+//            }
+
+            $count = 0;
+            $value = $type === DataType::STRING || $type === DataType::DOUBLE ? BigqueryQuote::quote((string) $value) : $value;
+            $sql = preg_replace(
+                sprintf('/:%s\b/', preg_quote((string) $name, '/')),
+                $value,
+                $sql,
+                -1,
+                $count,
+            );
+            assert(is_string($sql));
+
+            if ($count === 0) {
+                throw new LogicException(sprintf(
+                    'Errow while process SQL with bindings: binding %s not found',
+                    $name,
+                ));
+            }
+        }
+
+        return $sql;
     }
 }
