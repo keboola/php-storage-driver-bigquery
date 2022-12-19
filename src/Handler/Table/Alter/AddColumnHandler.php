@@ -42,12 +42,12 @@ final class AddColumnHandler implements DriverCommandHandlerInterface
 
         $column = $command->getColumnDefinition();
         // validate
-        assert($command->getPath()->count() === 1, 'TableColumnShared.path is required and size must equal 1');
-        assert($command->getTableName() !== '', 'TableColumnShared.tableName is required');
-        assert($column instanceof TableColumnShared, 'TableColumnShared.columnDefinition is required');
+        assert($command->getPath()->count() === 1, 'AddColumnCommand.path is required and size must equal 1');
+        assert($command->getTableName() !== '', 'AddColumnCommand.tableName is required');
+        assert($column instanceof TableColumnShared, 'AddColumnCommand.columnDefinition is required');
 
         assert($column->getNullable() === false, 'You cannot add a REQUIRED column to an existing table schema.');
-        assert($column->getDefault() === '', 'You cannot add a REQUIRED column to an existing table schema.');
+        assert($column->getDefault() === '', 'You cannot add a DEFAULT to column an existing table schema.');
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
 
         // define columns
