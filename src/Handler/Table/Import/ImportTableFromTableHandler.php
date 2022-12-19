@@ -13,9 +13,12 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
@@ -62,7 +65,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
 
         $source = $this->createSource($bqClient, $command);
-        $bigqueryImportOptions = $this->createOptions($importOptions);
+        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
 
         $stagingTable = null;
         try {
@@ -136,17 +139,6 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
             $sourceMapping->getTableName(),
             $sourceColumns,
             $sourceTableDef->getPrimaryKeysNames()
-        );
-    }
-
-    private function createOptions(
-        ImportOptions $options
-    ): BigqueryImportOptions {
-        return new BigqueryImportOptions(
-            ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
-            $options->getImportType() === ImportType::INCREMENTAL,
-            $options->getTimestampColumn() === '_timestamp',
-            $options->getNumberOfIgnoredLines()
         );
     }
 

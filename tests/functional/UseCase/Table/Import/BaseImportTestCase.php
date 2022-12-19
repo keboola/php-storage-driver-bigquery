@@ -8,6 +8,7 @@ use DateTime;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Timestamp;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Db\ImportExport\Backend\Snowflake\Helper\DateTimeHelper;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
@@ -53,7 +54,13 @@ class BaseImportTestCase extends BaseCase
             $destinationTableName,
             false,
             new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
+                new BigqueryColumn(
+                    'col1',
+                    new Bigquery(Bigquery::TYPE_STRING, [
+                        'length' => '32000',
+                        'nullable' => false,
+                    ])
+                ),
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
@@ -87,6 +94,56 @@ class BaseImportTestCase extends BaseCase
                 implode(',', $quotedValues)
             );
             $bqClient->runQuery($bqClient->query($sql));
+        }
+        return $tableDestDef;
+    }
+
+    protected function createDestinationTypedTable(
+        string $bucketDatabaseName,
+        string $destinationTableName,
+        BigQueryClient $bqClient
+    ): BigqueryTableDefinition {
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                new BigqueryColumn('col1', new Bigquery(
+                    Bigquery::TYPE_INT,
+                    []
+                )),
+                new BigqueryColumn('col2', new Bigquery(
+                    Bigquery::TYPE_BIGINT,
+                    []
+                )),
+                new BigqueryColumn('col3', new Bigquery(
+                    Bigquery::TYPE_INT,
+                    []
+                )),
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            []
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        // init some values
+        foreach ([
+            ['1', '2', '4', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
+            ['2', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
+            ['3', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')]] as $i) {
+            $queryJobConfiguration = $bqClient->query(sprintf(
+                'INSERT %s.%s (`col1`, `col2`, `col3`, `_timestamp`) VALUES (%s)',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+                implode(',', $i)
+            ));
+            $bqClient->runQuery($queryJobConfiguration);
         }
         return $tableDestDef;
     }
@@ -190,5 +247,14 @@ class BaseImportTestCase extends BaseCase
         }
 
         return $result;
+    }
+
+    /**
+     * @return Generator<string,array{boolean}>
+     */
+    public function typedTablesProvider(): Generator
+    {
+        yield 'typed ' => [true,];
+        yield 'string table ' => [false,];
     }
 }

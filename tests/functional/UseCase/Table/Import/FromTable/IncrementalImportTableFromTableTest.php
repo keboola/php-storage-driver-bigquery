@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
+use Generator;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
@@ -22,11 +24,16 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 class IncrementalImportTableFromTableTest extends BaseImportTestCase
 {
     /**
+     * @dataProvider typedTablesProvider
+     *
      * Incremental load to storage from workspace
      * This is output mapping, timestamp is updated
      */
-    public function testImportTableFromTableIncrementalLoad(): void
+    public function testImportTableFromTableIncrementalLoad(bool $isTypedTable): void
     {
+        // typed tables have to have same structure, but string tables can do the mapping
+        $sourceExtraColumn = $isTypedTable ? 'col3' : 'colX';
+
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -38,15 +45,18 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             $sourceTableName,
             false,
             new ColumnCollection([
-                new BigqueryColumn(
-                    'col1',
-                    new Bigquery(Bigquery::TYPE_STRING, [
-                        'length' => '32000',
-                        'nullable' => false,
-                    ])
-                ),
-                BigqueryColumn::createGenericColumn('col2'),
-                BigqueryColumn::createGenericColumn('col3'),
+                new BigqueryColumn('col1', new Bigquery(
+                    Bigquery::TYPE_INT,
+                    []
+                )),
+                new BigqueryColumn('col2', new Bigquery(
+                    Bigquery::TYPE_BIGINT,
+                    []
+                )),
+                new BigqueryColumn($sourceExtraColumn, new Bigquery(
+                    Bigquery::TYPE_INT,
+                    []
+                )),
             ]),
             ['col1']
         );
@@ -59,58 +69,19 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         );
         $bqClient->runQuery($bqClient->query($sql));
         foreach ([['1', '1', '3'], ['2', '2', '2'], ['2', '2', '2'], ['3', '2', '3'], ['4', '4', '4']] as $i) {
-            $quotedValues = [];
-            foreach ($i as $item) {
-                $quotedValues[] = BigqueryQuote::quote($item);
-            }
             $bqClient->runQuery($bqClient->query(sprintf(
                 'INSERT INTO %s.%s VALUES (%s)',
                 BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
                 BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $quotedValues)
+                implode(',', $i)
             )));
         }
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                new BigqueryColumn(
-                    'col1',
-                    new Bigquery(Bigquery::TYPE_STRING, [
-                        'length' => '32000',
-                        'nullable' => false,
-                    ])
-                ),
-                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
-            ]),
-            ['col1']
-        );
-        $sql = $qb->getCreateTableCommand(
-            $tableDestDef->getSchemaName(),
-            $tableDestDef->getTableName(),
-            $tableDestDef->getColumnsDefinitions(),
-            [],
-        );
-        $bqClient->runQuery($bqClient->query($sql));
-        foreach ([
-                     ['1', '1', '2022-11-23 14:46:00'],
-                     ['2', '2', '2022-11-23 14:47:00'],
-                     ['3', '3', '2022-11-23 14:48:00'],
-                 ] as $i
-        ) {
-            $quotedValues = [];
-            foreach ($i as $item) {
-                $quotedValues[] = BigqueryQuote::quote($item);
-            }
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                implode(',', $quotedValues)
-            )));
+        // create tables
+        if ($isTypedTable) {
+            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        } else {
+            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
         }
 
         $cmd = new TableImportFromTableCommand();
@@ -125,7 +96,10 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             ->setDestinationColumnName('col1');
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col2')
-            ->setDestinationColumnName('col4');
+            ->setDestinationColumnName('col2');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName($sourceExtraColumn)
+            ->setDestinationColumnName('col3');
         $cmd->setSource(
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
@@ -137,15 +111,17 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($destinationTableName)
         );
-        $dedupCols = new RepeatedField(GPBType::STRING);
-        $dedupCols[] = 'col1';
+
+        $dedupColumns = new RepeatedField(GPBType::STRING);
+        $dedupColumns[] = 'col1';
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupColumns)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setDedupColumnsNames($dedupCols)
+                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
                 ->setTimestampColumn('_timestamp')
         );
 
@@ -164,24 +140,24 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            ['col1', 'col4']
+            ['col1', 'col3']
         );
         $this->assertEqualsCanonicalizing([
             [
                 'col1' => '1',
-                'col4' => '1',
+                'col3' => '3',
             ],
             [
                 'col1' => '2',
-                'col4' => '2',
+                'col3' => '2',
             ],
             [
-                'col1' => '2',
-                'col4' => '3',
+                'col1' => '3',
+                'col3' => '3',
             ],
             [
                 'col1' => '4',
-                'col4' => '4',
+                'col3' => '4',
             ],
         ], $data);
 

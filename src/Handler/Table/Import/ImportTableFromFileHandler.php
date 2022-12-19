@@ -12,15 +12,18 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\Db\ImportExport\Storage\GCS\SourceFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -86,7 +89,7 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         $filePath = $command->getFilePath();
         assert($filePath !== null);
         $source = $this->getSourceFile($filePath, $credentials, $csvOptions, $formatOptions);
-        $bigqueryImportOptions = $this->createOptions($importOptions);
+        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
 
         $stagingTable = null;
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
@@ -196,17 +199,6 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
             $formatOptions->getSourceType() === TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE,
             ProtobufHelper::repeatedStringToArray($formatOptions->getColumnsNames()),
             [] // <-- ignore primary keys here should be deprecated
-        );
-    }
-
-    private function createOptions(
-        ImportOptions $options
-    ): BigqueryImportOptions {
-        return new BigqueryImportOptions(
-            ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
-            $options->getImportType() === ImportType::INCREMENTAL,
-            $options->getTimestampColumn() === '_timestamp',
-            $options->getNumberOfIgnoredLines(),
         );
     }
 }
