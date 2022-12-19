@@ -42,7 +42,7 @@ class TableExportFilterQueryBuilder extends CommonFilterQueryBuilder
         $this->processLimitStatement($options->getLimit(), $query);
         $this->processFromStatement($schemaName, $tableName, $query);
 
-        $sql = $query->getSQL();
+        $sql = str_replace(':', '@', $query->getSQL());
 
         /** @var string[] $types */
         $types = $query->getParameterTypes();

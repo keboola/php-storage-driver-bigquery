@@ -93,6 +93,14 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType()
             );
+            switch (true) {
+                case $filter->getDataType() === DataType::INTEGER:
+                    $value = (int) $value;
+                    break;
+                case $filter->getDataType() === DataType::REAL:
+                    $value = (float) $value;
+                    break;
+            }
         } else {
             $columnSql = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
         }
