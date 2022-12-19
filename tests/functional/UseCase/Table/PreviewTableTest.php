@@ -451,6 +451,16 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                 ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 2'],
+                        'truncated' => false,
+                    ],
+                ],
             ],
         ];
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
