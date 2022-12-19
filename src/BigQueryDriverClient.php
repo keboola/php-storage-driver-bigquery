@@ -29,6 +29,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandl
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\DropObject\DropWorkspaceObjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -113,9 +114,9 @@ class BigQueryDriverClient implements ClientInterface
             case $command instanceof TableImportFromTableCommand:
                 return new ImportTableFromTableHandler($manager);
             case $command instanceof PreviewTableCommand:
-                return new PreviewTableHandler($manager);
+                return new PreviewTableHandler($manager, new ExportQueryBuilderFactory);
             case $command instanceof TableExportToFileCommand:
-                return new ExportTableToFileHandler($manager);
+                return new ExportTableToFileHandler($manager, new ExportQueryBuilderFactory);
             case $command instanceof CreateWorkspaceCommand:
                 return new CreateWorkspaceHandler($manager);
             case $command instanceof DropWorkspaceCommand:

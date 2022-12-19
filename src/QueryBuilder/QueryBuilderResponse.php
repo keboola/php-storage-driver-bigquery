@@ -13,27 +13,20 @@ class QueryBuilderResponse
      * @var string[]
      */
     private array $types;
-    /**
-     * @var string[]
-     */
-    private array $columns;
 
     /**
      * @param string $query
      * @param list<array>|array<string, mixed> $bindings
      * @param string[] $types
-     * @param string[] $columns
      */
     public function __construct(
         string $query,
         array $bindings,
-        array $types,
-        array $columns
+        array $types
     ) {
         $this->query = $query;
         $this->bindings = $bindings;
         $this->types = $types;
-        $this->columns = $columns;
     }
 
     /**
@@ -59,13 +52,4 @@ class QueryBuilderResponse
     {
         return $this->types;
     }
-
-    /**
-     * @return string[]
-     */
-    public function getColumns(): array
-    {
-        return $this->columns;
-    }
-
 }

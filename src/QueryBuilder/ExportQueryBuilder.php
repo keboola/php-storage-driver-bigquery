@@ -5,16 +5,17 @@ namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Query\QueryException;
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\FakeConnection\FakeConnectionFactory;
 use Keboola\StorageDriver\Command\Info\TableInfo;
-use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 
-class TablePreviewFilterQueryBuilder extends CommonFilterQueryBuilder
+class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
     public const DEFAULT_CAST_SIZE = 16384;
 
@@ -31,17 +32,20 @@ class TablePreviewFilterQueryBuilder extends CommonFilterQueryBuilder
     }
 
     public function buildQueryFromCommand(
-        PreviewTableCommand $options,
-        string $schemaName
+        ExportFilters $filters,
+        RepeatedField $orderBy,
+        RepeatedField $columns,
+        string $schemaName,
+        string $tableName
     ): QueryBuilderResponse {
-        $this->assertFilterCombination($options);
+        $this->assertFilterCombination($filters);
 
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
-        $this->processChangedConditions($options->getChangeSince(), $options->getChangeUntil(), $query);
+        $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
 
         try {
-            if ($options->getFulltextSearch() !== '') {
+            if ($filters->getFulltextSearch() !== '') {
                 if ($this->tableInfo === null) {
                     throw new LogicException('tableInfo variable has to be set to use fulltextSearch');
                 }
@@ -57,14 +61,14 @@ class TablePreviewFilterQueryBuilder extends CommonFilterQueryBuilder
 
                 $this->buildFulltextFilters(
                     $query,
-                    $options->getFulltextSearch(),
+                    $filters->getFulltextSearch(),
                     $tableInfoColumns,
                 );
             } else {
-                $this->processWhereFilters($options->getWhereFilters(), $query);
+                $this->processWhereFilters($filters->getWhereFilters(), $query);
             }
 
-            $this->processOrderStatement($options->getOrderBy(), $query);
+            $this->processOrderStatement($orderBy, $query);
         } catch (QueryException $e) {
             throw new QueryBuilderException(
                 $e->getMessage(),
@@ -72,24 +76,33 @@ class TablePreviewFilterQueryBuilder extends CommonFilterQueryBuilder
             );
         }
 
-        $this->processSelectStatement(ProtobufHelper::repeatedStringToArray($options->getColumns()), $query);
-        $this->processLimitStatement($options->getLimit(), $query);
-        $this->processFromStatement($schemaName, $options->getTableName(), $query);
+        $this->processSelectStatement(ProtobufHelper::repeatedStringToArray($columns), $query);
+        $this->processLimitStatement($filters->getLimit(), $query);
+        $this->processFromStatement($schemaName, $tableName, $query);
 
         $sql = $query->getSQL();
+         $params = $query->getParameters();
+        // replace named parameters from DBAL to BQ style
+        // WHERE _timestamp < :changeSince -> WHERE _timestamp < @changeSince
+        foreach ($params as $key => $value) {
+            $sql = str_replace(
+                sprintf(":%s", $key),
+                sprintf("@%s", $key),
+                $sql
+            );
+        }
 
         /** @var string[] $types */
         $types = $query->getParameterTypes();
 
         return new QueryBuilderResponse(
             $sql,
-            $query->getParameters(),
+            $params,
             $types,
-            ProtobufHelper::repeatedStringToArray($options->getColumns()),
         );
     }
 
-    private function assertFilterCombination(PreviewTableCommand $options): void
+    private function assertFilterCombination(ExportFilters $options): void
     {
         if ($options->getFulltextSearch() !== '' && $options->getWhereFilters()->count()) {
             throw new QueryBuilderException(
@@ -106,13 +119,11 @@ class TablePreviewFilterQueryBuilder extends CommonFilterQueryBuilder
         string $fulltextSearchKey,
         array $columns
     ): void {
-        $platform = $this->connection->getDatabasePlatform();
-        assert($platform !== null);
         foreach ($columns as $column) {
             $query->orWhere(
                 $query->expr()->like(
                     BigqueryQuote::quoteSingleIdentifier($column),
-                    $platform->quoteStringLiteral("%{$fulltextSearchKey}%")
+                    BigqueryQuote::quote("%{$fulltextSearchKey}%")
                 )
             );
         }

@@ -10,8 +10,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
@@ -149,7 +148,7 @@ abstract class CommonFilterQueryBuilder
     }
 
     /**
-     * @param RepeatedField|OrderBy[] $sort
+     * @param RepeatedField|ExportOrderBy[] $sort
      */
     protected function processOrderStatement(RepeatedField $sort, QueryBuilder $query): void
     {
@@ -157,13 +156,13 @@ abstract class CommonFilterQueryBuilder
             if ($orderBy->getDataType() !== DataType::STRING) {
                 $query->addOrderBy(
                     $this->columnConverter->convertColumnByDataType($orderBy->getColumnName(), $orderBy->getDataType()),
-                    Order::name($orderBy->getOrder())
+                    ExportOrderBy\Order::name($orderBy->getOrder())
                 );
                 return;
             }
             $query->addOrderBy(
                 BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
-                Order::name($orderBy->getOrder())
+                ExportOrderBy\Order::name($orderBy->getOrder())
             );
         }
     }

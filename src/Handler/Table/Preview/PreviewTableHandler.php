@@ -12,20 +12,19 @@ use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\TablePreviewFilterQueryBuilderFactory;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 class PreviewTableHandler implements DriverCommandHandlerInterface
 {
@@ -41,12 +40,12 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
     private GCPClientManager $manager;
 
-    private TablePreviewFilterQueryBuilderFactory $queryBuilderFactory;
+    private ExportQueryBuilderFactory $queryBuilderFactory;
 
 
     public function __construct(
         GCPClientManager $manager,
-        TablePreviewFilterQueryBuilderFactory $queryBuilderFactory
+        ExportQueryBuilderFactory $queryBuilderFactory
     ) {
         $this->manager = $manager;
         $this->queryBuilderFactory = $queryBuilderFactory;
@@ -71,29 +70,32 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($command->getColumns()->count() > 0, 'PreviewTableCommand.columns is required');
 
         $bqClient = $this->manager->getBigQueryClient($credentials);
-        /** @var string $databaseName */
-        $databaseName = $command->getPath()[0];
+        /** @var string $datasetName */
+        $datasetName = $command->getPath()[0];
 
         $this->validateFilters($command);
 
         $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
-        $columnsSql = implode(', ', array_map([BigqueryQuote::class, 'quoteSingleIdentifier'], $columns));
 
         // build sql
-        $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $databaseName);
+        $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $datasetName);
         $queryBuilder = $this->queryBuilderFactory->create($bqClient, $tableInfo);
-        $queryData = $queryBuilder->buildQueryFromCommand($command, $databaseName);
+        $queryData = $queryBuilder->buildQueryFromCommand(
+            $command->getFilters(),
+            $command->getOrderBy(),
+            $command->getColumns(),
+            $datasetName,
+            $command->getTableName()
+        );
 
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
-        $sql = $queryBuilder::processSqlWithBindingParameters(
-            $queryData->getQuery(),
-            $queryDataBindings,
-            $queryData->getTypes(),
-        );
 
         // select table
-        $result = $bqClient->runQuery($bqClient->query($sql));
+        $result = $bqClient->runQuery(
+            $bqClient->query($queryData->getQuery())
+            ->parameters($queryDataBindings)
+        );
 
         // set response
         $response = new PreviewTableResponse();
@@ -147,7 +149,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         PreviewTableCommand $command,
         string $databaseName
     ): ?TableInfo {
-        if ($command->getFulltextSearch() !== '') {
+        if ($command->getFilters()->getFulltextSearch() !== '') {
             $objectInfoHandler = (new ObjectInfoHandler($this->manager));
             $tableInfoCommand = (new ObjectInfoCommand())
                 ->setExpectedObjectType(ObjectType::TABLE)
@@ -197,21 +199,22 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
         assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
 
-        assert($command->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
-        if ($command->getLimit() === 0) {
-            $command->setLimit(self::DEFAULT_LIMIT);
+        $filters = $command->getFilters();
+        assert($filters->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
+        if ($filters->getLimit() === 0) {
+            $filters->setLimit(self::DEFAULT_LIMIT);
         }
 
-        if ($command->getChangeSince() !== '') {
-            assert(is_numeric($command->getChangeSince()), 'PreviewTableCommand.changeSince must be numeric timestamp');
+        if ($filters->getChangeSince() !== '') {
+            assert(is_numeric($filters->getChangeSince()), 'PreviewTableCommand.changeSince must be numeric timestamp');
         }
-        if ($command->getChangeUntil() !== '') {
-            assert(is_numeric($command->getChangeUntil()), 'PreviewTableCommand.changeUntil must be numeric timestamp');
+        if ($filters->getChangeUntil() !== '') {
+            assert(is_numeric($filters->getChangeUntil()), 'PreviewTableCommand.changeUntil must be numeric timestamp');
         }
 
         /**
          * @var int $index
-         * @var OrderBy $orderBy
+         * @var ExportOrderBy $orderBy
          */
         foreach ($command->getOrderBy() as $index => $orderBy) {
             assert($orderBy->getColumnName() !== '', sprintf(
