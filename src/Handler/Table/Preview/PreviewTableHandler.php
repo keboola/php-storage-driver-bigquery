@@ -26,6 +26,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 {
     public const STRING_MAX_LENGTH = 50;
 
+    public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
 
     public const ALLOWED_DATA_TYPES = [
@@ -62,12 +63,11 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         /** @var string $databaseName */
         $databaseName = $command->getPath()[0];
 
-        // build sql
+        $this->validateFilters($command);
+
         $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
-        assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
         $columnsSql = implode(', ', array_map([BigqueryQuote::class, 'quoteSingleIdentifier'], $columns));
 
-        // TODO changeSince, changeUntil
         // TODO fulltextSearch
         // TODO whereFilters
         // TODO truncated: rewrite to SQL
@@ -85,10 +85,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
              * @var OrderBy $orderBy
              */
             foreach ($command->getOrderBy() as $index => $orderBy) {
-                assert($orderBy->getColumnName() !== '', sprintf(
-                    'PreviewTableCommand.orderBy.%d.columnName is required',
-                    $index,
-                ));
                 $quotedColumnName = BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName());
                 $orderByParts[] = sprintf(
                     '%s %s',
@@ -178,5 +174,35 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
             $columnName,
             self::ALLOWED_DATA_TYPES[$dataType]
         );
+    }
+
+    private function validateFilters(PreviewTableCommand $command): void
+    {
+        // build sql
+        $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
+        assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
+
+        assert($command->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
+        if ($command->getLimit() === 0) {
+            $command->setLimit(self::DEFAULT_LIMIT);
+        }
+
+        if ($command->getChangeSince() !== '') {
+            assert(is_numeric($command->getChangeSince()), 'PreviewTableCommand.changeSince must be numeric timestamp');
+        }
+        if ($command->getChangeUntil() !== '') {
+            assert(is_numeric($command->getChangeUntil()), 'PreviewTableCommand.changeUntil must be numeric timestamp');
+        }
+
+        /**
+         * @var int $index
+         * @var OrderBy $orderBy
+         */
+        foreach ($command->getOrderBy() as $index => $orderBy) {
+            assert($orderBy->getColumnName() !== '', sprintf(
+                'PreviewTableCommand.orderBy.%d.columnName is required',
+                $index,
+            ));
+        }
     }
 }

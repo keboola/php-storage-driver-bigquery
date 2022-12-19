@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Export;
 
+use Doctrine\DBAL\ParameterType;
+use Google\Api\Expr\V1beta1\Expr\Select;
 use Google\Protobuf\Internal\Message;
 use Keboola\Db\ImportExport\Backend\Bigquery\Export\Exporter;
 use Keboola\Db\ImportExport\ExportOptions as ExportOptionsLib;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\GCS\DestinationFile;
+use Keboola\Db\ImportExport\Storage\Teradata\SelectSource;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\TableExportFilterQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
@@ -23,15 +27,21 @@ use Keboola\StorageDriver\Command\Table\TableExportToFileResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Escaping\Teradata\TeradataQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use LogicException;
 
 class ExportTableToFileHandler implements DriverCommandHandlerInterface
 {
-    public GCPClientManager $clientManager;
+    private GCPClientManager $clientManager;
+    private TableExportFilterQueryBuilderFactory $queryBuilderFactory;
 
-    public function __construct(GCPClientManager $clientManager)
-    {
+    public function __construct(
+        GCPClientManager $clientManager,
+        TableExportFilterQueryBuilderFactory $queryBuilderFactory
+    ) {
         $this->clientManager = $clientManager;
+        $this->queryBuilderFactory = $queryBuilderFactory;
     }
 
     /**
@@ -76,11 +86,17 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
-
+        $queryBuilder = $this->queryBuilderFactory->create($bqClient);
         $dataset = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
-        $sourceRef = new Table(
-            $dataset,
-            $source->getTableName(),
+
+        $queryData = $queryBuilder->buildQueryFromCommand($command, $dataset, $source->getTableName());
+        /** @var array<string> $queryDataBindings */
+        $queryDataBindings = $queryData->getBindings();
+
+        $sourceRef = new SelectSource(
+            $queryData->getQuery(),
+            $queryDataBindings,
+            $queryData->getTypes(),
             $columnsToExport
         );
 
