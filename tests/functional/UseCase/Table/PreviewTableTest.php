@@ -475,6 +475,7 @@ class PreviewTableTest extends BaseCase
                         'columnsName' => 'int',
                         'operator' => Operator::ge,
                         'values' => ['100'],
+                        'dataType' => DataType::INTEGER,
                     ]),
                 ],
                 'orderBy' => [
@@ -520,16 +521,19 @@ class PreviewTableTest extends BaseCase
                         'columnsName' => 'int',
                         'operator' => Operator::gt,
                         'values' => ['100'],
+                        'dataType' => DataType::INTEGER,
                     ]),
                     new TableWhereFilter([
                         'columnsName' => 'int',
                         'operator' => Operator::lt,
                         'values' => ['210'],
+                        'dataType' => DataType::INTEGER,
                     ]),
                     new TableWhereFilter([
                         'columnsName' => 'int',
                         'operator' => Operator::eq,
                         'values' => ['99', '100', '199', '200'],
+                        'dataType' => DataType::INTEGER,
                     ]),
                 ],
                 'orderBy' => [
@@ -754,7 +758,7 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'Data type DECIMAL not recognized. Possible datatypes are',
-            $e->getMessage());
+                $e->getMessage());
         }
     }
 
