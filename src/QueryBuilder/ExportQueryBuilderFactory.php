@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 
 use Google\Cloud\BigQuery\BigQueryClient;

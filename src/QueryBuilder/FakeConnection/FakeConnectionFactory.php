@@ -57,6 +57,7 @@ class FakeConnectionFactory
             ]
         );
         return DriverManager::getConnection(
+        // @phpstan-ignore-next-line
             $params,
             $config
         );

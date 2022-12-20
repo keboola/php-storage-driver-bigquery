@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 use DateTime;
 use DateTimeZone;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Doctrine\DBAL\Query\QueryException;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -33,6 +34,7 @@ abstract class CommonFilterQueryBuilder
     ];
 
     protected BigQueryClient $bigQueryClient;
+
     protected ColumnConverter $columnConverter;
 
     public function __construct(
@@ -62,9 +64,6 @@ abstract class CommonFilterQueryBuilder
         }
     }
 
-    /**
-     * @param string $timestamp
-     */
     private function getTimestampFormatted(string $timestamp): string
     {
         return (new DateTime('@' . $timestamp, new DateTimeZone('UTC')))
@@ -152,17 +151,27 @@ abstract class CommonFilterQueryBuilder
      */
     protected function processOrderStatement(RepeatedField $sort, QueryBuilder $query): void
     {
-        foreach ($sort as $orderBy) {
-            if ($orderBy->getDataType() !== DataType::STRING) {
+        try {
+            foreach ($sort as $orderBy) {
+                if ($orderBy->getDataType() !== DataType::STRING) {
+                    $query->addOrderBy(
+                        $this->columnConverter->convertColumnByDataType(
+                            $orderBy->getColumnName(),
+                            $orderBy->getDataType()
+                        ),
+                        ExportOrderBy\Order::name($orderBy->getOrder())
+                    );
+                    return;
+                }
                 $query->addOrderBy(
-                    $this->columnConverter->convertColumnByDataType($orderBy->getColumnName(), $orderBy->getDataType()),
+                    BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
                     ExportOrderBy\Order::name($orderBy->getOrder())
                 );
-                return;
             }
-            $query->addOrderBy(
-                BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
-                ExportOrderBy\Order::name($orderBy->getOrder())
+        } catch (QueryException $e) {
+            throw new QueryBuilderException(
+                $e->getMessage(),
+                $e
             );
         }
     }
@@ -230,45 +239,5 @@ abstract class CommonFilterQueryBuilder
             BigqueryQuote::quoteSingleIdentifier($schemaName),
             BigqueryQuote::quoteSingleIdentifier($tableName)
         ));
-    }
-
-    /**
-     * @param list<mixed>|array<string, mixed> $bindings
-     * @param array<string, string|int> $types
-     */
-    public static function processSqlWithBindingParameters(string $sql, array $bindings, array $types): string
-    {
-        foreach ($bindings as $name => $value) {
-            assert(is_string($name));
-            assert(is_string($value) || is_numeric($value));
-            // check type
-            $type = $types[$name] ?? 'unknown';
-//            if ($type !== ParameterType::STRING) { //todo
-//                throw new LogicException(sprintf(
-//                    'Error while process SQL with bindings: type %s not supported',
-//                    $type,
-//                ));
-//            }
-
-            $count = 0;
-            $value = $type === DataType::STRING || $type === DataType::DOUBLE ? BigqueryQuote::quote((string) $value) : $value;
-            $sql = preg_replace(
-                sprintf('/:%s\b/', preg_quote((string) $name, '/')),
-                $value,
-                $sql,
-                -1,
-                $count,
-            );
-            assert(is_string($sql));
-
-            if ($count === 0) {
-                throw new LogicException(sprintf(
-                    'Errow while process SQL with bindings: binding %s not found',
-                    $name,
-                ));
-            }
-        }
-
-        return $sql;
     }
 }

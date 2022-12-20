@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -31,63 +33,35 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         parent::__construct($bqClient, $columnConverter);
     }
 
+    /**
+     * @throws QueryBuilderException
+     */
     public function buildQueryFromCommand(
-        ExportFilters $filters,
+        ?ExportFilters $filters,
         RepeatedField $orderBy,
         RepeatedField $columns,
         string $schemaName,
         string $tableName
     ): QueryBuilderResponse {
-        $this->assertFilterCombination($filters);
-
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
-        $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
-
-        try {
-            if ($filters->getFulltextSearch() !== '') {
-                if ($this->tableInfo === null) {
-                    throw new LogicException('tableInfo variable has to be set to use fulltextSearch');
-                }
-
-                $tableInfoColumns = [];
-                /** @var TableInfo\TableColumn $column */
-                foreach ($this->tableInfo->getColumns() as $column) {
-                    // search only in STRING types
-                    if ($this->getBasetype($column->getType()) === BaseType::STRING) {
-                        $tableInfoColumns[] = $column->getName();
-                    }
-                }
-
-                $this->buildFulltextFilters(
-                    $query,
-                    $filters->getFulltextSearch(),
-                    $tableInfoColumns,
-                );
-            } else {
-                $this->processWhereFilters($filters->getWhereFilters(), $query);
-            }
-
-            $this->processOrderStatement($orderBy, $query);
-        } catch (QueryException $e) {
-            throw new QueryBuilderException(
-                $e->getMessage(),
-                $e
-            );
+        if ($filters !== null) {
+            $this->assertFilterCombination($filters);
+            $this->processFilters($filters, $query);
         }
 
+        $this->processOrderStatement($orderBy, $query);
         $this->processSelectStatement(ProtobufHelper::repeatedStringToArray($columns), $query);
-        $this->processLimitStatement($filters->getLimit(), $query);
         $this->processFromStatement($schemaName, $tableName, $query);
 
         $sql = $query->getSQL();
-         $params = $query->getParameters();
+        $params = $query->getParameters();
         // replace named parameters from DBAL to BQ style
         // WHERE _timestamp < :changeSince -> WHERE _timestamp < @changeSince
         foreach ($params as $key => $value) {
             $sql = str_replace(
-                sprintf(":%s", $key),
-                sprintf("@%s", $key),
+                sprintf(':%s', $key),
+                sprintf('@%s', $key),
                 $sql
             );
         }
@@ -132,5 +106,40 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function getBasetype(string $type): string
     {
         return (new Bigquery($type))->getBasetype();
+    }
+
+    private function processFilters(ExportFilters $filters, QueryBuilder $query): void
+    {
+        $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
+        try {
+            if ($filters->getFulltextSearch() !== '') {
+                if ($this->tableInfo === null) {
+                    throw new LogicException('tableInfo variable has to be set to use fulltextSearch');
+                }
+
+                $tableInfoColumns = [];
+                /** @var TableInfo\TableColumn $column */
+                foreach ($this->tableInfo->getColumns() as $column) {
+                    // search only in STRING types
+                    if ($this->getBasetype($column->getType()) === BaseType::STRING) {
+                        $tableInfoColumns[] = $column->getName();
+                    }
+                }
+
+                $this->buildFulltextFilters(
+                    $query,
+                    $filters->getFulltextSearch(),
+                    $tableInfoColumns,
+                );
+            } else {
+                $this->processWhereFilters($filters->getWhereFilters(), $query);
+            }
+        } catch (QueryException $e) {
+            throw new QueryBuilderException(
+                $e->getMessage(),
+                $e
+            );
+        }
+        $this->processLimitStatement($filters->getLimit(), $query);
     }
 }

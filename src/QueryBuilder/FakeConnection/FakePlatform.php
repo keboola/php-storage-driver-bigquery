@@ -48,6 +48,7 @@ class FakePlatform extends AbstractPlatform
     /**
      * @inheritDoc
      */
+    //phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
     protected function _getCommonIntegerTypeDeclarationSQL(array $column)
     {
         throw new Exception('method is not implemented yet');

@@ -13,7 +13,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\TableExportFilterQueryBuilderFactory;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
@@ -22,8 +22,6 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
@@ -44,7 +42,7 @@ class ExportTableToFileTest extends BaseCase
 
     protected CreateBucketResponse $bucketResponse;
 
-    private TableExportFilterQueryBuilderFactory $tableExportQueryBuilderFactory;
+    private ExportQueryBuilderFactory $tableExportQueryBuilderFactory;
 
     protected function setUp(): void
     {
@@ -56,7 +54,7 @@ class ExportTableToFileTest extends BaseCase
 
         $bucketResponse = $this->createTestBucket($projectCredentials);
         $this->bucketResponse = $bucketResponse;
-        $this->tableExportQueryBuilderFactory = new TableExportFilterQueryBuilderFactory();
+        $this->tableExportQueryBuilderFactory = new ExportQueryBuilderFactory();
     }
 
     protected function tearDown(): void
@@ -385,9 +383,9 @@ class ExportTableToFileTest extends BaseCase
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
                     'orderBy' => [
-                        new OrderBy([
+                        new ImportExportShared\ExportOrderBy([
                             'columnName' => 'col1',
-                            'order' => Order::DESC,
+                            'order' => ImportExportShared\ExportOrderBy\Order::DESC,
                         ]),
                     ],
                 ]),
@@ -404,9 +402,9 @@ class ExportTableToFileTest extends BaseCase
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
                     'orderBy' => [
-                        new OrderBy([
+                        new ImportExportShared\ExportOrderBy([
                             'columnName' => 'col1',
-                            'order' => Order::DESC,
+                            'order' => ImportExportShared\ExportOrderBy\Order::DESC,
                             'dataType' => DataType::INTEGER,
                         ]),
                     ],
@@ -424,11 +422,13 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'limit' => 2,
+                    'filters' => [
+                        'limit' => 2,
+                    ],
                     'orderBy' => [
-                        new OrderBy([
+                        new ImportExportShared\ExportOrderBy([
                             'columnName' => 'col1',
-                            'order' => Order::ASC,
+                            'order' => ImportExportShared\ExportOrderBy\Order::ASC,
                             'dataType' => DataType::INTEGER,
                         ]),
                     ],
@@ -459,12 +459,14 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'col2',
-                            'operator' => Operator::ge,
-                            'values' => ['3'],
-                        ]),
+                    'filters' => [
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::ge,
+                                'values' => ['3'],
+                            ]),
+                        ],
                     ],
                 ]),
             ],
@@ -478,17 +480,19 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'col2',
-                            'operator' => Operator::ge,
-                            'values' => ['3'],
-                        ]),
-                        new TableWhereFilter([
-                            'columnsName' => 'col3',
-                            'operator' => Operator::lt,
-                            'values' => ['4'],
-                        ]),
+                    'filters' => [
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::ge,
+                                'values' => ['3'],
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'col3',
+                                'operator' => Operator::lt,
+                                'values' => ['4'],
+                            ]),
+                        ],
                     ],
                 ]),
             ],
@@ -501,19 +505,21 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'col2',
-                            'operator' => Operator::gt,
-                            'values' => ['2.9'],
-                            'dataType' => DataType::REAL,
-                        ]),
-                        new TableWhereFilter([
-                            'columnsName' => 'col2',
-                            'operator' => Operator::lt,
-                            'values' => ['3.1'],
-                            'dataType' => DataType::REAL,
-                        ]),
+                    'filters' => [
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::gt,
+                                'values' => ['2.9'],
+                                'dataType' => DataType::REAL,
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::lt,
+                                'values' => ['3.1'],
+                                'dataType' => DataType::REAL,
+                            ]),
+                        ],
                     ],
                 ]),
             ],

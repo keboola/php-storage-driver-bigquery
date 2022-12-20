@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 
 class QueryBuilderResponse
@@ -15,7 +17,6 @@ class QueryBuilderResponse
     private array $types;
 
     /**
-     * @param string $query
      * @param list<array>|array<string, mixed> $bindings
      * @param string[] $types
      */
@@ -29,9 +30,6 @@ class QueryBuilderResponse
         $this->types = $types;
     }
 
-    /**
-     * @return string
-     */
     public function getQuery(): string
     {
         return $this->query;

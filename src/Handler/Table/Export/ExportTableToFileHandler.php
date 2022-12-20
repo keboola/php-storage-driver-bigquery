@@ -72,10 +72,8 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         );
         assert($command->getFilePath() !== null, 'TableExportToFileCommand.filePath is required.');
 
-        $requestExportOptions = $command->getExportOptions();
-        $columnsToExport = $requestExportOptions && $requestExportOptions->getColumnsToExport() !== []
-            ? ProtobufHelper::repeatedStringToArray($requestExportOptions->getColumnsToExport())
-            : [];
+        $requestExportOptions = $command->getExportOptions() ?? new ExportOptions();
+        $columnsToExport = ProtobufHelper::repeatedStringToArray($requestExportOptions->getColumnsToExport());
         $exportOptions = $this->createOptions(
             $requestExportOptions
         );
@@ -85,9 +83,9 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         $datasetName = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
 
         $queryData = $queryBuilder->buildQueryFromCommand(
-            $command->getFilters(),
-            $command->getOrderBy(),
-            $command->getExportOptions()->getColumnsToExport(),
+            $requestExportOptions->getFilters(),
+            $requestExportOptions->getOrderBy(),
+            $requestExportOptions->getColumnsToExport(),
             $datasetName,
             $source->getTableName()
         );

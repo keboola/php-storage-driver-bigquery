@@ -75,8 +75,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
         $this->validateFilters($command);
 
-        $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
-
         // build sql
         $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $datasetName);
         $queryBuilder = $this->queryBuilderFactory->create($bqClient, $tableInfo);
@@ -149,7 +147,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         PreviewTableCommand $command,
         string $databaseName
     ): ?TableInfo {
-        if ($command->getFilters()->getFulltextSearch() !== '') {
+        if ($command->getFilters() !== null && $command->getFilters()->getFulltextSearch() !== '') {
             $objectInfoHandler = (new ObjectInfoHandler($this->manager));
             $tableInfoCommand = (new ObjectInfoCommand())
                 ->setExpectedObjectType(ObjectType::TABLE)
@@ -200,16 +198,24 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
 
         $filters = $command->getFilters();
-        assert($filters->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
-        if ($filters->getLimit() === 0) {
-            $filters->setLimit(self::DEFAULT_LIMIT);
-        }
+        if ($filters !== null) {
+            assert($filters->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
+            if ($filters->getLimit() === 0) {
+                $filters->setLimit(self::DEFAULT_LIMIT);
+            }
 
-        if ($filters->getChangeSince() !== '') {
-            assert(is_numeric($filters->getChangeSince()), 'PreviewTableCommand.changeSince must be numeric timestamp');
-        }
-        if ($filters->getChangeUntil() !== '') {
-            assert(is_numeric($filters->getChangeUntil()), 'PreviewTableCommand.changeUntil must be numeric timestamp');
+            if ($filters->getChangeSince() !== '') {
+                assert(
+                    is_numeric($filters->getChangeSince()),
+                    'PreviewTableCommand.changeSince must be numeric timestamp'
+                );
+            }
+            if ($filters->getChangeUntil() !== '') {
+                assert(
+                    is_numeric($filters->getChangeUntil()),
+                    'PreviewTableCommand.changeUntil must be numeric timestamp'
+                );
+            }
         }
 
         /**

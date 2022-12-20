@@ -17,11 +17,10 @@ class FakeSchemaManager extends AbstractSchemaManager
      * @throws Exception
      */
     // because of compatibility with interface
-    // phpcs:ignore SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint, SlevomatCodingStandard.TypeHints.ReturnTypeHint.MissingNativeTypeHint
+    // phpcs:ignore SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint, SlevomatCodingStandard.TypeHints.ReturnTypeHint.MissingNativeTypeHint, PSR2.Methods.MethodDeclaration.Underscore
     protected function _getPortableTableColumnDefinition($tableColumn)
     {
         throw new Exception('method is not implemented yet');
         // TODO: Implement _getPortableTableColumnDefinition() method.
     }
 }
-

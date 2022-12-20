@@ -11,32 +11,6 @@ use Doctrine\DBAL\ParameterType;
 class FakeStatement implements Statement
 {
     /**
-     * @var resource
-     */
-    private $dbh;
-
-    /**
-     * @var resource
-     */
-    private $stmt;
-
-    /**
-     * @var array<mixed>
-     */
-    private array $params = [];
-
-    private string $query;
-
-    /**
-     * @param resource $dbh database handle
-     */
-    public function __construct($dbh, string $query)
-    {
-        $this->dbh = $dbh;
-        $this->query = $query;
-    }
-
-    /**
      * @inheritDoc
      */
     public function bindValue($param, $value, $type = ParameterType::STRING): bool
@@ -49,7 +23,6 @@ class FakeStatement implements Statement
      */
     public function bindParam($param, &$variable, $type = ParameterType::STRING, $length = null): bool
     {
-        $this->params[$param] = &$variable;
         return true;
     }
 

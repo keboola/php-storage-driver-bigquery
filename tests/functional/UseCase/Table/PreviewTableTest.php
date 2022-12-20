@@ -110,8 +110,10 @@ class PreviewTableTest extends BaseCase
             [
                 'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `_timestamp`, `varchar`',
                 'rows' => [
+                    //phpcs:ignore
                     "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:01', '2022-01-01 12:00:01', 'Variable character 1'",
                     // chanched `time` and `varchar`
+                    //phpcs:ignore
                     "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:01', 'Variable character 2'",
                     sprintf(
                         "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '2022-01-01 12:00:01', '%s'",
@@ -124,320 +126,326 @@ class PreviewTableTest extends BaseCase
         $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
 
         // CHECK: all records + truncated
-//        $filter = [
-//            'input' => [
-//                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
-//                'orderBy' => [
-//                    new ExportOrderBy([
-//                        'columnName' => 'id',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                    ]),
-//                ],
-//            ],
-//            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
-//            'expectedRows' => [
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '1'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['string_value' => '100'],
-//                        'truncated' => false,
-//                    ],
-//                    'decimal' => [
-//                        'value' => ['string_value' => '100.23'],
-//                        'truncated' => false,
-//                    ],
-//                    'float' => [
-//                        'value' => ['string_value' => '100.23456'],
-//                        'truncated' => false,
-//                    ],
-//                    'date' => [
-//                        'value' => ['string_value' => '2022-01-01'],
-//                        'truncated' => false,
-//                    ],
-//                    'time' => [
-//                        'value' => ['string_value' => '12:00:01.000000'],
-//                        'truncated' => false,
-//                    ],
-//                    '_timestamp' => [
-//                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
-//                        'truncated' => false,
-//                    ],
-//                    'varchar' => [
-//                        'value' => ['string_value' => 'Variable character 1'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '2'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['string_value' => '100'],
-//                        'truncated' => false,
-//                    ],
-//                    'decimal' => [
-//                        'value' => ['string_value' => '100.23'],
-//                        'truncated' => false,
-//                    ],
-//                    'float' => [
-//                        'value' => ['string_value' => '100.23456'],
-//                        'truncated' => false,
-//                    ],
-//                    'date' => [
-//                        'value' => ['string_value' => '2022-01-01'],
-//                        'truncated' => false,
-//                    ],
-//                    'time' => [
-//                        'value' => ['string_value' => '12:00:02.000000'],
-//                        'truncated' => false,
-//                    ],
-//                    '_timestamp' => [
-//                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
-//                        'truncated' => false,
-//                    ],
-//                    'varchar' => [
-//                        'value' => ['string_value' => 'Variable character 2'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '3'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['string_value' => '200'],
-//                        'truncated' => false,
-//                    ],
-//                    'decimal' => [
-//                        'value' => ['string_value' => '200.23'],
-//                        'truncated' => false,
-//                    ],
-//                    'float' => [
-//                        'value' => ['string_value' => '200.23456'],
-//                        'truncated' => false,
-//                    ],
-//                    'date' => [
-//                        'value' => ['string_value' => '2022-01-02'],
-//                        'truncated' => false,
-//                    ],
-//                    'time' => [
-//                        'value' => ['string_value' => '12:00:02.000000'],
-//                        'truncated' => false,
-//                    ],
-//                    '_timestamp' => [
-//                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
-//                        'truncated' => false,
-//                    ],
-//                    'varchar' => [
-//                        'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongSt'],
-//                        'truncated' => true,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '4'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    'decimal' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    'float' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    'date' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    'time' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    '_timestamp' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                    'varchar' => [
-//                        'value' => ['null_value' => NullValue::NULL_VALUE],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//            ],
-//        ];
-//        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
-//        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
-//
-//        // CHECK: order by
-//        $filter = [
-//            'input' => [
-//                'columns' => ['id'],
-//                'orderBy' => [
-//                    new ExportOrderBy([
-//                        'columnName' => 'time',
-//                        'order' => ExportOrderBy\Order::DESC,
-//                    ]),
-//                    new ExportOrderBy([
-//                        'columnName' => 'int',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                    ]),
-//                ],
-//            ],
-//            'expectedColumns' => ['id'],
-//            'expectedRows' => [
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '2'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '3'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '1'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '4'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//            ],
-//        ];
-//        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
-//        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
-//
-//        // CHECK: order by with dataType - null value is the first because of cast to string
-//        $filter = [
-//            'input' => [
-//                'columns' => ['id'],
-//                'orderBy' => [
-//                    new ExportOrderBy([
-//                        'columnName' => 'date',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                        'dataType' => DataType::STRING,
-//                    ]),
-//                    new ExportOrderBy([
-//                        'columnName' => 'id',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                    ]),
-//                ],
-//            ],
-//            'expectedColumns' => ['id'],
-//            'expectedRows' => [
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '4'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '1'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '2'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '3'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//            ],
-//        ];
-//        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
-//        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
-//
-//        // CHECK: limit
-//        $filter = [
-//            'input' => [
-//                'columns' => ['id', 'int'],
-//                'orderBy' => [
-//                    new ExportOrderBy([
-//                        'columnName' => 'id',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                    ]),
-//                ],
-//                'limit' => 2,
-//            ],
-//            'expectedColumns' => ['id', 'int'],
-//            'expectedRows' => [
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '1'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['string_value' => '100'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '2'],
-//                        'truncated' => false,
-//                    ],
-//                    'int' => [
-//                        'value' => ['string_value' => '100'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//            ],
-//        ];
-//        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
-//        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['string_value' => '100.23'],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['string_value' => '100.23456'],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['string_value' => '2022-01-01'],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['string_value' => '12:00:01.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 1'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['string_value' => '100.23'],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['string_value' => '100.23456'],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['string_value' => '2022-01-01'],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['string_value' => '12:00:02.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '200'],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['string_value' => '200.23'],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['string_value' => '200.23456'],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['string_value' => '2022-01-02'],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['string_value' => '12:00:02.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongSt'],
+                        'truncated' => true,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '4'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'decimal' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'float' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'date' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'time' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
-        // CHECK: changedSince + changedUntil
-//        $filter = [
-//            'input' => [
-//                'columns' => ['id', '_timestamp'],
-//                'changedSince' => '1641038401',
-//                'changedUntil' => '1641038402',
-//            ],
-//            'expectedColumns' => ['id', '_timestamp'],
-//            'expectedRows' => [
-//                [
-//                    'id' => [
-//                        'value' => ['string_value' => '1'],
-//                        'truncated' => false,
-//                    ],
-//                    '_timestamp' => [
-//                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
-//                        'truncated' => false,
-//                    ],
-//                ],
-//            ],
-//        ];
-//        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
-//        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+        // CHECK: order by
+        $filter = [
+            'input' => [
+                'columns' => ['id'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'time',
+                        'order' => ExportOrderBy\Order::DESC,
+                    ]),
+                    new ExportOrderBy([
+                        'columnName' => 'int',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '4'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: order by with dataType - null value is the first because of cast to string
+        $filter = [
+            'input' => [
+                'columns' => ['id'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'date',
+                        'order' => ExportOrderBy\Order::ASC,
+                        'dataType' => DataType::STRING,
+                    ]),
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '4'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: limit
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'int'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+                'filters' => new ExportFilters([
+                    'limit' => 2,
+                ]),
+            ],
+            'expectedColumns' => ['id', 'int'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: changeSince + changeUntil
+        $filter = [
+            'input' => [
+                'columns' => ['id', '_timestamp'],
+                'filters' => new ExportFilters([
+                    'changeSince' => '1641038401',
+                    'changeUntil' => '1641038402',
+                ]),
+            ],
+            'expectedColumns' => ['id', '_timestamp'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
         // CHECK: fulltext search
         $filter = [
             'input' => [
                 'columns' => ['id', 'varchar'],
-                'fulltextSearch' => 'character',
+                'filters' => new ExportFilters([
+                    'fulltextSearch' => 'character',
+                ]),
             ],
             'expectedColumns' => ['id', 'varchar'],
             'expectedRows' => [
@@ -470,14 +478,16 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 'columns' => ['id', 'int'],
-                'whereFilters' => [
-                    new TableWhereFilter([
-                        'columnsName' => 'int',
-                        'operator' => Operator::ge,
-                        'values' => ['100'],
-                        'dataType' => DataType::INTEGER,
-                    ]),
-                ],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::ge,
+                            'values' => ['100'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -516,26 +526,28 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 'columns' => ['id', 'int'],
-                'whereFilters' => [
-                    new TableWhereFilter([
-                        'columnsName' => 'int',
-                        'operator' => Operator::gt,
-                        'values' => ['100'],
-                        'dataType' => DataType::INTEGER,
-                    ]),
-                    new TableWhereFilter([
-                        'columnsName' => 'int',
-                        'operator' => Operator::lt,
-                        'values' => ['210'],
-                        'dataType' => DataType::INTEGER,
-                    ]),
-                    new TableWhereFilter([
-                        'columnsName' => 'int',
-                        'operator' => Operator::eq,
-                        'values' => ['99', '100', '199', '200'],
-                        'dataType' => DataType::INTEGER,
-                    ]),
-                ],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::gt,
+                            'values' => ['100'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::lt,
+                            'values' => ['210'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::eq,
+                            'values' => ['99', '100', '199', '200'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -564,14 +576,16 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 'columns' => ['id', 'decimal_varchar'],
-                'whereFilters' => [
-                    new TableWhereFilter([
-                        'columnsName' => 'decimal_varchar',
-                        'operator' => Operator::eq,
-                        'values' => ['100.2'],
-                        'dataType' => DataType::REAL,
-                    ]),
-                ],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'decimal_varchar',
+                            'operator' => Operator::eq,
+                            'values' => ['100.2'],
+                            'dataType' => DataType::REAL,
+                        ]),
+                    ],
+                ]),
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -702,7 +716,7 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'changedSince' => '2022-11-01 12:00:00 UTC',
+                'changeSince' => '2022-11-01 12:00:00 UTC',
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -716,7 +730,7 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'changedUntil' => '2022-11-01 12:00:00 UTC',
+                'changeUntil' => '2022-11-01 12:00:00 UTC',
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -758,7 +772,8 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'Data type DECIMAL not recognized. Possible datatypes are',
-                $e->getMessage());
+                $e->getMessage()
+            );
         }
     }
 
@@ -783,8 +798,8 @@ class PreviewTableTest extends BaseCase
      * @phpcs:ignore
      * @param array{
      *     columns: array<string>,
-     *     orderBy?: OrderBy[],
-     *     limit?: int
+     *     orderBy?: ExportOrderBy[],
+     *     filters?: ExportFilters
      * } $commandInput
      */
     private function previewTable(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
@@ -808,26 +823,8 @@ class PreviewTableTest extends BaseCase
             $columns[] = $column;
         }
         $command->setColumns($columns);
-
-        $exportFilters = new ExportFilters;
-        if (isset($commandInput['changedSince'])) {
-            $exportFilters->setChangeSince($commandInput['changedSince']);
-        }
-
-        if (isset($commandInput['changedUntil'])) {
-            $exportFilters->setChangeUntil($commandInput['changedUntil']);
-        }
-
-        if (isset($commandInput['fulltextSearch'])) {
-            $exportFilters->setFulltextSearch($commandInput['fulltextSearch']);
-        }
-
-        if (isset($commandInput['whereFilters'])) {
-            $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
-            foreach ($commandInput['whereFilters'] as $whereFilter) {
-                $whereFilters[] = $whereFilter;
-            }
-            $exportFilters->setWhereFilters($whereFilters);
+        if (array_key_exists('filters', $commandInput)) {
+            $command->setFilters($commandInput['filters']);
         }
 
         if (isset($commandInput['orderBy'])) {
@@ -837,11 +834,6 @@ class PreviewTableTest extends BaseCase
             }
             $command->setOrderBy($orderBy);
         }
-
-        if (isset($commandInput['limit'])) {
-            $exportFilters->setLimit($commandInput['limit']);
-        }
-        $command->setFilters($exportFilters);
 
         $response = $handler(
             $this->projectCredentials,

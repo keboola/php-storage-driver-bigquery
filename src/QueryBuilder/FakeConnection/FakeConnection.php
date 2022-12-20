@@ -14,24 +14,6 @@ use Exception;
  */
 class FakeConnection implements Connection
 {
-    /** @var resource */
-    private $conn;
-
-    private array $queries = [];
-
-    /**
-     * @param mixed[]|null $options
-     */
-    public function __construct()
-    {
-        // do nothing
-    }
-
-    public function getPreparedQueries(): array
-    {
-        return $this->queries;
-    }
-
     public function query(string $sql): ArrayResult
     {
         $stmt = $this->prepare($sql);
@@ -40,9 +22,7 @@ class FakeConnection implements Connection
 
     public function prepare(string $sql): FakeStatement
     {
-        $this->queries[] = $sql;
-
-        return new FakeStatement($this->conn, $sql);
+        return new FakeStatement();
     }
 
     /**
@@ -50,6 +30,7 @@ class FakeConnection implements Connection
      */
     public function quote($value, $type = ParameterType::STRING): string
     {
+        assert(is_string($value));
         return $value;
     }
 
@@ -70,11 +51,6 @@ class FakeConnection implements Connection
     }
 
     public function beginTransaction(): bool
-    {
-        throw new Exception('method is not implemented yet');
-    }
-
-    private function inTransaction(): bool
     {
         throw new Exception('method is not implemented yet');
     }
