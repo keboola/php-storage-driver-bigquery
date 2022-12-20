@@ -48,7 +48,7 @@ abstract class CommonFilterQueryBuilder
     protected function processChangedConditions(string $changeSince, string $changeUntil, QueryBuilder $query): void
     {
         if ($changeSince !== '') {
-            $query->andWhere('"_timestamp" >= :changedSince');
+            $query->andWhere('`_timestamp` >= :changedSince');
             $query->setParameter(
                 'changedSince',
                 $this->getTimestampFormatted($changeSince),
@@ -56,7 +56,7 @@ abstract class CommonFilterQueryBuilder
         }
 
         if ($changeUntil !== '') {
-            $query->andWhere('"_timestamp" < :changedUntil');
+            $query->andWhere('`_timestamp` < :changedUntil');
             $query->setParameter(
                 'changedUntil',
                 $this->getTimestampFormatted($changeUntil),

@@ -111,12 +111,12 @@ class PreviewTableTest extends BaseCase
                 'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `_timestamp`, `varchar`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:01', '2022-01-01 12:00:01', 'Variable character 1'",
+                    "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1'",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:01', 'Variable character 2'",
+                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable character 2'",
                     sprintf(
-                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '2022-01-01 12:00:01', '%s'",
+                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
                         str_repeat('VeryLongString123456', 5)
                     ),
                     '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
@@ -160,11 +160,11 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:01.000000'],
+                        'value' => ['string_value' => '12:00:02.000000'],
                         'truncated' => false,
                     ],
                     '_timestamp' => [
-                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'value' => ['string_value' => '2022-01-01 12:00:02.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
@@ -194,11 +194,11 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:02.000000'],
+                        'value' => ['string_value' => '12:00:10.000000'],
                         'truncated' => false,
                     ],
                     '_timestamp' => [
-                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'value' => ['string_value' => '2022-01-01 12:00:10.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
@@ -228,11 +228,11 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:02.000000'],
+                        'value' => ['string_value' => '12:00:10.000000'],
                         'truncated' => false,
                     ],
                     '_timestamp' => [
-                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'value' => ['string_value' => '2022-01-01 12:00:10.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
@@ -419,7 +419,7 @@ class PreviewTableTest extends BaseCase
                 'columns' => ['id', '_timestamp'],
                 'filters' => new ExportFilters([
                     'changeSince' => '1641038401',
-                    'changeUntil' => '1641038402',
+                    'changeUntil' => '1641038403',
                 ]),
             ],
             'expectedColumns' => ['id', '_timestamp'],
@@ -430,7 +430,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     '_timestamp' => [
-                        'value' => ['string_value' => '2022-01-01 12:00:01.000000+00:00'],
+                        'value' => ['string_value' => '2022-01-01 12:00:02.000000+00:00'],
                         'truncated' => false,
                     ],
                 ],
@@ -702,7 +702,9 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'limit' => 2000,
+                'filters' => new ExportFilters([
+                    'limit' => 2000,
+                ]),
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -716,7 +718,9 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'changeSince' => '2022-11-01 12:00:00 UTC',
+                'filters' => new ExportFilters([
+                    'changeSince' => '2022-11-01 12:00:00 UTC',
+                ]),
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -730,7 +734,9 @@ class PreviewTableTest extends BaseCase
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
-                'changeUntil' => '2022-11-01 12:00:00 UTC',
+                'filters' => new ExportFilters([
+                    'changeUntil' => '2022-11-01 12:00:00 UTC',
+                ]),
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
