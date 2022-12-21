@@ -9,7 +9,6 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
-use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
@@ -17,13 +16,11 @@ use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 
 class PreviewTableHandler implements DriverCommandHandlerInterface
@@ -32,11 +29,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
     public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
-
-    public const ALLOWED_DATA_TYPES = [
-        DataType::INTEGER => Bigquery::TYPE_INTEGER,
-        DataType::BIGINT => Bigquery::TYPE_BIGINT,
-    ];
 
     private GCPClientManager $manager;
 
@@ -164,31 +156,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
             return $response->getTableInfo();
         }
         return null;
-    }
-
-    private function applyDataType(string $columnName, int $dataType): string
-    {
-        if ($dataType === DataType::STRING) {
-            return $columnName;
-        }
-        if (!array_key_exists($dataType, self::ALLOWED_DATA_TYPES)) {
-            $allowedTypesList = [];
-            foreach (self::ALLOWED_DATA_TYPES as $typeId => $typeName) {
-                $allowedTypesList[] = sprintf('%s for %s', $typeId, $typeName);
-            }
-            throw new Exception(
-                sprintf(
-                    'Data type %s not recognized. Possible datatypes are [%s]',
-                    $dataType,
-                    implode('|', $allowedTypesList)
-                )
-            );
-        }
-        return sprintf(
-            'CAST(%s AS %s)',
-            $columnName,
-            self::ALLOWED_DATA_TYPES[$dataType]
-        );
     }
 
     private function validateFilters(PreviewTableCommand $command): void
