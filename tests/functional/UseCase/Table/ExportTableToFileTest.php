@@ -351,9 +351,9 @@ class ExportTableToFileTest extends BaseCase
                 ]),
             ],
             [ // expected data
-                ['1', '2', '4'],
-                ['2', '3', '4'],
-                ['3', '3', '3'],
+                ['1', '2', '4', '2022-01-01 12:00:01 UTC'],
+                ['2', '3', '4', '2022-01-01 12:00:02 UTC'],
+                ['3', '3', '3', '2022-01-01 12:00:03 UTC'],
             ],
         ];
         yield 'gzipped csv' => [
@@ -422,9 +422,9 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'filters' => [
+                    'filters' => new ImportExportShared\ExportFilters([
                         'limit' => 2,
-                    ],
+                    ]),
                     'orderBy' => [
                         new ImportExportShared\ExportOrderBy([
                             'columnName' => 'col1',
@@ -439,27 +439,27 @@ class ExportTableToFileTest extends BaseCase
                 ['2'],
             ],
         ];
-//        // TODO how to test _timestamp column?
-//        yield 'filter changedSince + changedUntil' => [
-//            [ // input
-//                'exportOptions' => new ExportOptions([
-//                    'isCompressed' => false,
-//                    'columnsToExport' => ['col1'],
-//                    'changeSince' => '1641038401',
-//                    'changeUntil' => '1641038402',
-//                ]),
-//            ],
-//            [ // expected data
-//                ['1'],
-//                ['2'],
-//            ],
-//        ];
+        yield 'filter changedSince + changedUntil' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1', '_timestamp'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'changeSince' => '1641038401',
+                        'changeUntil' => '1641038402',
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['1','2022-01-01 12:00:01 UTC'],
+            ],
+        ];
         yield 'filter simple where' => [
             [ // input
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'filters' => [
+                    'filters' => new ImportExportShared\ExportFilters([
                         'whereFilters' => [
                             new TableWhereFilter([
                                 'columnsName' => 'col2',
@@ -467,7 +467,7 @@ class ExportTableToFileTest extends BaseCase
                                 'values' => ['3'],
                             ]),
                         ],
-                    ],
+                    ]),
                 ]),
             ],
             [ // expected data
@@ -480,7 +480,7 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'filters' => [
+                    'filters' => new ImportExportShared\ExportFilters([
                         'whereFilters' => [
                             new TableWhereFilter([
                                 'columnsName' => 'col2',
@@ -493,7 +493,7 @@ class ExportTableToFileTest extends BaseCase
                                 'values' => ['4'],
                             ]),
                         ],
-                    ],
+                    ]),
                 ]),
             ],
             [ // expected data
@@ -505,7 +505,7 @@ class ExportTableToFileTest extends BaseCase
                 'exportOptions' => new ExportOptions([
                     'isCompressed' => false,
                     'columnsToExport' => ['col1'],
-                    'filters' => [
+                    'filters' => new ImportExportShared\ExportFilters([
                         'whereFilters' => [
                             new TableWhereFilter([
                                 'columnsName' => 'col2',
@@ -520,7 +520,7 @@ class ExportTableToFileTest extends BaseCase
                                 'dataType' => DataType::REAL,
                             ]),
                         ],
-                    ],
+                    ]),
                 ]),
             ],
             [ // expected data

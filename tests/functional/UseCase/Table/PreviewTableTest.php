@@ -767,26 +767,6 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString('PreviewTableCommand.orderBy.0.columnName is required', $e->getMessage());
         }
-
-        // wrong order by dataType
-//        try {
-//            $this->previewTable($bucketDatabaseName, $tableName, [
-//                'columns' => ['id', 'int'],
-//                'orderBy' => [
-//                    new ExportOrderBy([
-//                        'columnName' => 'id',
-//                        'order' => ExportOrderBy\Order::ASC,
-//                        'dataType' => DataType::DECIMAL,
-//                    ]),
-//                ],
-//            ]);
-//            $this->fail('This should never happen');
-//        } catch (Throwable $e) {
-//            $this->assertStringContainsString(
-//                'Data type DECIMAL not recognized. Possible datatypes are',
-//                $e->getMessage()
-//            );
-//        }
     }
 
     private function dropTable(string $databaseName, string $tableName): void
