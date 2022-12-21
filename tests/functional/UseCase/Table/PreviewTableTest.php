@@ -49,7 +49,7 @@ class PreviewTableTest extends BaseCase
     protected function tearDown(): void
     {
         parent::tearDown();
-//        $this->cleanTestProject();
+        $this->cleanTestProject();
     }
 
     public function testPreviewTable(): void

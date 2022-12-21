@@ -19,8 +19,6 @@ use LogicException;
 
 class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
-    public const DEFAULT_CAST_SIZE = 16384;
-
     private ?TableInfo $tableInfo;
 
     public function __construct(
