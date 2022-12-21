@@ -30,6 +30,7 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -304,10 +305,10 @@ class BaseCase extends TestCase
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
 
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
         /** @var array{type: string, length: string, nullable: bool} $columnData */
         foreach ($structure['columns'] as $columnName => $columnData) {
-            $columns[] = (new CreateTableCommand\TableColumn())
+            $columns[] = (new TableColumnShared)
                 ->setName($columnName)
                 ->setType($columnData['type'])
                 ->setLength($columnData['length'])
@@ -405,28 +406,22 @@ class BaseCase extends TestCase
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
 
-        $metaIsLatinEnabled = new Any();
-        $metaIsLatinEnabled->pack(
-            (new CreateTableCommand\TableColumn\TeradataTableColumnMeta())->setIsLatin(true)
-        );
-
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $database;
-        $columns = new RepeatedField(GPBType::MESSAGE, CreateTableCommand\TableColumn::class);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
             ->setName('id')
             ->setType(Bigquery::TYPE_INTEGER);
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('name')
             ->setType(Bigquery::TYPE_STRING)
             ->setLength('50')
             ->setNullable(true)
             ->setDefault("'Some Default'");
-        $columns[] = (new CreateTableCommand\TableColumn())
+        $columns[] = (new TableColumnShared)
             ->setName('large')
             ->setType(Bigquery::TYPE_STRING)
-            ->setLength('10000')
-            ->setMeta($metaIsLatinEnabled);
+            ->setLength('10000');
         $primaryKeysNames = new RepeatedField(GPBType::STRING);
         $primaryKeysNames[] = 'id';
         $command = (new CreateTableCommand())
