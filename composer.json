@@ -34,7 +34,7 @@
         "google/cloud-billing": "^1.4",
         "keboola/table-backend-utils": "^1.14",
         "react/async": "^3.0",
-        "keboola/db-import-export": "dev-BQ-export-params as 1.18",
+        "keboola/db-import-export": "^1.18",
         "symfony/polyfill-php80": "^1.26",
         "keboola/retry": "^0.5.1",
         "google/cloud-bigquery-analyticshub": "^0.1.0"
