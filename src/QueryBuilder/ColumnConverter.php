@@ -11,13 +11,16 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 class ColumnConverter
 {
     public const DATA_TYPES_OPTIONS = [
+        DataType::STRING,
         DataType::INTEGER,
+        DataType::DOUBLE,
+        DataType::BIGINT,
         DataType::REAL,
+        DataType::DECIMAL,
     ];
-
     public const DATA_TYPES_MAP = [
         DataType::STRING => Bigquery::TYPE_STRING,
-        DataType::INTEGER => Bigquery::TYPE_INT64,
+        DataType::INTEGER => Bigquery::TYPE_INTEGER,
         DataType::DOUBLE => Bigquery::TYPE_NUMERIC,
         DataType::BIGINT => Bigquery::TYPE_BIGINT,
         DataType::REAL => Bigquery::TYPE_NUMERIC,
@@ -33,23 +36,18 @@ class ColumnConverter
             throw new QueryBuilderException(
                 sprintf(
                     'Data type %s not recognized. Possible datatypes are [%s]',
-                    self::DATA_TYPES_MAP[$dataType],
+                    DataType::name($dataType),
                     implode('|', array_map(
-                        static fn (int $type) => self::DATA_TYPES_MAP[$type],
+                        static fn(int $type) => self::DATA_TYPES_MAP[$type],
                         self::DATA_TYPES_OPTIONS,
                     ))
                 ),
             );
         }
-        if ($dataType === DataType::INTEGER) {
-            return sprintf(
-                'SAFE_CAST(%s AS INTEGER)',
-                BigqueryQuote::quoteSingleIdentifier($column),
-            );
-        }
         return sprintf(
-            'SAFE_CAST(%s AS NUMERIC)',
+            'SAFE_CAST(%s AS %s)',
             BigqueryQuote::quoteSingleIdentifier($column),
+            self::DATA_TYPES_MAP[$dataType]
         );
     }
 }

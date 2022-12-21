@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 
 use DateTime;
 use DateTimeZone;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Query\QueryException;
 use Google\Cloud\BigQuery\BigQueryClient;
@@ -16,7 +17,6 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
-use LogicException;
 
 abstract class CommonFilterQueryBuilder
 {
@@ -43,6 +43,25 @@ abstract class CommonFilterQueryBuilder
     ) {
         $this->bigQueryClient = $bigQueryClient;
         $this->columnConverter = $columnConverter;
+    }
+
+    /**
+     * @return float|int|string
+     */
+    private function convertNonStringValue(TableWhereFilter $filter, string $value)
+    {
+        switch (true) {
+            case $filter->getDataType() === DataType::INTEGER:
+            case $filter->getDataType() === DataType::BIGINT:
+                $value = (int) $value;
+                break;
+            case $filter->getDataType() === DataType::REAL:
+            case $filter->getDataType() === DataType::DECIMAL:
+            case $filter->getDataType() === DataType::DOUBLE:
+                $value = (float) $value;
+                break;
+        }
+        return $value;
     }
 
     protected function processChangedConditions(string $changeSince, string $changeUntil, QueryBuilder $query): void
@@ -92,14 +111,7 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType()
             );
-            switch (true) {
-                case $filter->getDataType() === DataType::INTEGER:
-                    $value = (int) $value;
-                    break;
-                case $filter->getDataType() === DataType::REAL:
-                    $value = (float) $value;
-                    break;
-            }
+            $value = $this->convertNonStringValue($filter, $value);
         } else {
             $columnSql = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
         }
@@ -130,18 +142,19 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType()
             );
+            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
+            $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
         } else {
             $columnSql = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
+            $param = $query->createNamedParameter($values, Connection::PARAM_STR_ARRAY);
         }
-
-        $quotedValues = array_map(static fn(string $value) => BigqueryQuote::quote($value), $values);
 
         $query->andWhere(
             sprintf(
-                '%s %s (%s)',
+                '%s %s UNNEST(%s)',
                 $columnSql,
                 self::OPERATOR_MULTI_VALUE[$filter->getOperator()],
-                implode(',', $quotedValues)
+                $param
             )
         );
     }

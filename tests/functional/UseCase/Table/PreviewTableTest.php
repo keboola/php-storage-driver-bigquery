@@ -49,7 +49,7 @@ class PreviewTableTest extends BaseCase
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->cleanTestProject();
+//        $this->cleanTestProject();
     }
 
     public function testPreviewTable(): void
@@ -73,6 +73,11 @@ class PreviewTableTest extends BaseCase
                 'decimal' => [
                     'type' => Bigquery::TYPE_DECIMAL,
                     'length' => '10,2',
+                    'nullable' => true,
+                ],
+                'decimal_varchar' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'length' => '10',
                     'nullable' => true,
                 ],
                 'float' => [
@@ -108,18 +113,19 @@ class PreviewTableTest extends BaseCase
         // FILL DATA
         $insertGroups = [
             [
-                'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `_timestamp`, `varchar`',
+                //phpcs:ignore
+                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1'",
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1'",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable character 2'",
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2'",
                     sprintf(
-                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
+                    '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
             ],
         ];
@@ -202,7 +208,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'varchar' => [
-                        'value' => ['string_value' => 'Variable character 2'],
+                        'value' => ['string_value' => 'Variable 2'],
                         'truncated' => false,
                     ],
                 ],
@@ -459,16 +465,6 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                 ],
-                [
-                    'id' => [
-                        'value' => ['string_value' => '2'],
-                        'truncated' => false,
-                    ],
-                    'varchar' => [
-                        'value' => ['string_value' => 'Variable character 2'],
-                        'truncated' => false,
-                    ],
-                ],
             ],
         ];
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
@@ -510,6 +506,16 @@ class PreviewTableTest extends BaseCase
                 [
                     'id' => [
                         'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
                     'int' => [
@@ -559,7 +565,7 @@ class PreviewTableTest extends BaseCase
             'expectedRows' => [
                 [
                     'id' => [
-                        'value' => ['string_value' => '2'],
+                        'value' => ['string_value' => '3'],
                         'truncated' => false,
                     ],
                     'int' => [
@@ -763,24 +769,24 @@ class PreviewTableTest extends BaseCase
         }
 
         // wrong order by dataType
-        try {
-            $this->previewTable($bucketDatabaseName, $tableName, [
-                'columns' => ['id', 'int'],
-                'orderBy' => [
-                    new ExportOrderBy([
-                        'columnName' => 'id',
-                        'order' => ExportOrderBy\Order::ASC,
-                        'dataType' => DataType::DECIMAL,
-                    ]),
-                ],
-            ]);
-            $this->fail('This should never happen');
-        } catch (Throwable $e) {
-            $this->assertStringContainsString(
-                'Data type DECIMAL not recognized. Possible datatypes are',
-                $e->getMessage()
-            );
-        }
+//        try {
+//            $this->previewTable($bucketDatabaseName, $tableName, [
+//                'columns' => ['id', 'int'],
+//                'orderBy' => [
+//                    new ExportOrderBy([
+//                        'columnName' => 'id',
+//                        'order' => ExportOrderBy\Order::ASC,
+//                        'dataType' => DataType::DECIMAL,
+//                    ]),
+//                ],
+//            ]);
+//            $this->fail('This should never happen');
+//        } catch (Throwable $e) {
+//            $this->assertStringContainsString(
+//                'Data type DECIMAL not recognized. Possible datatypes are',
+//                $e->getMessage()
+//            );
+//        }
     }
 
     private function dropTable(string $databaseName, string $tableName): void
