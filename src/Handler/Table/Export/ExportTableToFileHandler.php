@@ -7,14 +7,15 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Export;
 use Google\Protobuf\Internal\Message;
 use Keboola\Db\ImportExport\Backend\Bigquery\Export\Exporter;
 use Keboola\Db\ImportExport\ExportOptions as ExportOptionsLib;
+use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\GCS\DestinationFile;
-use Keboola\Db\ImportExport\Storage\Teradata\SelectSource;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
@@ -29,14 +30,11 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 class ExportTableToFileHandler implements DriverCommandHandlerInterface
 {
     private GCPClientManager $clientManager;
-    private ExportQueryBuilderFactory $queryBuilderFactory;
 
     public function __construct(
-        GCPClientManager $clientManager,
-        ExportQueryBuilderFactory $queryBuilderFactory
+        GCPClientManager $clientManager
     ) {
         $this->clientManager = $clientManager;
-        $this->queryBuilderFactory = $queryBuilderFactory;
     }
 
     /**
@@ -79,15 +77,18 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
-        $queryBuilder = $this->queryBuilderFactory->create($bqClient, null);
+        $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $datasetName = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
-
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $source->getTableName()))
+            ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
             $requestExportOptions->getFilters(),
             $requestExportOptions->getOrderBy(),
             $requestExportOptions->getColumnsToExport(),
+            $tableColumnsDefinitions,
             $datasetName,
-            $source->getTableName()
+            $source->getTableName(),
+            false
         );
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();

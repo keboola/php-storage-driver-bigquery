@@ -11,15 +11,20 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Query\QueryException;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\RepeatedField;
+use Keboola\Datatype\Definition\BaseType;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
+use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 abstract class CommonFilterQueryBuilder
 {
+    public const DEFAULT_CAST_SIZE = 16384;
     public const OPERATOR_SINGLE_VALUE = [
         Operator::eq => '=',
         Operator::ne => '<>',
@@ -43,6 +48,28 @@ abstract class CommonFilterQueryBuilder
     ) {
         $this->bigQueryClient = $bigQueryClient;
         $this->columnConverter = $columnConverter;
+    }
+
+    private function addSelectLargeString(QueryBuilder $query, string $selectColumnExpresion, string $column): void
+    {
+//casted value
+        $query->addSelect(
+            sprintf(
+                'SUBSTRING(CAST(%s as STRING), 0, %d) AS %s',
+                $selectColumnExpresion,
+                self::DEFAULT_CAST_SIZE,
+                BigqueryQuote::quoteSingleIdentifier($column)
+            )
+        );
+        //flag if is cast
+        $query->addSelect(
+            sprintf(
+                '(CASE WHEN LENGTH(CAST(%s as STRING)) > %s THEN 1 ELSE 0 END) AS %s',
+                BigqueryQuote::quoteSingleIdentifier($column),
+                self::DEFAULT_CAST_SIZE,
+                BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+            )
+        );
     }
 
     /**
@@ -192,8 +219,12 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $columns
      */
-    protected function processSelectStatement(array $columns, QueryBuilder $query): void
-    {
+    protected function processSelectStatement(
+        array $columns,
+        QueryBuilder $query,
+        ColumnCollection $tableColumnsDefinitions,
+        bool $truncateLargeColumns
+    ): void {
         if (count($columns) === 0) {
             $query->addSelect('*');
             return;
@@ -202,41 +233,65 @@ abstract class CommonFilterQueryBuilder
         foreach ($columns as $column) {
             $selectColumnExpresion = BigqueryQuote::quoteSingleIdentifier($column);
 
-            // TODO truncate - preview does not contains export format
-            //if ($options->shouldTruncateLargeColumns()) {
-            //    $this->processSelectWithLargeColumnTruncation($query, $selectColumnExpresion, $column);
-            //    return;
-            //}
+            if ($truncateLargeColumns) {
+                /** @var BigqueryColumn[] $defs */
+                $defs = iterator_to_array($tableColumnsDefinitions);
+                /** @var BigqueryColumn $def */
+                $def = array_values(array_filter(
+                    $defs,
+                    fn(BigqueryColumn $c) => $c->getColumnName() === $column
+                ))[0];
+                $this->processSelectWithLargeColumnTruncation(
+                    $query,
+                    $selectColumnExpresion,
+                    $column,
+                    $def->getColumnDefinition()
+                );
+                continue;
+            }
             $query->addSelect($selectColumnExpresion);
         }
     }
 
-    // TODO truncate - preview does not contains export format
-    /*private function processSelectWithLargeColumnTruncation(
+    private function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
         string $selectColumnExpresion,
-        string $column
+        string $column,
+        Bigquery $def
     ): void {
-        //casted value
+        if ($def->getBasetype() === BaseType::STRING) {
+            $this->addSelectLargeString($query, $selectColumnExpresion, $column);
+            return;
+        }
+        if (in_array($def->getType(), [Bigquery::TYPE_TIME, Bigquery::TYPE_TIMESTAMP, Bigquery::TYPE_DATETIME], true)) {
+            //don't cast time types
+            //leave casting format to BQ
+            $query->addSelect(
+                sprintf(
+                    '%s AS %s',
+                    $selectColumnExpresion,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+        } else {
+            //cast value to string
+            $query->addSelect(
+                sprintf(
+                    'CAST(%s as STRING) AS %s',
+                    $selectColumnExpresion,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+        }
+
+        //flag not casted
         $query->addSelect(
             sprintf(
-                'CAST(SUBSTRING(%s, 0, %d) as VARCHAR(%d)) AS %s',
-                $selectColumnExpresion,
-                self::DEFAULT_CAST_SIZE,
-                self::DEFAULT_CAST_SIZE,
-                BigqueryQuote::quoteSingleIdentifier($column)
-            )
-        );
-        //flag if is cast
-        $query->addSelect(
-            sprintf(
-                '(IF LENGTH(%s) > %s THEN 1 ELSE 0 ENDIF) AS %s',
-                BigqueryQuote::quoteSingleIdentifier($column),
-                self::DEFAULT_CAST_SIZE,
+                '0 AS %s',
                 BigqueryQuote::quoteSingleIdentifier(uniqid($column))
             )
         );
-    }*/
+    }
 
     protected function processLimitStatement(int $limit, QueryBuilder $query): void
     {

@@ -11,7 +11,8 @@ use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
@@ -22,25 +23,19 @@ use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class PreviewTableHandler implements DriverCommandHandlerInterface
 {
-    public const STRING_MAX_LENGTH = 50;
-
     public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
 
     private GCPClientManager $manager;
 
-    private ExportQueryBuilderFactory $queryBuilderFactory;
-
-
     public function __construct(
-        GCPClientManager $manager,
-        ExportQueryBuilderFactory $queryBuilderFactory
+        GCPClientManager $manager
     ) {
         $this->manager = $manager;
-        $this->queryBuilderFactory = $queryBuilderFactory;
     }
 
     /**
@@ -69,13 +64,17 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
         // build sql
         $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $datasetName);
-        $queryBuilder = $this->queryBuilderFactory->create($bqClient, $tableInfo);
+        $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
+            ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
             $command->getFilters(),
             $command->getOrderBy(),
             $command->getColumns(),
+            $tableColumnsDefinitions,
             $datasetName,
-            $command->getTableName()
+            $command->getTableName(),
+            true
         );
 
         /** @var array<string> $queryDataBindings */
@@ -84,7 +83,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         // select table
         $result = $bqClient->runQuery(
             $bqClient->query($queryData->getQuery())
-            ->parameters($queryDataBindings)
+                ->parameters($queryDataBindings)
         );
 
         // set response
@@ -95,37 +94,28 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
         // set rows
         $rows = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row::class);
-        /** @var array<string, string> $line */
-        foreach ($result->getIterator() as $line) {
-            // set row
-            $row = new PreviewTableResponse\Row();
-            $rowColumns = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row\Column::class);
-            /** @var ?scalar $itemValue */
-            foreach ($line as $itemKey => $itemValue) {
-                // set row columns
+        /** @var array<string, string|int> $row */
+        foreach ($result->getIterator() as $row) {
+            $responseRow = new PreviewTableResponse\Row();
+            $responseRowColumns = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row\Column::class);
+            /** @var string $columnName */
+            foreach ($command->getColumns() as $columnName) {
                 $value = new Value();
-                $truncated = false;
-                if ($itemValue === null) {
+                /** @var ?scalar $columnValue */
+                $columnValue = array_shift($row);
+                if ($columnValue === null) {
                     $value->setNullValue(NullValue::NULL_VALUE);
                 } else {
-                    // preview returns all data as string
-                    // TODO truncated: rewrite to SQL
-                    if (mb_strlen((string) $itemValue) > self::STRING_MAX_LENGTH) {
-                        $truncated = true;
-                        $value->setStringValue(mb_substr((string) $itemValue, 0, self::STRING_MAX_LENGTH));
-                    } else {
-                        $value->setStringValue((string) $itemValue);
-                    }
+                    $value->setStringValue((string) $columnValue);
                 }
 
-                $rowColumns[] = (new PreviewTableResponse\Row\Column())
-                    ->setColumnName($itemKey)
+                $responseRowColumns[] = (new PreviewTableResponse\Row\Column())
+                    ->setColumnName($columnName)
                     ->setValue($value)
-                    ->setIsTruncated($truncated);
-
-                $row->setColumns($rowColumns);
+                    ->setIsTruncated(array_shift($row) === 1);
             }
-            $rows[] = $row;
+            $responseRow->setColumns($responseRowColumns);
+            $rows[] = $responseRow;
         }
         $response->setRows($rows);
         return $response;

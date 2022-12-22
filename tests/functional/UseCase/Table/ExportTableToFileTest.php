@@ -13,7 +13,6 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
@@ -42,8 +41,6 @@ class ExportTableToFileTest extends BaseCase
 
     protected CreateBucketResponse $bucketResponse;
 
-    private ExportQueryBuilderFactory $tableExportQueryBuilderFactory;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -52,9 +49,7 @@ class ExportTableToFileTest extends BaseCase
         [$projectCredentials,] = $this->createTestProject();
         $this->projectCredentials = $projectCredentials;
 
-        $bucketResponse = $this->createTestBucket($projectCredentials);
-        $this->bucketResponse = $bucketResponse;
-        $this->tableExportQueryBuilderFactory = new ExportQueryBuilderFactory();
+        $this->bucketResponse = $this->createTestBucket($projectCredentials);
     }
 
     protected function tearDown(): void
@@ -112,7 +107,7 @@ class ExportTableToFileTest extends BaseCase
                 ->setFileName('exp')
         );
 
-        $response = (new ExportTableToFileHandler($this->clientManager, $this->tableExportQueryBuilderFactory))(
+        $response = (new ExportTableToFileHandler($this->clientManager))(
             $this->projectCredentials,
             $cmd,
             []
@@ -231,7 +226,7 @@ class ExportTableToFileTest extends BaseCase
                 ->setFileName('exp')
         );
 
-        $handler = new ExportTableToFileHandler($this->clientManager, $this->tableExportQueryBuilderFactory);
+        $handler = new ExportTableToFileHandler($this->clientManager);
         $response = $handler(
             $this->projectCredentials,
             $cmd,
@@ -300,7 +295,7 @@ class ExportTableToFileTest extends BaseCase
                 ->setPath($exportDir)
         );
 
-        $handler = new ExportTableToFileHandler($this->clientManager, $this->tableExportQueryBuilderFactory);
+        $handler = new ExportTableToFileHandler($this->clientManager);
         $response = $handler(
             $this->projectCredentials,
             $cmd,

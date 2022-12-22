@@ -11,23 +11,18 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\FakeConnection\FakeConnectionFactory;
-use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
+use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
-use LogicException;
 
 class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
-    private ?TableInfo $tableInfo;
-
     public function __construct(
         BigQueryClient $bqClient,
-        ?TableInfo $tableInfo,
         ColumnConverter $columnConverter
     ) {
-        $this->tableInfo = $tableInfo;
-
         parent::__construct($bqClient, $columnConverter);
     }
 
@@ -38,18 +33,25 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         ?ExportFilters $filters,
         RepeatedField $orderBy,
         RepeatedField $columns,
+        ColumnCollection $tableColumnsDefinitions,
         string $schemaName,
-        string $tableName
+        string $tableName,
+        bool $truncateLargeColumns
     ): QueryBuilderResponse {
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
         if ($filters !== null) {
             $this->assertFilterCombination($filters);
-            $this->processFilters($filters, $query);
+            $this->processFilters($filters, $query, $tableColumnsDefinitions);
         }
 
         $this->processOrderStatement($orderBy, $query);
-        $this->processSelectStatement(ProtobufHelper::repeatedStringToArray($columns), $query);
+        $this->processSelectStatement(
+            ProtobufHelper::repeatedStringToArray($columns),
+            $query,
+            $tableColumnsDefinitions,
+            $truncateLargeColumns
+        );
         $this->processFromStatement($schemaName, $tableName, $query);
 
         $sql = $query->getSQL();
@@ -106,21 +108,20 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         return (new Bigquery($type))->getBasetype();
     }
 
-    private function processFilters(ExportFilters $filters, QueryBuilder $query): void
-    {
+    private function processFilters(
+        ExportFilters $filters,
+        QueryBuilder $query,
+        ColumnCollection $tableColumnsDefinitions
+    ): void {
         $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
         try {
             if ($filters->getFulltextSearch() !== '') {
-                if ($this->tableInfo === null) {
-                    throw new LogicException('tableInfo variable has to be set to use fulltextSearch');
-                }
-
                 $tableInfoColumns = [];
-                /** @var TableInfo\TableColumn $column */
-                foreach ($this->tableInfo->getColumns() as $column) {
+                /** @var BigqueryColumn $column */
+                foreach ($tableColumnsDefinitions as $column) {
                     // search only in STRING types
-                    if ($this->getBasetype($column->getType()) === BaseType::STRING) {
-                        $tableInfoColumns[] = $column->getName();
+                    if ($this->getBasetype($column->getColumnDefinition()->getType()) === BaseType::STRING) {
+                        $tableInfoColumns[] = $column->getColumnName();
                     }
                 }
 
