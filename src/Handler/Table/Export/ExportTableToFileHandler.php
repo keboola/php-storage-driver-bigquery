@@ -7,13 +7,15 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Export;
 use Google\Protobuf\Internal\Message;
 use Keboola\Db\ImportExport\Backend\Bigquery\Export\Exporter;
 use Keboola\Db\ImportExport\ExportOptions as ExportOptionsLib;
-use Keboola\Db\ImportExport\Storage\Bigquery\Table;
+use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\GCS\DestinationFile;
 use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
@@ -27,10 +29,11 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class ExportTableToFileHandler implements DriverCommandHandlerInterface
 {
-    public GCPClientManager $clientManager;
+    private GCPClientManager $clientManager;
 
-    public function __construct(GCPClientManager $clientManager)
-    {
+    public function __construct(
+        GCPClientManager $clientManager
+    ) {
         $this->clientManager = $clientManager;
     }
 
@@ -67,20 +70,33 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         );
         assert($command->getFilePath() !== null, 'TableExportToFileCommand.filePath is required.');
 
-        $requestExportOptions = $command->getExportOptions();
-        $columnsToExport = $requestExportOptions && $requestExportOptions->getColumnsToExport() !== []
-            ? ProtobufHelper::repeatedStringToArray($requestExportOptions->getColumnsToExport())
-            : [];
+        $requestExportOptions = $command->getExportOptions() ?? new ExportOptions();
+        $columnsToExport = ProtobufHelper::repeatedStringToArray($requestExportOptions->getColumnsToExport());
         $exportOptions = $this->createOptions(
             $requestExportOptions
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
-
-        $dataset = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
-        $sourceRef = new Table(
-            $dataset,
+        $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
+        $datasetName = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $source->getTableName()))
+            ->getColumnsDefinitions();
+        $queryData = $queryBuilder->buildQueryFromCommand(
+            $requestExportOptions->getFilters(),
+            $requestExportOptions->getOrderBy(),
+            $requestExportOptions->getColumnsToExport(),
+            $tableColumnsDefinitions,
+            $datasetName,
             $source->getTableName(),
+            false
+        );
+        /** @var array<string> $queryDataBindings */
+        $queryDataBindings = $queryData->getBindings();
+
+        $sourceRef = new SelectSource(
+            $queryData->getQuery(),
+            $queryDataBindings,
+            $queryData->getTypes(),
             $columnsToExport
         );
 
@@ -98,10 +114,10 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         return (new TableExportToFileResponse())
             ->setTableInfo(
                 TableReflectionResponseTransformer::transformTableReflectionToResponse(
-                    $dataset,
+                    $datasetName,
                     new BigqueryTableReflection(
                         $bqClient,
-                        $dataset,
+                        $datasetName,
                         $source->getTableName()
                     )
                 )

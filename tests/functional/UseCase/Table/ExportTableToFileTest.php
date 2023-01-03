@@ -16,10 +16,13 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandl
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableExportToFileResponse;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
@@ -46,8 +49,7 @@ class ExportTableToFileTest extends BaseCase
         [$projectCredentials,] = $this->createTestProject();
         $this->projectCredentials = $projectCredentials;
 
-        $bucketResponse = $this->createTestBucket($projectCredentials);
-        $this->bucketResponse = $bucketResponse;
+        $this->bucketResponse = $this->createTestBucket($projectCredentials);
     }
 
     protected function tearDown(): void
@@ -58,9 +60,10 @@ class ExportTableToFileTest extends BaseCase
 
     /**
      * @dataProvider simpleExportProvider
-     * @param string[] $expectedFiles
+     * @param array{exportOptions: ExportOptions} $input
+     * @param array<int, string>[]|null $exportData
      */
-    public function testExportTableToFile(bool $isCompressed, array $expectedFiles): void
+    public function testExportTableToFile(array $input, ?array $exportData): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table_export';
@@ -93,9 +96,9 @@ class ExportTableToFileTest extends BaseCase
 
         $cmd->setFileFormat(FileFormat::CSV);
 
-        $exportOptions = new ExportOptions();
-        $exportOptions->setIsCompressed($isCompressed);
-        $cmd->setExportOptions($exportOptions);
+        if ($input['exportOptions'] instanceof ExportOptions) {
+            $cmd->setExportOptions($input['exportOptions']);
+        }
 
         $cmd->setFilePath(
             (new FilePath())
@@ -134,7 +137,17 @@ class ExportTableToFileTest extends BaseCase
             (string) getenv('BQ_BUCKET_NAME'),
             $exportDir
         );
-        $this->assertSame($expectedFiles, $files['files']);
+        $this->assertNotNull($files);
+        $this->assertCount(2, $files);
+
+        // check data
+        if ($exportData !== null) {
+            $csvData = $this->getExportAsCsv((string) getenv('BQ_BUCKET_NAME'), $exportDir);
+            $this->assertEqualsArrays(
+                $exportData,
+                $csvData
+            );
+        }
 
         // cleanup
         $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
@@ -327,22 +340,187 @@ class ExportTableToFileTest extends BaseCase
     public function simpleExportProvider(): Generator
     {
         yield 'plain csv' => [
-            false, // compression
-            [
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000000.csv',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000001.csv',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/exp000000000002.csv',
-                'export/testExportTableToFile-with-data-set-_plain-csv_/expmanifest',
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                ]),
             ],
-
+            [ // expected data
+                ['1', '2', '4', '2022-01-01 12:00:01 UTC'],
+                ['2', '3', '4', '2022-01-01 12:00:02 UTC'],
+                ['3', '3', '3', '2022-01-01 12:00:03 UTC'],
+            ],
         ];
         yield 'gzipped csv' => [
-            true, // compression
-            [
-                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000000.csv.gz',
-                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000001.csv.gz',
-                'export/testExportTableToFile-with-data-set-_gzipped-csv_/exp000000000002.csv.gz',
-                'export/testExportTableToFile-with-data-set-_gzipped-csv_/expmanifest',
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => true,
+                ]),
+            ],
+            null, // expected data - it's gzip file, not csv
+        ];
+        yield 'filter columns' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1', 'col2'],
+                ]),
+            ],
+            [ // expected data
+                ['1', '2'],
+                ['2', '3'],
+                ['3', '3'],
+            ],
+        ];
+        yield 'filter order by' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'orderBy' => [
+                        new ImportExportShared\ExportOrderBy([
+                            'columnName' => 'col1',
+                            'order' => ImportExportShared\ExportOrderBy\Order::DESC,
+                        ]),
+                    ],
+                ]),
+            ],
+            [ // expected data
+                ['3'],
+                ['2'],
+                ['1'],
+            ],
+        ];
+        yield 'filter order by with dataType' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'orderBy' => [
+                        new ImportExportShared\ExportOrderBy([
+                            'columnName' => 'col1',
+                            'order' => ImportExportShared\ExportOrderBy\Order::DESC,
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
+            ],
+            [ // expected data
+                ['3'],
+                ['2'],
+                ['1'],
+            ],
+        ];
+
+        yield 'filter limit' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'limit' => 2,
+                    ]),
+                    'orderBy' => [
+                        new ImportExportShared\ExportOrderBy([
+                            'columnName' => 'col1',
+                            'order' => ImportExportShared\ExportOrderBy\Order::ASC,
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
+            ],
+            [ // expected data
+                ['1'],
+                ['2'],
+            ],
+        ];
+        yield 'filter changedSince + changedUntil' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1', '_timestamp'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'changeSince' => '1641038401',
+                        'changeUntil' => '1641038402',
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['1','2022-01-01 12:00:01 UTC'],
+            ],
+        ];
+        yield 'filter simple where' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::ge,
+                                'values' => ['3'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['2'],
+                ['3'],
+            ],
+        ];
+        yield 'filter multiple where' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::ge,
+                                'values' => ['3'],
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'col3',
+                                'operator' => Operator::lt,
+                                'values' => ['4'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['3'],
+            ],
+        ];
+        yield 'filter where with dataType' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::gt,
+                                'values' => ['2.9'],
+                                'dataType' => DataType::REAL,
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'col2',
+                                'operator' => Operator::lt,
+                                'values' => ['3.1'],
+                                'dataType' => DataType::REAL,
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['2'],
+                ['3'],
             ],
         ];
     }
@@ -380,6 +558,7 @@ class ExportTableToFileTest extends BaseCase
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
+                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
             []
         );
@@ -394,9 +573,9 @@ class ExportTableToFileTest extends BaseCase
 
         // init some values
         foreach ([
-                     ['\'1\'', '\'2\'', '\'4\''],
-                     ['\'2\'', '\'3\'', '\'4\''],
-                     ['\'3\'', '\'3\'', '\'3\''],
+                     ['\'1\'', '\'2\'', '\'4\'', '\'2022-01-01 12:00:01\''],
+                     ['\'2\'', '\'3\'', '\'4\'', '\'2022-01-01 12:00:02\''],
+                     ['\'3\'', '\'3\'', '\'3\'', '\'2022-01-01 12:00:03\''],
                  ] as $i) {
             $bqClient->runQuery($bqClient->query(sprintf(
                 'INSERT INTO %s.%s VALUES (%s)',

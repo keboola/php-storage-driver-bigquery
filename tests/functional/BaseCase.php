@@ -308,11 +308,15 @@ class BaseCase extends TestCase
         $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
         /** @var array{type: string, length: string, nullable: bool} $columnData */
         foreach ($structure['columns'] as $columnName => $columnData) {
-            $columns[] = (new TableColumnShared)
+            $col = (new TableColumnShared)
                 ->setName($columnName)
                 ->setType($columnData['type'])
-                ->setLength($columnData['length'])
                 ->setNullable($columnData['nullable']);
+
+            if (array_key_exists('length', $columnData)) {
+                $col->setLength($columnData['length']);
+            }
+            $columns[] = $col;
         }
 
         $createTableCommand = (new CreateTableCommand())

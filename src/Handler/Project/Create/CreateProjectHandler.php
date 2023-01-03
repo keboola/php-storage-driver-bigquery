@@ -120,12 +120,11 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
         $actualBucketPolicy = $fileStorageBucket->iam()->policy();
 
-        $actualBucketPolicy['bindings'][] = [ // project service account can list and get files
-            'role' => 'roles/storage.objectViewer',
-            'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
-        ];
-        $actualBucketPolicy['bindings'][] = [ // project service account can export to bucket
-            'role' => 'roles/storage.objectCreator',
+        // project service account can list and get files
+        // project service account can export to bucket
+        // project service account can delete files, needed also for export
+        $actualBucketPolicy['bindings'][] = [
+            'role' => 'roles/storage.objectAdmin',
             'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
         ];
         $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);

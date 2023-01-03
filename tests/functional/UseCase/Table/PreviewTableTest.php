@@ -14,8 +14,10 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -69,6 +71,11 @@ class PreviewTableTest extends BaseCase
                     'length' => '10,2',
                     'nullable' => true,
                 ],
+                'decimal_varchar' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'length' => '10',
+                    'nullable' => true,
+                ],
                 'float' => [
                     'type' => Bigquery::TYPE_FLOAT64,
                     'length' => '',
@@ -84,9 +91,13 @@ class PreviewTableTest extends BaseCase
                     'length' => '',
                     'nullable' => true,
                 ],
+                '_timestamp' => [
+                    'type' => Bigquery::TYPE_TIMESTAMP,
+                    'length' => '',
+                    'nullable' => true,
+                ],
                 'varchar' => [
                     'type' => Bigquery::TYPE_STRING,
-                    'length' => '200',
                     'nullable' => true,
                 ],
             ],
@@ -97,16 +108,19 @@ class PreviewTableTest extends BaseCase
         // FILL DATA
         $insertGroups = [
             [
-                'columns' => '`id`, `int`, `decimal`, `float`, `date`, `time`, `varchar`',
+                //phpcs:ignore
+                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`',
                 'rows' => [
-                    "1, 100, 100.23, 100.23456, '2022-01-01', '12:00:01', 'Variable character 1'",
+                    //phpcs:ignore
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1'",
                     // chanched `time` and `varchar`
-                    "2, 100, 100.23, 100.23456, '2022-01-01', '12:00:02', 'Variable character 2'",
+                    //phpcs:ignore
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2'",
                     sprintf(
-                        "3, 200, 200.23, 200.23456, '2022-01-02', '12:00:02', '%s'",
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    '4, NULL, NULL, NULL, NULL, NULL, NULL',
+                    '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
             ],
         ];
@@ -115,15 +129,15 @@ class PreviewTableTest extends BaseCase
         // CHECK: all records + truncated
         $filter = [
             'input' => [
-                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', 'varchar'],
+                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
                 'orderBy' => [
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'id',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                     ]),
                 ],
             ],
-            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', 'varchar'],
+            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
             'expectedRows' => [
                 [
                     'id' => [
@@ -147,7 +161,11 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:01.000000'],
+                        'value' => ['string_value' => '12:00:02.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:02.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
@@ -177,11 +195,15 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:02.000000'],
+                        'value' => ['string_value' => '12:00:10.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:10.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
-                        'value' => ['string_value' => 'Variable character 2'],
+                        'value' => ['string_value' => 'Variable 2'],
                         'truncated' => false,
                     ],
                 ],
@@ -207,12 +229,17 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'time' => [
-                        'value' => ['string_value' => '12:00:02.000000'],
+                        'value' => ['string_value' => '12:00:10.000000'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:10.000000+00:00'],
                         'truncated' => false,
                     ],
                     'varchar' => [
-                        'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongSt'],
-                        'truncated' => true,
+                        //phpcs:ignore
+                        'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456'],
+                        'truncated' => false,
                     ],
                 ],
                 [
@@ -240,6 +267,10 @@ class PreviewTableTest extends BaseCase
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],
+                    '_timestamp' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
                     'varchar' => [
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
@@ -255,13 +286,13 @@ class PreviewTableTest extends BaseCase
             'input' => [
                 'columns' => ['id'],
                 'orderBy' => [
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'time',
-                        'order' => Order::DESC,
+                        'order' => ExportOrderBy\Order::DESC,
                     ]),
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'int',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                     ]),
                 ],
             ],
@@ -301,14 +332,14 @@ class PreviewTableTest extends BaseCase
             'input' => [
                 'columns' => ['id'],
                 'orderBy' => [
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'date',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                         'dataType' => DataType::STRING,
                     ]),
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'id',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                     ]),
                 ],
             ],
@@ -348,12 +379,14 @@ class PreviewTableTest extends BaseCase
             'input' => [
                 'columns' => ['id', 'int'],
                 'orderBy' => [
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => 'id',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                     ]),
                 ],
-                'limit' => 2,
+                'filters' => new ExportFilters([
+                    'limit' => 2,
+                ]),
             ],
             'expectedColumns' => ['id', 'int'],
             'expectedRows' => [
@@ -375,6 +408,258 @@ class PreviewTableTest extends BaseCase
                     'int' => [
                         'value' => ['string_value' => '100'],
                         'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: changeSince + changeUntil
+        $filter = [
+            'input' => [
+                'columns' => ['id', '_timestamp'],
+                'filters' => new ExportFilters([
+                    'changeSince' => '1641038401',
+                    'changeUntil' => '1641038403',
+                ]),
+            ],
+            'expectedColumns' => ['id', '_timestamp'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    '_timestamp' => [
+                        'value' => ['string_value' => '2022-01-01 12:00:02.000000+00:00'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: fulltext search
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'varchar'],
+                'filters' => new ExportFilters([
+                    'fulltextSearch' => 'character',
+                ]),
+            ],
+            'expectedColumns' => ['id', 'varchar'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        'value' => ['string_value' => 'Variable character 1'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: simple where filter
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'int'],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::ge,
+                            'values' => ['100'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'int'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '1'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '100'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '200'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: multiple where filters
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'int'],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::gt,
+                            'values' => ['100'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::lt,
+                            'values' => ['210'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::eq,
+                            'values' => ['99', '100', '199', '200'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'int'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '3'],
+                        'truncated' => false,
+                    ],
+                    'int' => [
+                        'value' => ['string_value' => '200'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // CHECK: where filter with datatype
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'decimal_varchar'],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'decimal_varchar',
+                            'operator' => Operator::eq,
+                            'values' => ['100.2'],
+                            'dataType' => DataType::REAL,
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'decimal_varchar'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'decimal_varchar' => [
+                        'value' => ['string_value' => '100.20'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                //phpcs:ignore
+                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`',
+                'rows' => [
+                    //phpcs:ignore
+                    sprintf(
+                        "5, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
+                        str_repeat('VeryLongString123456', 1000)
+                    ),
+                ],
+            ],
+        ];
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
+
+        // CHECK: check truncate
+        $filter = [
+            'input' => [
+                'columns' => [
+                    'id',
+                    'varchar',
+                ],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'id',
+                            'operator' => Operator::eq,
+                            'values' => ['5'],
+                            'dataType' => DataType::INTEGER,
+                        ]),
+                    ],
+                ]),
+            ],
+            'expectedColumns' => [
+                'id',
+                'varchar',
+            ],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '5'],
+                        'truncated' => false,
+                    ],
+                    'varchar' => [
+                        //phpcs:ignore
+                        'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456Very'],
+                        'truncated' => true,
                     ],
                 ],
             ],
@@ -470,40 +755,68 @@ class PreviewTableTest extends BaseCase
             $this->assertStringContainsString('PreviewTableCommand.columns has non unique names', $e->getMessage());
         }
 
+        // too high limit
+        try {
+            $this->previewTable($bucketDatabaseName, $tableName, [
+                'columns' => ['id', 'int'],
+                'filters' => new ExportFilters([
+                    'limit' => 2000,
+                ]),
+            ]);
+            $this->fail('This should never happen');
+        } catch (Throwable $e) {
+            $this->assertStringContainsString(
+                'PreviewTableCommand.limit cannot be greater than 1000',
+                $e->getMessage()
+            );
+        }
+
+        // bad format of changeSince
+        try {
+            $this->previewTable($bucketDatabaseName, $tableName, [
+                'columns' => ['id', 'int'],
+                'filters' => new ExportFilters([
+                    'changeSince' => '2022-11-01 12:00:00 UTC',
+                ]),
+            ]);
+            $this->fail('This should never happen');
+        } catch (Throwable $e) {
+            $this->assertStringContainsString(
+                'PreviewTableCommand.changeSince must be numeric timestamp',
+                $e->getMessage()
+            );
+        }
+
+        // bad format of changeUntil
+        try {
+            $this->previewTable($bucketDatabaseName, $tableName, [
+                'columns' => ['id', 'int'],
+                'filters' => new ExportFilters([
+                    'changeUntil' => '2022-11-01 12:00:00 UTC',
+                ]),
+            ]);
+            $this->fail('This should never happen');
+        } catch (Throwable $e) {
+            $this->assertStringContainsString(
+                'PreviewTableCommand.changeUntil must be numeric timestamp',
+                $e->getMessage()
+            );
+        }
+
         // empty order by columnName
         try {
             $this->previewTable($bucketDatabaseName, $tableName, [
                 'columns' => ['id', 'int'],
                 'orderBy' => [
-                    new OrderBy([
+                    new ExportOrderBy([
                         'columnName' => '',
-                        'order' => Order::ASC,
+                        'order' => ExportOrderBy\Order::ASC,
                     ]),
                 ],
             ]);
             $this->fail('This should never happen');
         } catch (Throwable $e) {
             $this->assertStringContainsString('PreviewTableCommand.orderBy.0.columnName is required', $e->getMessage());
-        }
-
-        // wrong order by dataType
-        try {
-            $this->previewTable($bucketDatabaseName, $tableName, [
-                'columns' => ['id', 'int'],
-                'orderBy' => [
-                    new OrderBy([
-                        'columnName' => 'id',
-                        'order' => Order::ASC,
-                        'dataType' => DataType::DECIMAL,
-                    ]),
-                ],
-            ]);
-            $this->fail('This should never happen');
-        } catch (Throwable $e) {
-            $this->assertStringContainsString(sprintf(
-                'Data type %s not recognized. Possible datatypes are',
-                DataType::DECIMAL
-            ), $e->getMessage());
         }
     }
 
@@ -528,8 +841,8 @@ class PreviewTableTest extends BaseCase
      * @phpcs:ignore
      * @param array{
      *     columns: array<string>,
-     *     orderBy?: OrderBy[],
-     *     limit?: int
+     *     orderBy?: ExportOrderBy[],
+     *     filters?: ExportFilters
      * } $commandInput
      */
     private function previewTable(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
@@ -553,22 +866,17 @@ class PreviewTableTest extends BaseCase
             $columns[] = $column;
         }
         $command->setColumns($columns);
+        if (array_key_exists('filters', $commandInput)) {
+            $command->setFilters($commandInput['filters']);
+        }
 
         if (isset($commandInput['orderBy'])) {
-            $orderBy = new RepeatedField(GPBType::MESSAGE, OrderBy::class);
+            $orderBy = new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class);
             foreach ($commandInput['orderBy'] as $orderByOrig) {
                 $orderBy[] = $orderByOrig;
             }
             $command->setOrderBy($orderBy);
         }
-
-        if (isset($commandInput['limit'])) {
-            $command->setLimit($commandInput['limit']);
-        }
-
-        // TODO changeSince, changeUntil
-        // TODO fulltextSearch
-        // TODO whereFilters
 
         $response = $handler(
             $this->projectCredentials,

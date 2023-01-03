@@ -9,34 +9,32 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
-use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\OrderBy\Order;
+use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
+use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\TableInfo;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class PreviewTableHandler implements DriverCommandHandlerInterface
 {
-    public const STRING_MAX_LENGTH = 50;
-
+    public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
-
-    public const ALLOWED_DATA_TYPES = [
-        DataType::INTEGER => Bigquery::TYPE_INTEGER,
-        DataType::BIGINT => Bigquery::TYPE_BIGINT,
-    ];
 
     private GCPClientManager $manager;
 
-    public function __construct(GCPClientManager $manager)
-    {
+    public function __construct(
+        GCPClientManager $manager
+    ) {
         $this->manager = $manager;
     }
 
@@ -59,57 +57,34 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($command->getColumns()->count() > 0, 'PreviewTableCommand.columns is required');
 
         $bqClient = $this->manager->getBigQueryClient($credentials);
-        /** @var string $databaseName */
-        $databaseName = $command->getPath()[0];
+        /** @var string $datasetName */
+        $datasetName = $command->getPath()[0];
+
+        $this->validateFilters($command);
 
         // build sql
-        $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
-        assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
-        $columnsSql = implode(', ', array_map([BigqueryQuote::class, 'quoteSingleIdentifier'], $columns));
-
-        // TODO changeSince, changeUntil
-        // TODO fulltextSearch
-        // TODO whereFilters
-        // TODO truncated: rewrite to SQL
-        $selectTableSql = sprintf(
-            "SELECT %s\nFROM %s.%s",
-            $columnsSql,
-            BigqueryQuote::quoteSingleIdentifier($databaseName),
-            BigqueryQuote::quoteSingleIdentifier($command->getTableName())
+        $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $datasetName);
+        $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
+            ->getColumnsDefinitions();
+        $queryData = $queryBuilder->buildQueryFromCommand(
+            $command->getFilters(),
+            $command->getOrderBy(),
+            $command->getColumns(),
+            $tableColumnsDefinitions,
+            $datasetName,
+            $command->getTableName(),
+            true
         );
 
-        if ($command->getOrderBy()->count()) {
-            $orderByParts = [];
-            /**
-             * @var int $index
-             * @var OrderBy $orderBy
-             */
-            foreach ($command->getOrderBy() as $index => $orderBy) {
-                assert($orderBy->getColumnName() !== '', sprintf(
-                    'PreviewTableCommand.orderBy.%d.columnName is required',
-                    $index,
-                ));
-                $quotedColumnName = BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName());
-                $orderByParts[] = sprintf(
-                    '%s %s',
-                    $this->applyDataType($quotedColumnName, $orderBy->getDataType()),
-                    $orderBy->getOrder() === Order::DESC ? 'DESC' : 'ASC'
-                );
-            }
-            $selectTableSql .= sprintf(
-                "\nORDER BY %s",
-                implode(', ', $orderByParts),
-            );
-        }
+        /** @var array<string> $queryDataBindings */
+        $queryDataBindings = $queryData->getBindings();
 
-        $selectTableSql .= sprintf(
-            ' LIMIT %d',
-            ($command->getLimit() > 0 && $command->getLimit() < self::MAX_LIMIT)
-                ? $command->getLimit()
-                : self::MAX_LIMIT
-        );
         // select table
-        $result = $bqClient->runQuery($bqClient->query($selectTableSql));
+        $result = $bqClient->runQuery(
+            $bqClient->query($queryData->getQuery())
+                ->parameters($queryDataBindings)
+        );
 
         // set response
         $response = new PreviewTableResponse();
@@ -119,64 +94,96 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
 
         // set rows
         $rows = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row::class);
-        /** @var array<string, string> $line */
-        foreach ($result->getIterator() as $line) {
-            // set row
-            $row = new PreviewTableResponse\Row();
-            $rowColumns = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row\Column::class);
-            /** @var ?scalar $itemValue */
-            foreach ($line as $itemKey => $itemValue) {
-                // set row columns
+        /** @var array<string, string|int> $row */
+        foreach ($result->getIterator() as $row) {
+            $responseRow = new PreviewTableResponse\Row();
+            $responseRowColumns = new RepeatedField(GPBType::MESSAGE, PreviewTableResponse\Row\Column::class);
+            /** @var string $columnName */
+            foreach ($command->getColumns() as $columnName) {
                 $value = new Value();
-                $truncated = false;
-                if ($itemValue === null) {
+                /** @var ?scalar $columnValue */
+                $columnValue = array_shift($row);
+                if ($columnValue === null) {
                     $value->setNullValue(NullValue::NULL_VALUE);
                 } else {
-                    // preview returns all data as string
-                    // TODO truncated: rewrite to SQL
-                    if (mb_strlen((string) $itemValue) > self::STRING_MAX_LENGTH) {
-                        $truncated = true;
-                        $value->setStringValue(mb_substr((string) $itemValue, 0, self::STRING_MAX_LENGTH));
-                    } else {
-                        $value->setStringValue((string) $itemValue);
-                    }
+                    $value->setStringValue((string) $columnValue);
                 }
 
-                $rowColumns[] = (new PreviewTableResponse\Row\Column())
-                    ->setColumnName($itemKey)
+                $responseRowColumns[] = (new PreviewTableResponse\Row\Column())
+                    ->setColumnName($columnName)
                     ->setValue($value)
-                    ->setIsTruncated($truncated);
-
-                $row->setColumns($rowColumns);
+                    ->setIsTruncated(array_shift($row) === 1);
             }
-            $rows[] = $row;
+            $responseRow->setColumns($responseRowColumns);
+            $rows[] = $responseRow;
         }
         $response->setRows($rows);
         return $response;
     }
 
-    private function applyDataType(string $columnName, int $dataType): string
+    /**
+     * fulltext search need table info data
+     */
+    private function getTableInfoResponseIfNeeded(
+        GenericBackendCredentials $credentials,
+        PreviewTableCommand $command,
+        string $databaseName
+    ): ?TableInfo {
+        if ($command->getFilters() !== null && $command->getFilters()->getFulltextSearch() !== '') {
+            $objectInfoHandler = (new ObjectInfoHandler($this->manager));
+            $tableInfoCommand = (new ObjectInfoCommand())
+                ->setExpectedObjectType(ObjectType::TABLE)
+                ->setPath(ProtobufHelper::arrayToRepeatedString([
+                    $databaseName,
+                    $command->getTableName(),
+                ]));
+            /** @var ObjectInfoResponse $response */
+            $response = $objectInfoHandler($credentials, $tableInfoCommand, []);
+
+            assert($response instanceof ObjectInfoResponse);
+            assert($response->getObjectType() === ObjectType::TABLE);
+
+            return $response->getTableInfo();
+        }
+        return null;
+    }
+
+    private function validateFilters(PreviewTableCommand $command): void
     {
-        if ($dataType === DataType::STRING) {
-            return $columnName;
-        }
-        if (!array_key_exists($dataType, self::ALLOWED_DATA_TYPES)) {
-            $allowedTypesList = [];
-            foreach (self::ALLOWED_DATA_TYPES as $typeId => $typeName) {
-                $allowedTypesList[] = sprintf('%s for %s', $typeId, $typeName);
+        // build sql
+        $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
+        assert($columns === array_unique($columns), 'PreviewTableCommand.columns has non unique names');
+
+        $filters = $command->getFilters();
+        if ($filters !== null) {
+            assert($filters->getLimit() <= self::MAX_LIMIT, 'PreviewTableCommand.limit cannot be greater than 1000');
+            if ($filters->getLimit() === 0) {
+                $filters->setLimit(self::DEFAULT_LIMIT);
             }
-            throw new Exception(
-                sprintf(
-                    'Data type %s not recognized. Possible datatypes are [%s]',
-                    $dataType,
-                    implode('|', $allowedTypesList)
-                )
-            );
+
+            if ($filters->getChangeSince() !== '') {
+                assert(
+                    is_numeric($filters->getChangeSince()),
+                    'PreviewTableCommand.changeSince must be numeric timestamp'
+                );
+            }
+            if ($filters->getChangeUntil() !== '') {
+                assert(
+                    is_numeric($filters->getChangeUntil()),
+                    'PreviewTableCommand.changeUntil must be numeric timestamp'
+                );
+            }
         }
-        return sprintf(
-            'CAST(%s AS %s)',
-            $columnName,
-            self::ALLOWED_DATA_TYPES[$dataType]
-        );
+
+        /**
+         * @var int $index
+         * @var ExportOrderBy $orderBy
+         */
+        foreach ($command->getOrderBy() as $index => $orderBy) {
+            assert($orderBy->getColumnName() !== '', sprintf(
+                'PreviewTableCommand.orderBy.%d.columnName is required',
+                $index,
+            ));
+        }
     }
 }
