@@ -63,7 +63,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $this->validateFilters($command);
 
         // build sql
-        $tableInfo = $this->getTableInfoResponseIfNeeded($credentials, $command, $datasetName);
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
             ->getColumnsDefinitions();
@@ -119,33 +118,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         }
         $response->setRows($rows);
         return $response;
-    }
-
-    /**
-     * fulltext search need table info data
-     */
-    private function getTableInfoResponseIfNeeded(
-        GenericBackendCredentials $credentials,
-        PreviewTableCommand $command,
-        string $databaseName
-    ): ?TableInfo {
-        if ($command->getFilters() !== null && $command->getFilters()->getFulltextSearch() !== '') {
-            $objectInfoHandler = (new ObjectInfoHandler($this->manager));
-            $tableInfoCommand = (new ObjectInfoCommand())
-                ->setExpectedObjectType(ObjectType::TABLE)
-                ->setPath(ProtobufHelper::arrayToRepeatedString([
-                    $databaseName,
-                    $command->getTableName(),
-                ]));
-            /** @var ObjectInfoResponse $response */
-            $response = $objectInfoHandler($credentials, $tableInfoCommand, []);
-
-            assert($response instanceof ObjectInfoResponse);
-            assert($response->getObjectType() === ObjectType::TABLE);
-
-            return $response->getTableInfo();
-        }
-        return null;
     }
 
     private function validateFilters(PreviewTableCommand $command): void
