@@ -17,6 +17,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DeleteTableRowsHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
@@ -43,6 +44,7 @@ use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DropColumnCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
@@ -61,7 +63,6 @@ use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
 
 class BigQueryDriverClient implements ClientInterface
 {
-
     /**
      * @param string[] $features
      */
@@ -129,6 +130,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new DropWorkspaceObjectHandler($manager);
             case $command instanceof ObjectInfoCommand:
                 return new ObjectInfoHandler($manager);
+            case $command instanceof DeleteTableRowsCommand:
+                return new DeleteTableRowsHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));

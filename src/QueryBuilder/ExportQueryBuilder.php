@@ -19,6 +19,9 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
+    public const MODE_SELECT = 'SELECT';
+    public const MODE_DELETE = 'DELETE';
+
     public function __construct(
         BigQueryClient $bqClient,
         ColumnConverter $columnConverter
@@ -27,9 +30,11 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     }
 
     /**
+     * @param self::MODE_* $mode
      * @throws QueryBuilderException
      */
     public function buildQueryFromCommand(
+        string $mode,
         ?ExportFilters $filters,
         RepeatedField $orderBy,
         RepeatedField $columns,
@@ -45,14 +50,26 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             $this->processFilters($filters, $query, $tableColumnsDefinitions);
         }
 
-        $this->processOrderStatement($orderBy, $query);
-        $this->processSelectStatement(
-            ProtobufHelper::repeatedStringToArray($columns),
-            $query,
-            $tableColumnsDefinitions,
-            $truncateLargeColumns
-        );
-        $this->processFromStatement($schemaName, $tableName, $query);
+        if ($mode === self::MODE_SELECT) {
+            $this->processOrderStatement($orderBy, $query);
+            $this->processSelectStatement(
+                ProtobufHelper::repeatedStringToArray($columns),
+                $query,
+                $tableColumnsDefinitions,
+                $truncateLargeColumns
+            );
+            $query->from(sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($schemaName),
+                BigqueryQuote::quoteSingleIdentifier($tableName)
+            ));
+        } else {
+            $query->delete(sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($schemaName),
+                BigqueryQuote::quoteSingleIdentifier($tableName)
+            ));
+        }
 
         $sql = $query->getSQL();
         $params = $query->getParameters();

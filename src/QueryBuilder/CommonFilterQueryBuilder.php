@@ -299,13 +299,4 @@ abstract class CommonFilterQueryBuilder
             $query->setMaxResults($limit);
         }
     }
-
-    protected function processFromStatement(string $schemaName, string $tableName, QueryBuilder $query): void
-    {
-        $query->from(sprintf(
-            '%s.%s',
-            BigqueryQuote::quoteSingleIdentifier($schemaName),
-            BigqueryQuote::quoteSingleIdentifier($tableName)
-        ));
-    }
 }

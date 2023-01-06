@@ -67,6 +67,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
             ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
+            ExportQueryBuilder::MODE_SELECT,
             $command->getFilters(),
             $command->getOrderBy(),
             $command->getColumns(),
