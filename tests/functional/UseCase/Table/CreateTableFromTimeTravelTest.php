@@ -18,6 +18,7 @@ use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -217,8 +218,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 []
             );
             $this->fail('Should fail: Table should never be created.');
-        } catch (NotFoundException $e) {
-            $this->assertSame(404, $e->getCode());
+        } catch (ObjectNotFoundException $e) {
+            $this->assertSame('Object "table_should_never_be_created" not found.', $e->getMessage());
         }
 
         // test create table according timestamp when it didn't exist yet
@@ -286,8 +287,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
 
-        $this->expectException(NotFoundException::class);
-        $this->expectExceptionCode(404);
+        $this->expectException(ObjectNotFoundException::class);
         $handler(
             $this->projectCredentials,
             $cmd,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 
+use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
@@ -13,6 +14,7 @@ use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
@@ -78,7 +80,11 @@ class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
             BigqueryQuote::quote($datetime)
         );
 
-        $bqClient->runQuery($bqClient->query($query));
+        try {
+            $bqClient->runQuery($bqClient->query($query));
+        } catch (NotFoundException $e) {
+            throw new ObjectNotFoundException($sourceTableName);
+        }
 
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
