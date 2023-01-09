@@ -341,9 +341,17 @@ class BaseCase extends TestCase
         GenericBackendCredentials $credentials,
         string $databaseName,
         string $tableName,
-        array $insertGroups
+        array $insertGroups,
+        bool $truncate = false
     ): void {
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        if ($truncate) {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'TRUNCATE TABLE %s.%s',
+                BigqueryQuote::quoteSingleIdentifier($databaseName),
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            )));
+        }
         foreach ($insertGroups as $insertGroup) {
             foreach ($insertGroup['rows'] as $insertRow) {
                 $insertSql = sprintf(

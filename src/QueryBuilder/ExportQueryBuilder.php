@@ -16,9 +16,13 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use LogicException;
 
 class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
+    public const MODE_SELECT = 'SELECT';
+    public const MODE_DELETE = 'DELETE';
+
     public function __construct(
         BigQueryClient $bqClient,
         ColumnConverter $columnConverter
@@ -27,9 +31,11 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     }
 
     /**
+     * @param self::MODE_* $mode
      * @throws QueryBuilderException
      */
     public function buildQueryFromCommand(
+        string $mode,
         ?ExportFilters $filters,
         RepeatedField $orderBy,
         RepeatedField $columns,
@@ -45,14 +51,34 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             $this->processFilters($filters, $query, $tableColumnsDefinitions);
         }
 
-        $this->processOrderStatement($orderBy, $query);
-        $this->processSelectStatement(
-            ProtobufHelper::repeatedStringToArray($columns),
-            $query,
-            $tableColumnsDefinitions,
-            $truncateLargeColumns
-        );
-        $this->processFromStatement($schemaName, $tableName, $query);
+        switch ($mode) {
+            case self::MODE_SELECT:
+                $this->processOrderStatement($orderBy, $query);
+                $this->processSelectStatement(
+                    ProtobufHelper::repeatedStringToArray($columns),
+                    $query,
+                    $tableColumnsDefinitions,
+                    $truncateLargeColumns
+                );
+                $query->from(sprintf(
+                    '%s.%s',
+                    BigqueryQuote::quoteSingleIdentifier($schemaName),
+                    BigqueryQuote::quoteSingleIdentifier($tableName)
+                ));
+                break;
+            case self::MODE_DELETE:
+                $query->delete(sprintf(
+                    '%s.%s',
+                    BigqueryQuote::quoteSingleIdentifier($schemaName),
+                    BigqueryQuote::quoteSingleIdentifier($tableName)
+                ));
+                break;
+            default:
+                throw new LogicException(sprintf(
+                    'Unknown mode "%s".',
+                    $mode
+                ));
+        }
 
         $sql = $query->getSQL();
         $params = $query->getParameters();

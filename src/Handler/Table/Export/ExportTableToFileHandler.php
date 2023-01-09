@@ -82,6 +82,7 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $source->getTableName()))
             ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
+            ExportQueryBuilder::MODE_SELECT,
             $requestExportOptions->getFilters(),
             $requestExportOptions->getOrderBy(),
             $requestExportOptions->getColumnsToExport(),
