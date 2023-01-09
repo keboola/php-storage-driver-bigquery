@@ -11,6 +11,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -30,6 +31,7 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
      * @inheritDoc
      * @param GenericBackendCredentials $credentials
      * @param DeleteTableRowsCommand $command
+     * @return DeleteTableRowsResponse
      */
     public function __invoke(
         Message $credentials,
@@ -50,8 +52,8 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
 
         // build sql
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
-        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
-            ->getColumnsDefinitions();
+        $ref = new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName());
+        $tableColumnsDefinitions = $ref->getColumnsDefinitions();
 
         $queryData = $queryBuilder->buildQueryFromCommand(
             ExportQueryBuilder::MODE_DELETE,
@@ -69,12 +71,20 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
 
-        $bqClient->runQuery(
+        $initialRowsCount = $ref->getRowsCount();
+
+        $res = $bqClient->runQuery(
             $bqClient->query($queryData->getQuery())
                 ->parameters($queryDataBindings)
         );
 
-        return null;
+        $stats = $ref->getTableStats();
+
+        return (new DeleteTableRowsResponse())
+            ->setDeletedRowsCount($initialRowsCount - $stats->getRowsCount())
+            ->setTableRowsCount($stats->getRowsCount())
+            ->setTableSizeBytes($stats->getDataSizeBytes())
+            ;
     }
 
     private function validateFilters(DeleteTableRowsCommand $command): void

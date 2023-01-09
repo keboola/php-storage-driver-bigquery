@@ -15,6 +15,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
@@ -163,7 +164,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['2', '3', '4'],
         ];
-        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input']);
+        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
         // CHECK: simple where filter
@@ -181,7 +182,7 @@ class DeleteTableRowsTest extends BaseCase
             'expectedRows' => ['4'],
         ];
         $this->setData($bucketDatabaseName, $tableName);
-        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input']);
+        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 3, 1);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
         // CHECK: multiple where filters
@@ -211,7 +212,7 @@ class DeleteTableRowsTest extends BaseCase
             'expectedRows' => ['1', '2', '4'],
         ];
         $this->setData($bucketDatabaseName, $tableName);
-        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input']);
+        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
         // CHECK: where filter with datatype
@@ -229,7 +230,7 @@ class DeleteTableRowsTest extends BaseCase
             'expectedRows' => ['1', '3', '4'],
         ];
         $this->setData($bucketDatabaseName, $tableName);
-        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input']);
+        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
         // DROP TABLE
@@ -261,8 +262,13 @@ class DeleteTableRowsTest extends BaseCase
      *     whereFilters?: TableWhereFilter[]
      * } $commandInput
      */
-    private function deleteRows(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
-    {
+    private function deleteRows(
+        string $databaseName,
+        string $tableName,
+        array $commandInput,
+        int $expectedDeletedRowsCount,
+        int $expectedRowsCount
+    ): PreviewTableResponse {
         $handler = new DeleteTableRowsHandler($this->clientManager);
         $command = new DeleteTableRowsCommand();
         $this->setPath($databaseName, $command, $tableName);
@@ -276,11 +282,14 @@ class DeleteTableRowsTest extends BaseCase
         if (array_key_exists('whereFilters', $commandInput)) {
             $command->setWhereFilters($commandInput['whereFilters']);
         }
-        $handler(
+        $response = $handler(
             $this->projectCredentials,
             $command,
             []
         );
+        $this->assertInstanceOf(DeleteTableRowsResponse::class, $response);
+        $this->assertSame($expectedDeletedRowsCount, $response->getDeletedRowsCount());
+        $this->assertSame($expectedRowsCount, $response->getTableRowsCount());
 
         // preview data
         $handler = new PreviewTableHandler($this->clientManager);
