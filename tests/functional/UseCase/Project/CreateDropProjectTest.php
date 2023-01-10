@@ -39,8 +39,9 @@ class CreateDropProjectTest extends BaseCase
         $command = new CreateprojectCommand();
 
         $meta = new Any();
+        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            (string) getenv('BQ_BUCKET_NAME')
+            $fileStorageBucketName
         ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
@@ -124,10 +125,30 @@ class CreateDropProjectTest extends BaseCase
         $readOnlyExchanger = $analyticHubClient->getDataExchange($formattedName);
         $this->assertNotNull($readOnlyExchanger);
 
+        $storageManager = $this->clientManager->getStorageClient($credentials);
+        $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+        $policy = $fileStorageBucket->iam()->policy();
+        $hasStorageObjAdminRole = false;
+        foreach ($policy['bindings'] as $binding) {
+            if ($binding['role'] === 'roles/storage.objectAdmin') {
+                $key = array_search('serviceAccount:' . $publicPart['client_email'], $binding['members']);
+                if ($key) {
+                    $hasStorageObjAdminRole = true;
+                }
+            }
+        }
+        $this->assertTrue($hasStorageObjAdminRole);
+
         $handler = new DropProjectHandler($this->clientManager);
+
+        $meta = new Any();
+        $meta->pack((new DropProjectCommand\DropProjectBigqueryMeta())->setGcsFileBucketName(
+            $fileStorageBucketName
+        ));
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
-            ->setReadOnlyRoleName($response->getProjectReadOnlyRoleName());
+            ->setReadOnlyRoleName($response->getProjectReadOnlyRoleName())
+            ->setMeta($meta);
 
         $handler(
             $this->getCredentials(),
@@ -145,6 +166,20 @@ class CreateDropProjectTest extends BaseCase
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
         $createServiceAccountRequest->setAccountId($publicPart['client_email']);
+
+        $storageManager = $this->clientManager->getStorageClient($credentials);
+        $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+        $policy = $fileStorageBucket->iam()->policy();
+        $hasStorageObjAdminRole = false;
+        foreach ($policy['bindings'] as $binding) {
+            if ($binding['role'] === 'roles/storage.objectAdmin') {
+                $key = array_search('serviceAccount:' . $publicPart['client_email'], $binding['members']);
+                if ($key) {
+                    $hasStorageObjAdminRole = true;
+                }
+            }
+        }
+        $this->assertFalse($hasStorageObjAdminRole);
 
         $this->expectException(Exception::class);
         $this->expectExceptionCode(404);
