@@ -7,14 +7,15 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 use DateTimeImmutable;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Core\Exception\BadRequestException;
-use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
+use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
-use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -92,18 +93,31 @@ class CreateTableFromTimeTravelTest extends BaseCase
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
 
-        /** @var CreateTableFromTimeTravelResponse $response */
+        /** @var ObjectInfoResponse $response */
         $response = $handler(
             $this->projectCredentials,
             $cmd,
             []
         );
 
-        $this->assertSame(4, $response->getTableRowsCount());
-        $this->assertGreaterThan(0, $response->getTableSizeBytes());
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertSame(ObjectType::TABLE, $response->getObjectType());
+        $this->assertNotNull($response->getTableInfo());
+
+        $tableInfo = $response->getTableInfo();
+
+        $this->assertSame(4, $tableInfo->getRowsCount());
+        $this->assertGreaterThan(0, $tableInfo->getSizeBytes());
+
+        /** @var TableColumn[] $columns */
+        $columns = iterator_to_array($tableInfo->getColumns()->getIterator());
+        $columnsNames = array_map(
+            static fn(TableColumn $col) => $col->getName(),
+            $columns
+        );
         $this->assertSame(
             ['col1', 'col2', 'col3'],
-            iterator_to_array($response->getImportedColumns())
+            $columnsNames
         );
 
         $sourceRef = new BigqueryTableReflection($bqClient, $bucketDatasetName, $sourceTableName);
@@ -158,18 +172,31 @@ class CreateTableFromTimeTravelTest extends BaseCase
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
 
-        /** @var CreateTableFromTimeTravelResponse $response */
+        /** @var ObjectInfoResponse $response */
         $response = $handler(
             $this->projectCredentials,
             $cmd,
             []
         );
 
-        $this->assertSame(4, $response->getTableRowsCount());
-        $this->assertGreaterThan(0, $response->getTableSizeBytes());
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertSame(ObjectType::TABLE, $response->getObjectType());
+        $this->assertNotNull($response->getTableInfo());
+
+        $tableInfo = $response->getTableInfo();
+
+        $this->assertSame(4, $tableInfo->getRowsCount());
+        $this->assertGreaterThan(0, $tableInfo->getSizeBytes());
+
+        /** @var TableColumn[] $columns */
+        $columns = iterator_to_array($tableInfo->getColumns()->getIterator());
+        $columnsNames = array_map(
+            static fn(TableColumn $col) => $col->getName(),
+            $columns
+        );
         $this->assertSame(
             ['col1', 'col2', 'col3'],
-            iterator_to_array($response->getImportedColumns())
+            $columnsNames
         );
 
         $sourceRef = new BigqueryTableReflection($bqClient, $bucketDatasetName, $sourceTableName);

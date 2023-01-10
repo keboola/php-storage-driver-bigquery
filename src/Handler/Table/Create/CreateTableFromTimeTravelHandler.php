@@ -11,7 +11,6 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransfor
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
-use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
@@ -92,13 +91,22 @@ class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
             $destination->getTableName()
         );
 
-        $response = new CreateTableFromTimeTravelResponse();
         $destinationStats = $destinationRef->getTableStats();
 
-        $response->setTableRowsCount($destinationStats->getRowsCount());
-        $response->setTableSizeBytes($destinationStats->getDataSizeBytes());
-        $response->setImportedColumns(ProtobufHelper::arrayToRepeatedString($destinationRef->getColumnsNames()));
+        $tableInfo = TableReflectionResponseTransformer::transformTableReflectionToResponse(
+            $destinationDatasetName,
+            new BigqueryTableReflection(
+                $bqClient,
+                $destinationDatasetName,
+                $destinationTableName
+            )
+        );
 
-        return $response;
+        $tableInfo->setRowsCount($destinationStats->getRowsCount());
+        $tableInfo->setSizeBytes($destinationStats->getDataSizeBytes());
+        return (new ObjectInfoResponse())
+            ->setPath($destination->getPath())
+            ->setObjectType(ObjectType::TABLE)
+            ->setTableInfo($tableInfo);
     }
 }
