@@ -10,12 +10,14 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderResponse;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
@@ -55,25 +57,39 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         $ref = new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName());
         $tableColumnsDefinitions = $ref->getColumnsDefinitions();
 
-        $queryData = $queryBuilder->buildQueryFromCommand(
-            ExportQueryBuilder::MODE_DELETE,
-            (new ExportFilters())
-                ->setChangeSince($command->getChangeSince())
-                ->setChangeUntil($command->getChangeUntil())
-                ->setWhereFilters($command->getWhereFilters()),
-            new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class),
-            new RepeatedField(GPBType::STRING),
-            $tableColumnsDefinitions,
-            $datasetName,
-            $command->getTableName(),
-            false
-        );
+        if ($this->areFiltersEmpty($command)) {
+            // truncate table
+            $queryData = new QueryBuilderResponse(
+                sprintf(
+                    'TRUNCATE TABLE %s.%s',
+                    BigqueryQuote::quoteSingleIdentifier($datasetName),
+                    BigqueryQuote::quoteSingleIdentifier($command->getTableName())
+                ),
+                [],
+                [],
+            );
+        } else {
+            // delete from
+            $queryData = $queryBuilder->buildQueryFromCommand(
+                ExportQueryBuilder::MODE_DELETE,
+                (new ExportFilters())
+                    ->setChangeSince($command->getChangeSince())
+                    ->setChangeUntil($command->getChangeUntil())
+                    ->setWhereFilters($command->getWhereFilters()),
+                new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class),
+                new RepeatedField(GPBType::STRING),
+                $tableColumnsDefinitions,
+                $datasetName,
+                $command->getTableName(),
+                false
+            );
+        }
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
 
         $initialRowsCount = $ref->getRowsCount();
 
-        $res = $bqClient->runQuery(
+        $bqClient->runQuery(
             $bqClient->query($queryData->getQuery())
                 ->parameters($queryDataBindings)
         );
@@ -83,8 +99,7 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         return (new DeleteTableRowsResponse())
             ->setDeletedRowsCount($initialRowsCount - $stats->getRowsCount())
             ->setTableRowsCount($stats->getRowsCount())
-            ->setTableSizeBytes($stats->getDataSizeBytes())
-            ;
+            ->setTableSizeBytes($stats->getDataSizeBytes());
     }
 
     private function validateFilters(DeleteTableRowsCommand $command): void
@@ -101,5 +116,12 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
                 'PreviewTableCommand.changeUntil must be numeric timestamp'
             );
         }
+    }
+
+    private function areFiltersEmpty(DeleteTableRowsCommand $command): bool
+    {
+        return $command->getChangeSince() === ''
+            && $command->getChangeUntil() === ''
+            && count($command->getWhereFilters()) === 0;
     }
 }

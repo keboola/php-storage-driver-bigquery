@@ -156,6 +156,14 @@ class DeleteTableRowsTest extends BaseCase
         $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
         $this->setData($bucketDatabaseName, $tableName);
 
+        // CHECK: no filter = truncate table
+        $filter = [
+            'input' => [],
+            'expectedRows' => [],
+        ];
+        $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 4, 0);
+        $this->checkPreviewData($response, $filter['expectedRows']);
+
         // CHECK: changeSince + changeUntil
         $filter = [
             'input' => [
@@ -164,6 +172,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['2', '3', '4'],
         ];
+        $this->setData($bucketDatabaseName, $tableName);
         $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
