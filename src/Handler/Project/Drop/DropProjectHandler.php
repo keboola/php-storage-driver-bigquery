@@ -7,8 +7,8 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 use Exception;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
+use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -35,10 +35,33 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('DropProjectBigqueryMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof DropProjectCommand\DropProjectBigqueryMeta);
+        $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
 
         /** @var array<string, string>|false $publicPartKeyFile */
         $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
         assert($publicPartKeyFile !== false);
+
+        $storageManager = $this->clientManager->getStorageClient($credentials);
+        $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+
+        $policy = $fileStorageBucket->iam()->policy();
+
+        foreach ($policy['bindings'] as $bindingKey => $binding) {
+            if ($binding['role'] === 'roles/storage.objectAdmin') {
+                $key = array_search('serviceAccount:'.$publicPartKeyFile['client_email'], $binding['members']);
+                unset($policy['bindings'][$bindingKey]['members'][$key]);
+            }
+        }
+
+        $fileStorageBucket->iam()->setPolicy($policy);
+
         $projectId = (string) $publicPartKeyFile['project_id'];
         $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(
             sprintf('projects/%s', $projectId)
@@ -46,7 +69,6 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         foreach ($serviceAccountsInProject as $item) {
             $serviceAccountsService->delete(sprintf('projects/%s/serviceAccounts/%s', $projectId, $item->getEmail()));
         }
-
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
         $formattedName = $projectsClient->projectName($projectId);
