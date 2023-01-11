@@ -36,14 +36,13 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
         $commandMeta = $command->getMeta();
-        if ($commandMeta !== null) {
-            // override root user and use other database as root
-            $commandMeta = $commandMeta->unpack();
-            assert($commandMeta instanceof DropProjectCommand\DropProjectBigqueryMeta);
-            $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
-        } else {
-            throw new Exception('CreateProjectBigqueryMeta is required.');
+        if ($commandMeta === null) {
+            throw new Exception('DropProjectBigqueryMeta is required.');
         }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof DropProjectCommand\DropProjectBigqueryMeta);
+        $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
 
         /** @var array<string, string>|false $publicPartKeyFile */
         $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
