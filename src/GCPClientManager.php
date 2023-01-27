@@ -87,6 +87,9 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new BigQueryClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
+            'config' => [
+                'retries' => 20,
+            ],
         ]);
     }
 
