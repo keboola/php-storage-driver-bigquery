@@ -11,7 +11,7 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 class FakeDriver implements Driver
 {
     /**
-     * @param array{
+     * @param $params array{
      *     'host':string,
      *     'user':string,
      *     'password':string,
@@ -25,7 +25,7 @@ class FakeDriver implements Driver
      *     'queryTimeout'?: int,
      *     'clientSessionKeepAlive'?: bool,
      *     'maxBackoffAttempts'?:int
-     * } $params
+     * }
      */
     public function connect(
         array $params
