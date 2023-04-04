@@ -22,7 +22,7 @@
         }
     },
     "require": {
-        "php": ">=7.4",
+        "php": "^8.1",
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
@@ -32,9 +32,10 @@
         "google/apiclient": "^2.12.1",
         "google/cloud-bigquery": "^1.23",
         "google/cloud-billing": "^1.4",
+        "google/apiclient-services" : "0.282.0",
         "keboola/table-backend-utils": "^1.14",
         "react/async": "^3.0",
-        "keboola/db-import-export": "^1.18",
+        "keboola/db-import-export": "^2.0",
         "symfony/polyfill-php80": "^1.26",
         "keboola/retry": "^0.5.1",
         "google/cloud-bigquery-analyticshub": "^0.1.0"

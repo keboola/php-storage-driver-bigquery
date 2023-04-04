@@ -227,10 +227,7 @@ class ObjectInfoTest extends BaseCase
         $this->fail(sprintf('Expected object name "%s" not found.', $expectedName));
     }
 
-    /**
-     * @param SchemaInfo|DatabaseInfo $infoObject
-     */
-    private function assertDatabase(ObjectInfoResponse $response, $infoObject): void
+    private function assertDatabase(ObjectInfoResponse $response, SchemaInfo|DatabaseInfo $infoObject): void
     {
         $this->assertSame(
             [$this->projectResponse->getProjectUserName()],

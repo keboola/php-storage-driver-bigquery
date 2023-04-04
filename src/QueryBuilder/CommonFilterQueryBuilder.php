@@ -72,10 +72,7 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    /**
-     * @return float|int|string
-     */
-    private function convertNonStringValue(TableWhereFilter $filter, string $value)
+    private function convertNonStringValue(TableWhereFilter $filter, string $value): string|int|float
     {
         switch (true) {
             case $filter->getDataType() === DataType::INTEGER:

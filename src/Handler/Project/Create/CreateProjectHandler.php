@@ -31,6 +31,10 @@ use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 
 final class CreateProjectHandler implements DriverCommandHandlerInterface
 {
@@ -128,6 +132,8 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
             'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
         ];
         $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
+
+        $this->waitUntilServiceAccPropagate($iAmClient, $projectServiceAccount);
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $this->setPermissionsToServiceAccount($cloudResourceManager, $projectName, $projectServiceAccount->getEmail());
@@ -266,5 +272,18 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         }
 
         return $keyData;
+    }
+
+    private function waitUntilServiceAccPropagate(
+        Google_Service_Iam $iAmClient,
+        ServiceAccount $projectServiceAccount
+    ): void {
+        $retryPolicy = new SimpleRetryPolicy(5);
+        $backOffPolicy = new ExponentialBackOffPolicy();
+
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($iAmClient, $projectServiceAccount): void {
+            $iAmClient->projects_serviceAccounts->get($projectServiceAccount->getName());
+        });
     }
 }
