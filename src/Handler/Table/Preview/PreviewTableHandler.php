@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Preview;
 
+use DateTime;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
@@ -101,11 +102,14 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
             /** @var string $columnName */
             foreach ($command->getColumns() as $columnName) {
                 $value = new Value();
-                /** @var ?scalar $columnValue */
+                /** @var null|bool|float|int|string|DateTime $columnValue */
                 $columnValue = array_shift($row);
                 if ($columnValue === null) {
                     $value->setNullValue(NullValue::NULL_VALUE);
                 } else {
+                    if ($columnValue instanceof DateTime) {
+                        $columnValue = $columnValue->format('Y-m-d H:i:s');
+                    }
                     $value->setStringValue((string) $columnValue);
                 }
 
