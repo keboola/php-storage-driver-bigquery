@@ -108,7 +108,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                     $value->setNullValue(NullValue::NULL_VALUE);
                 } else {
                     if ($columnValue instanceof DateTime) {
-                        $columnValue = $columnValue->format('Y-m-d H:i:s');
+                        $columnValue = $columnValue->format('Y-m-d H:i:s.u');
                     }
                     $value->setStringValue((string) $columnValue);
                 }

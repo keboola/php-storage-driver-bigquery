@@ -178,7 +178,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'datetime' => [
-                        'value' => ['string_value' => '1989-08-31 00:00:00'],
+                        'value' => ['string_value' => '1989-08-31 00:00:00.000000'],
                         'truncated' => false,
                     ],
                 ],
@@ -216,7 +216,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'datetime' => [
-                        'value' => ['string_value' => '1989-08-31 01:00:00'],
+                        'value' => ['string_value' => '1989-08-31 01:00:00.000000'],
                         'truncated' => false,
                     ],
                 ],
@@ -256,7 +256,7 @@ class PreviewTableTest extends BaseCase
                     ],
                     'datetime' => [
                         //phpcs:ignore
-                        'value' => ['string_value' => '1989-08-31 02:00:00'],
+                        'value' => ['string_value' => '1989-08-31 02:00:00.000000'],
                         'truncated' => false,
                     ],
                 ],
