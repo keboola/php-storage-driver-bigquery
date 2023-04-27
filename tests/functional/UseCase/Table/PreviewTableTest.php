@@ -100,6 +100,10 @@ class PreviewTableTest extends BaseCase
                     'type' => Bigquery::TYPE_STRING,
                     'nullable' => true,
                 ],
+                'datetime' => [
+                    'type' => Bigquery::TYPE_DATETIME,
+                    'nullable' => true,
+                ],
             ],
             'primaryKeysNames' => ['id'],
         ];
@@ -109,18 +113,19 @@ class PreviewTableTest extends BaseCase
         $insertGroups = [
             [
                 //phpcs:ignore
-                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`',
+                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1'",
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00'",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2'",
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456'",
                     sprintf(
-                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
+                    //phpcs:ignore
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00'",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
+                    '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
             ],
         ];
@@ -129,7 +134,7 @@ class PreviewTableTest extends BaseCase
         // CHECK: all records + truncated
         $filter = [
             'input' => [
-                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
+                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime'],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -137,7 +142,7 @@ class PreviewTableTest extends BaseCase
                     ]),
                 ],
             ],
-            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar'],
+            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime'],
             'expectedRows' => [
                 [
                     'id' => [
@@ -172,6 +177,10 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => 'Variable character 1'],
                         'truncated' => false,
                     ],
+                    'datetime' => [
+                        'value' => ['string_value' => '1989-08-31 00:00:00.000000'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -204,6 +213,10 @@ class PreviewTableTest extends BaseCase
                     ],
                     'varchar' => [
                         'value' => ['string_value' => 'Variable 2'],
+                        'truncated' => false,
+                    ],
+                    'datetime' => [
+                        'value' => ['string_value' => '1989-08-31 01:00:00.123456'],
                         'truncated' => false,
                     ],
                 ],
@@ -241,6 +254,11 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => 'VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456VeryLongString123456'],
                         'truncated' => false,
                     ],
+                    'datetime' => [
+                        //phpcs:ignore
+                        'value' => ['string_value' => '1989-08-31 02:00:00.000000'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -272,6 +290,10 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'varchar' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'datetime' => [
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],
