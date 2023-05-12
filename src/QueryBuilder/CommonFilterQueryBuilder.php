@@ -20,6 +20,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Oper
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
+use Keboola\TableBackendUtils\Column\ColumnInterface;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 abstract class CommonFilterQueryBuilder
@@ -234,7 +235,7 @@ abstract class CommonFilterQueryBuilder
                 /** @var BigqueryColumn[] $def */
                 $def = array_values(array_filter(
                     iterator_to_array($tableColumnsDefinitions),
-                    fn(BigqueryColumn $c) => $c->getColumnName() === $column
+                    fn(BigqueryColumn|ColumnInterface $c) => $c->getColumnName() === $column
                 ));
                 if (count($def) === 0) {
                     throw new QueryBuilderException(sprintf('Column "%s" not found in table definition.', $column));
