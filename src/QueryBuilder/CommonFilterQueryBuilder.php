@@ -231,18 +231,19 @@ abstract class CommonFilterQueryBuilder
             $selectColumnExpression = BigqueryQuote::quoteSingleIdentifier($column);
 
             if ($truncateLargeColumns) {
-                /** @var BigqueryColumn[] $defs */
-                $defs = iterator_to_array($tableColumnsDefinitions);
-                /** @var BigqueryColumn $def */
+                /** @var BigqueryColumn[] $def */
                 $def = array_values(array_filter(
-                    $defs,
+                    iterator_to_array($tableColumnsDefinitions),
                     fn(BigqueryColumn $c) => $c->getColumnName() === $column
-                ))[0];
+                ));
+                if (count($def) === 0) {
+                    throw new QueryBuilderException(sprintf('Column "%s" not found in table definition.', $column));
+                }
                 $this->processSelectWithLargeColumnTruncation(
                     $query,
                     $selectColumnExpression,
                     $column,
-                    $def->getColumnDefinition()
+                    $def[0]->getColumnDefinition()
                 );
                 continue;
             }
