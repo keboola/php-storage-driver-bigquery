@@ -228,7 +228,7 @@ abstract class CommonFilterQueryBuilder
         }
 
         foreach ($columns as $column) {
-            $selectColumnExpresion = BigqueryQuote::quoteSingleIdentifier($column);
+            $selectColumnExpression = BigqueryQuote::quoteSingleIdentifier($column);
 
             if ($truncateLargeColumns) {
                 /** @var BigqueryColumn[] $defs */
@@ -240,13 +240,13 @@ abstract class CommonFilterQueryBuilder
                 ))[0];
                 $this->processSelectWithLargeColumnTruncation(
                     $query,
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     $column,
                     $def->getColumnDefinition()
                 );
                 continue;
             }
-            $query->addSelect($selectColumnExpresion);
+            $query->addSelect($selectColumnExpression);
         }
     }
 
