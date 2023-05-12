@@ -65,8 +65,7 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
                     BigqueryQuote::quoteSingleIdentifier($datasetName),
                     BigqueryQuote::quoteSingleIdentifier($command->getTableName())
                 ),
-                [],
-                [],
+                []
             );
         } else {
             // delete from

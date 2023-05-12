@@ -92,13 +92,9 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             );
         }
 
-        /** @var string[] $types */
-        $types = $query->getParameterTypes();
-
         return new QueryBuilderResponse(
             $sql,
-            $params,
-            $types,
+            $params
         );
     }
 
