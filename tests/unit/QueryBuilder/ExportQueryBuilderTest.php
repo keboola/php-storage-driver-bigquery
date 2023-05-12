@@ -399,6 +399,7 @@ class ExportQueryBuilderTest extends TestCase
         ];
     }
 
+    /** @return BigqueryColumn[] */
     public function getColumnsCollection(): array
     {
         // define table info
