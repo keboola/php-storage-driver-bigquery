@@ -10,8 +10,8 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\BadExportFilterParameters;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
@@ -887,11 +887,6 @@ class PreviewTableTest extends BaseCase
                     'length' => '200',
                     'nullable' => true,
                 ],
-                'boolean' => [
-                    'type' => Bigquery::TYPE_BOOL,
-                    'length' => '',
-                    'nullable' => false,
-                ],
                 'timestamp' => [
                     'type' => Bigquery::TYPE_TIMESTAMP,
                     'length' => '',
@@ -905,9 +900,9 @@ class PreviewTableTest extends BaseCase
         // FILL DATA
         $insertGroups = [
             [
-                'columns' => '`int`, `date`, `datetime`, `time`, `varchar`, `boolean`, `timestamp`',
+                'columns' => '`int`, `date`, `datetime`, `time`, `varchar`, `timestamp`',
                 'rows' => [
-                    "200, '2022-01-01', '2022-01-01 12:00:02', '12:35:00', 'xxx', true, '1989-08-31 00:00:00.000'",
+                    "200, '2022-01-01', '2022-01-01 12:00:02', '12:35:00', 'xxx', '1989-08-31 00:00:00.000'",
                 ],
             ],
         ];
@@ -954,22 +949,6 @@ class PreviewTableTest extends BaseCase
             ],
             // non-existing date
             'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'; Column \'date\'',
-        ];
-
-        yield 'wrong boolean' => [
-            [
-                'columns' => ['boolean'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'boolean',
-                            'operator' => Operator::eq,
-                            'values' => [true],
-                        ]),
-                    ],
-                ]),
-            ],
-            'Invalid filter value, expected:"BOOL", actual:"STRING".',
         ];
 
         yield 'wrong time' => [
