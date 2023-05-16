@@ -11,6 +11,8 @@ use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -82,38 +84,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         // export command
-        $cmd = new TableExportToFileCommand();
-
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $bucketDatabaseName;
-        $cmd->setSource(
-            (new ImportExportShared\Table())
-                ->setPath($path)
-                ->setTableName($sourceTableName)
-        );
-
-        $cmd->setFileProvider(FileProvider::GCS);
-
-        $cmd->setFileFormat(FileFormat::CSV);
-
-        if ($input['exportOptions'] instanceof ExportOptions) {
-            $cmd->setExportOptions($input['exportOptions']);
-        }
-
-        $cmd->setFilePath(
-            (new FilePath())
-                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
-                ->setPath($exportDir)
-                ->setFileName('exp')
-        );
-
-        $response = (new ExportTableToFileHandler($this->clientManager))(
-            $this->projectCredentials,
-            $cmd,
-            []
-        );
-
-        $this->assertInstanceOf(TableExportToFileResponse::class, $response);
+        $response = $this->exportTable($bucketDatabaseName, $sourceTableName, $input, $exportDir);
 
         $exportedTableInfo = $response->getTableInfo();
         $this->assertNotNull($exportedTableInfo);
@@ -524,6 +495,232 @@ class ExportTableToFileTest extends BaseCase
             ],
         ];
     }
+
+    /**
+     * @param array{exportOptions: ExportOptions} $exportOptions
+     */
+    public function exportTable(
+        string $bucketDatabaseName,
+        string $sourceTableName,
+        array $exportOptions,
+        string $exportDir
+    ): TableExportToFileResponse {
+        $cmd = new TableExportToFileCommand();
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $cmd->setSource(
+            (new ImportExportShared\Table())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+        );
+
+        $cmd->setFileProvider(FileProvider::GCS);
+
+        $cmd->setFileFormat(FileFormat::CSV);
+
+        if ($exportOptions['exportOptions'] instanceof ExportOptions) {
+            $cmd->setExportOptions($exportOptions['exportOptions']);
+        }
+
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath($exportDir)
+                ->setFileName('exp')
+        );
+
+        $response = (new ExportTableToFileHandler($this->clientManager))(
+            $this->projectCredentials,
+            $cmd,
+            []
+        );
+
+        $this->assertInstanceOf(TableExportToFileResponse::class, $response);
+        return $response;
+    }
+
+    /**
+     * @phpcs:ignore
+     * @param array{exportOptions: ExportOptions} $params
+     * @dataProvider filterProvider
+     */
+    public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
+    {
+        $tableName = md5($this->getName()) . '_Test_table';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'int' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'date' => [
+                    'type' => Bigquery::TYPE_DATE,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'datetime' => [
+                    'type' => Bigquery::TYPE_DATETIME,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'time' => [
+                    'type' => Bigquery::TYPE_TIME,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'varchar' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'length' => '200',
+                    'nullable' => true,
+                ],
+                'timestamp' => [
+                    'type' => Bigquery::TYPE_TIMESTAMP,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+            ],
+            'primaryKeysNames' => [],
+        ];
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                'columns' => '`int`, `date`, `datetime`, `time`, `varchar`, `timestamp`',
+                'rows' => [
+                    "200, '2022-01-01', '2022-01-01 12:00:02', '12:35:00', 'xxx', '1989-08-31 00:00:00.000'",
+                ],
+            ],
+        ];
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
+
+        $exportDir = sprintf(
+            'export/%s/',
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getName())
+        );
+        try {
+            $this->exportTable($bucketDatabaseName, $tableName, $params, $exportDir);
+            $this->fail('This should never happen');
+        } catch (BadExportFilterParameters $e) {
+            $this->assertStringContainsString($expectExceptionMessage, $e->getMessage());
+        }
+    }
+
+    public function filterProvider(): Generator
+    {
+        yield 'wrong int' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['int'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'int',
+                                'operator' => Operator::eq,
+                                'values' => ['aaa'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            'Invalid filter value, expected:"INT64", actual:"STRING".',
+        ];
+
+        yield 'wrong date' => [
+            [
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['date'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'date',
+                                'operator' => Operator::eq,
+                                'values' => ['2022-02-31'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            // non-existing date
+            'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'; Column \'date\'',
+        ];
+
+        yield 'wrong time' => [
+            [
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['time'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'time',
+                                'operator' => Operator::eq,
+                                'values' => ['25:59:59.999999'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            'Invalid time string "25:59:59.999999"; while executing the filter on column \'time\'; Column \'time\'',
+        ];
+
+        yield 'wrong timestamp' => [
+            [
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['timestamp'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'timestamp',
+                                'operator' => Operator::eq,
+                                'values' => ['25:59:59.999999'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            //phpcs:ignore
+            "Invalid timestamp: '25:59:59.999999'; while executing the filter on column 'timestamp'; Column 'timestamp'",
+        ];
+
+        yield 'wrong more filters' => [
+            [
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['int'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => 'int',
+                                'operator' => Operator::lt,
+                                'values' => ['aaa'],
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'int',
+                                'operator' => Operator::gt,
+                                'values' => ['aaa'],
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => 'time',
+                                'operator' => Operator::eq,
+                                'values' => ['25:59:59.999999'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            'Invalid filter value, expected:"INT64", actual:"STRING".',
+        ];
+    }
+
 
     public function slicedExportProvider(): Generator
     {
