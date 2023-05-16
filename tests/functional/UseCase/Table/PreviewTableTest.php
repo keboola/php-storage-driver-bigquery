@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 
+use Generator;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\BadExportFilterParameters;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
+use Keboola\StorageDriver\Command\Table\ImportExportShared;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
@@ -840,6 +843,193 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString('PreviewTableCommand.orderBy.0.columnName is required', $e->getMessage());
         }
+    }
+
+    /**
+     * @phpcs:ignore
+     * @param array{
+     *     columns: array<string>,
+     *     orderBy?: ExportOrderBy[],
+     *     filters?: ExportFilters
+     * } $params
+     * @dataProvider  filterProvider
+     */
+    public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
+    {
+        $tableName = md5($this->getName()) . '_Test_table';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'int' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'date' => [
+                    'type' => Bigquery::TYPE_DATE,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'datetime' => [
+                    'type' => Bigquery::TYPE_DATETIME,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'time' => [
+                    'type' => Bigquery::TYPE_TIME,
+                    'length' => '',
+                    'nullable' => true,
+                ],
+                'varchar' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'length' => '200',
+                    'nullable' => true,
+                ],
+                'boolean' => [
+                    'type' => Bigquery::TYPE_BOOL,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+                'timestamp' => [
+                    'type' => Bigquery::TYPE_TIMESTAMP,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+            ],
+            'primaryKeysNames' => [],
+        ];
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                'columns' => '`int`, `date`, `datetime`, `time`, `varchar`, `boolean`, `timestamp`',
+                'rows' => [
+                    "200, '2022-01-01', '2022-01-01 12:00:02', '12:35:00', 'xxx', true, '1989-08-31 00:00:00.000'",
+                ],
+            ],
+        ];
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
+
+        try {
+            $this->previewTable($bucketDatabaseName, $tableName, $params);
+            $this->fail('This should never happen');
+        } catch (BadExportFilterParameters $e) {
+            $this->assertStringContainsString($expectExceptionMessage, $e->getMessage());
+        }
+    }
+
+    public function filterProvider(): Generator
+    {
+        yield 'wrong int' => [
+            [
+                'columns' => ['int'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::eq,
+                            'values' => ['aaa'],
+                        ]),
+                    ],
+                ]),
+            ],
+            'Invalid filter value, expected:"INT64", actual:"STRING".',
+        ];
+
+        yield 'wrong date' => [
+            [
+                'columns' => ['date'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'date',
+                            'operator' => Operator::eq,
+                            'values' => ['2022-02-31'],
+                        ]),
+                    ],
+                ]),
+            ],
+            // non-existing date
+            'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'; Column \'date\'',
+        ];
+
+        yield 'wrong boolean' => [
+            [
+                'columns' => ['boolean'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'boolean',
+                            'operator' => Operator::eq,
+                            'values' => [true],
+                        ]),
+                    ],
+                ]),
+            ],
+            'Invalid filter value, expected:"BOOL", actual:"STRING".',
+        ];
+
+        yield 'wrong time' => [
+            [
+                'columns' => ['time'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'time',
+                            'operator' => Operator::eq,
+                            'values' => ['25:59:59.999999'],
+                        ]),
+                    ],
+                ]),
+            ],
+            'Invalid time string "25:59:59.999999"; while executing the filter on column \'time\'; Column \'time\'',
+        ];
+
+        yield 'wrong timestamp' => [
+            [
+                'columns' => ['timestamp'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'timestamp',
+                            'operator' => Operator::eq,
+                            'values' => ['25:59:59.999999'],
+                        ]),
+                    ],
+                ]),
+            ],
+            //phpcs:ignore
+            "Invalid timestamp: '25:59:59.999999'; while executing the filter on column 'timestamp'; Column 'timestamp'",
+        ];
+
+        yield 'wrong more filters' => [
+            [
+                'columns' => ['int'],
+                'filters' => new ImportExportShared\ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::lt,
+                            'values' => ['aaa'],
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'int',
+                            'operator' => Operator::gt,
+                            'values' => ['aaa'],
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'time',
+                            'operator' => Operator::eq,
+                            'values' => ['25:59:59.999999'],
+                        ]),
+                    ],
+                ]),
+            ],
+            'Invalid filter value, expected:"INT64", actual:"STRING".',
+        ];
     }
 
     private function dropTable(string $databaseName, string $tableName): void

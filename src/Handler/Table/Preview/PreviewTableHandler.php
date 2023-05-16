@@ -5,24 +5,21 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Preview;
 
 use DateTime;
+use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
-use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
-use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
-use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
@@ -82,10 +79,15 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $queryDataBindings = $queryData->getBindings();
 
         // select table
-        $result = $bqClient->runQuery(
-            $bqClient->query($queryData->getQuery())
-                ->parameters($queryDataBindings)
-        );
+        try {
+            $result = $bqClient->runQuery(
+                $bqClient->query($queryData->getQuery())
+                    ->parameters($queryDataBindings)
+            );
+        } catch (BadRequestException $e) {
+            $this->handleWrongTypeInFilters($e);
+            throw $e;
+        }
 
         // set response
         $response = new PreviewTableResponse();
@@ -161,6 +163,36 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                 'PreviewTableCommand.orderBy.%d.columnName is required',
                 $index,
             ));
+        }
+    }
+
+    /**
+     * @throws BadExportFilterParameters
+     */
+    private function handleWrongTypeInFilters(BadRequestException $e): void
+    {
+        if ($e->getCode() === 400 && strpos($e->getMessage(), 'No matching signature for operator ') !== false) {
+            $expectedActualPattern = '/types:\s(.*?)\./';
+            preg_match($expectedActualPattern, $e->getMessage(), $matches);
+            assert(isset($matches[1]));
+            $expected = trim(explode(',', $matches[1])[0]);
+            $actual = trim(explode(',', $matches[1])[1]);
+
+            throw new BadExportFilterParameters(
+                message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
+                previous: $e
+            );
+        }
+
+        if ($e->getCode() === 400 && strpos($e->getMessage(), 'Invalid') !== false) {
+            /** @var array<string, array<string, string>> $message */
+            $message = json_decode($e->getMessage(), true);
+            assert($message !== null);
+            assert(isset($message['error']['message']));
+            throw new BadExportFilterParameters(
+                message: $message['error']['message'],
+                previous: $e
+            );
         }
     }
 }
