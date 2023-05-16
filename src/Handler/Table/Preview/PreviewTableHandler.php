@@ -12,6 +12,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
@@ -19,7 +20,6 @@ use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
@@ -85,7 +85,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                     ->parameters($queryDataBindings)
             );
         } catch (BadRequestException $e) {
-            $this->handleWrongTypeInFilters($e);
+            BadExportFilterParameters::handleWrongTypeInFilters($e);
             throw $e;
         }
 
@@ -163,36 +163,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                 'PreviewTableCommand.orderBy.%d.columnName is required',
                 $index,
             ));
-        }
-    }
-
-    /**
-     * @throws BadExportFilterParameters
-     */
-    private function handleWrongTypeInFilters(BadRequestException $e): void
-    {
-        if ($e->getCode() === 400 && strpos($e->getMessage(), 'No matching signature for operator ') !== false) {
-            $expectedActualPattern = '/types:\s(.*?)\./';
-            preg_match($expectedActualPattern, $e->getMessage(), $matches);
-            assert(isset($matches[1]));
-            $expected = trim(explode(',', $matches[1])[0]);
-            $actual = trim(explode(',', $matches[1])[1]);
-
-            throw new BadExportFilterParameters(
-                message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
-                previous: $e
-            );
-        }
-
-        if ($e->getCode() === 400 && strpos($e->getMessage(), 'Invalid') !== false) {
-            /** @var array<string, array<string, string>> $message */
-            $message = json_decode($e->getMessage(), true);
-            assert($message !== null);
-            assert(isset($message['error']['message']));
-            throw new BadExportFilterParameters(
-                message: $message['error']['message'],
-                previous: $e
-            );
         }
     }
 }
