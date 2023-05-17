@@ -11,23 +11,16 @@ class QueryBuilderResponse
      * @var list<mixed>|array<string, mixed>
      */
     private array $bindings;
-    /**
-     * @var string[]
-     */
-    private array $types;
 
     /**
      * @param list<array>|array<string, mixed> $bindings
-     * @param string[] $types
      */
     public function __construct(
         string $query,
-        array $bindings,
-        array $types
+        array $bindings
     ) {
         $this->query = $query;
         $this->bindings = $bindings;
-        $this->types = $types;
     }
 
     public function getQuery(): string
@@ -48,6 +41,7 @@ class QueryBuilderResponse
      */
     public function getTypes(): array
     {
-        return $this->types;
+        // this query builder does not support types
+        return [];
     }
 }

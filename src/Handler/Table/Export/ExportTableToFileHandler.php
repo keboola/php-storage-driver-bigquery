@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Export;
 
+use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Db\ImportExport\Backend\Bigquery\Export\Exporter;
 use Keboola\Db\ImportExport\ExportOptions as ExportOptionsLib;
@@ -13,6 +14,7 @@ use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
@@ -106,11 +108,16 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
             $credentials
         );
 
-        (new Exporter($bqClient))->exportTable(
-            $sourceRef,
-            $destinationRef,
-            $exportOptions
-        );
+        try {
+            (new Exporter($bqClient))->exportTable(
+                $sourceRef,
+                $destinationRef,
+                $exportOptions
+            );
+        } catch (BadRequestException $e) {
+            BadExportFilterParametersException::handleWrongTypeInFilters($e);
+            throw $e;
+        }
 
         return (new TableExportToFileResponse())
             ->setTableInfo(

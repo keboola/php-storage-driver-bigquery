@@ -20,6 +20,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Oper
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
+use Keboola\TableBackendUtils\Column\ColumnInterface;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 abstract class CommonFilterQueryBuilder
@@ -228,25 +229,26 @@ abstract class CommonFilterQueryBuilder
         }
 
         foreach ($columns as $column) {
-            $selectColumnExpresion = BigqueryQuote::quoteSingleIdentifier($column);
+            $selectColumnExpression = BigqueryQuote::quoteSingleIdentifier($column);
 
             if ($truncateLargeColumns) {
-                /** @var BigqueryColumn[] $defs */
-                $defs = iterator_to_array($tableColumnsDefinitions);
-                /** @var BigqueryColumn $def */
+                /** @var BigqueryColumn[] $def */
                 $def = array_values(array_filter(
-                    $defs,
-                    fn(BigqueryColumn $c) => $c->getColumnName() === $column
-                ))[0];
+                    iterator_to_array($tableColumnsDefinitions),
+                    fn(BigqueryColumn|ColumnInterface $c) => $c->getColumnName() === $column
+                ));
+                if (count($def) === 0) {
+                    throw new QueryBuilderException(sprintf('Column "%s" not found in table definition.', $column));
+                }
                 $this->processSelectWithLargeColumnTruncation(
                     $query,
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     $column,
-                    $def->getColumnDefinition()
+                    $def[0]->getColumnDefinition()
                 );
                 continue;
             }
-            $query->addSelect($selectColumnExpresion);
+            $query->addSelect($selectColumnExpression);
         }
     }
 

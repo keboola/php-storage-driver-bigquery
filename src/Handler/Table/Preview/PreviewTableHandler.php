@@ -5,19 +5,16 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Preview;
 
 use DateTime;
+use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
-use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
-use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
-use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
@@ -82,10 +79,15 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         $queryDataBindings = $queryData->getBindings();
 
         // select table
-        $result = $bqClient->runQuery(
-            $bqClient->query($queryData->getQuery())
-                ->parameters($queryDataBindings)
-        );
+        try {
+            $result = $bqClient->runQuery(
+                $bqClient->query($queryData->getQuery())
+                    ->parameters($queryDataBindings)
+            );
+        } catch (BadRequestException $e) {
+            BadExportFilterParametersException::handleWrongTypeInFilters($e);
+            throw $e;
+        }
 
         // set response
         $response = new PreviewTableResponse();
