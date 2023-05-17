@@ -9,7 +9,7 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class BadExportFilterParameters extends Exception implements NonRetryableExceptionInterface
+class BadExportFilterParametersException extends Exception implements NonRetryableExceptionInterface
 {
     public function __construct(string $message, int $code = self::ERR_VALIDATION, ?Throwable $previous = null)
     {

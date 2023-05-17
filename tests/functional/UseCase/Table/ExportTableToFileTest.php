@@ -12,7 +12,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
-use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -606,7 +606,7 @@ class ExportTableToFileTest extends BaseCase
         try {
             $this->exportTable($bucketDatabaseName, $tableName, $params, $exportDir);
             $this->fail('This should never happen');
-        } catch (BadExportFilterParameters $e) {
+        } catch (BadExportFilterParametersException $e) {
             $this->assertStringContainsString($expectExceptionMessage, $e->getMessage());
         }
     }

@@ -14,7 +14,7 @@ use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
@@ -115,7 +115,7 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
                 $exportOptions
             );
         } catch (BadRequestException $e) {
-            BadExportFilterParameters::handleWrongTypeInFilters($e);
+            BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
 

@@ -12,7 +12,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParameters;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
@@ -85,7 +85,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
                     ->parameters($queryDataBindings)
             );
         } catch (BadRequestException $e) {
-            BadExportFilterParameters::handleWrongTypeInFilters($e);
+            BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
 
