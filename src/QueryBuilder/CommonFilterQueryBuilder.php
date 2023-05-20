@@ -53,7 +53,7 @@ abstract class CommonFilterQueryBuilder
 
     private function addSelectLargeString(QueryBuilder $query, string $selectColumnExpresion, string $column): void
     {
-//casted value
+        //casted value
         $query->addSelect(
             sprintf(
                 'SUBSTRING(CAST(%s as STRING), 0, %d) AS %s',
@@ -254,12 +254,31 @@ abstract class CommonFilterQueryBuilder
 
     private function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
-        string $selectColumnExpresion,
+        string $selectColumnExpression,
         string $column,
         Bigquery $def
     ): void {
+        if ($def->getType() === Bigquery::TYPE_ARRAY) {
+            $query->addSelect(
+                sprintf(
+                    'IF(ARRAY_LENGTH(%s) = 0, NULL, ARRAY_TO_STRING(ARRAY(SELECT CAST(element AS STRING) FROM UNNEST(%s) as element), \',\')) AS %s',
+                    $selectColumnExpression,
+                    $selectColumnExpression,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+
+            //flag not casted
+            $query->addSelect(
+                sprintf(
+                    '0 AS %s',
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+                )
+            );
+            return;
+        }
         if ($def->getBasetype() === BaseType::STRING) {
-            $this->addSelectLargeString($query, $selectColumnExpresion, $column);
+            $this->addSelectLargeString($query, $selectColumnExpression, $column);
             return;
         }
         if (in_array($def->getType(), [Bigquery::TYPE_TIME, Bigquery::TYPE_TIMESTAMP, Bigquery::TYPE_DATETIME], true)) {
@@ -268,7 +287,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '%s AS %s',
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
@@ -277,7 +296,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'CAST(%s as STRING) AS %s',
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );

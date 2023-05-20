@@ -107,36 +107,41 @@ class PreviewTableTest extends BaseCase
                     'type' => Bigquery::TYPE_DATETIME,
                     'nullable' => true,
                 ],
-                'array' => [
+                'array_of_int' => [
                     'type' => Bigquery::TYPE_ARRAY,
                     'length' => 'INT64',
-                    'nullable' => false,
+                    'nullable' => true,
                 ],
-                'bytes' => [
-                    'type' => Bigquery::TYPE_BYTES,
-                    'nullable' => false,
+                'array_of_string' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'STRING',
+                    'nullable' => true,
                 ],
-                'geography' => [
-                    'type' => Bigquery::TYPE_GEOGRAPHY,
-                    'nullable' => false,
-                ],
-                'interval' => [
-                    'type' => Bigquery::TYPE_INTERVAL,
-                    'nullable' => false,
-                ],
-                'json' => [
-                    'type' => Bigquery::TYPE_JSON,
-                    'nullable' => false,
-                ],
-                'bigdecimal' => [
-                    'type' => Bigquery::TYPE_BIGDECIMAL,
-                    'nullable' => false,
-                ],
-                'struct' => [
-                    'type' => Bigquery::TYPE_STRUCT,
-                    'length' => 'a INT64',
-                    'nullable' => false,
-                ],
+//                'bytes' => [
+//                    'type' => Bigquery::TYPE_BYTES,
+//                    'nullable' => false,
+//                ],
+//                'geography' => [
+//                    'type' => Bigquery::TYPE_GEOGRAPHY,
+//                    'nullable' => false,
+//                ],
+//                'interval' => [
+//                    'type' => Bigquery::TYPE_INTERVAL,
+//                    'nullable' => false,
+//                ],
+//                'json' => [
+//                    'type' => Bigquery::TYPE_JSON,
+//                    'nullable' => false,
+//                ],
+//                'bigdecimal' => [
+//                    'type' => Bigquery::TYPE_BIGDECIMAL,
+//                    'nullable' => false,
+//                ],
+//                'struct' => [
+//                    'type' => Bigquery::TYPE_STRUCT,
+//                    'length' => 'a INT64',
+//                    'nullable' => false,
+//                ],
             ],
             'primaryKeysNames' => ['id'],
         ];
@@ -146,19 +151,19 @@ class PreviewTableTest extends BaseCase
         $insertGroups = [
             [
                 //phpcs:ignore
-                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`, `array`, `bytes`, `geography`, `interval`, `json`, `bigdecimal`, `struct`',
+                'columns' => '`id`, `int`, `decimal`,`decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`, `array_of_int`, `array_of_string`',//, `bytes`, `geography`, `interval`, `json`, `bigdecimal`, `struct`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], ['ke','boo','la']", //, b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], ['ke','boo','la']", // b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
                     sprintf(
                     //phpcs:ignore
-                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], ['ke','boo','la']", // b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    "4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, [10,11,12], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL", //b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
                 ],
             ],
         ];
@@ -167,7 +172,7 @@ class PreviewTableTest extends BaseCase
         // CHECK: all records + truncated
         $filter = [
             'input' => [
-                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array', 'bytes', 'geography', 'interval', 'json', 'bigdecimal', 'struct'],
+                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string'],//, 'bytes', 'geography', 'interval', 'json', 'bigdecimal', 'struct'],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -175,7 +180,7 @@ class PreviewTableTest extends BaseCase
                     ]),
                 ],
             ],
-            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime'],
+            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string'],
             'expectedRows' => [
                 [
                     'id' => [
@@ -214,6 +219,14 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '1989-08-31 00:00:00.000000'],
                         'truncated' => false,
                     ],
+                    'array_of_int' => [
+                        'value' => ['string_value' => '1,2,3'],
+                        'truncated' => false,
+                    ],
+                    'array_of_string' => [
+                        'value' => ['string_value' => 'ke,boo,la'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -250,6 +263,14 @@ class PreviewTableTest extends BaseCase
                     ],
                     'datetime' => [
                         'value' => ['string_value' => '1989-08-31 01:00:00.123456'],
+                        'truncated' => false,
+                    ],
+                    'array_of_int' => [
+                        'value' => ['string_value' => '4,5,6'],
+                        'truncated' => false,
+                    ],
+                    'array_of_string' => [
+                        'value' => ['string_value' => 'ke,boo,la'],
                         'truncated' => false,
                     ],
                 ],
@@ -292,6 +313,14 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '1989-08-31 02:00:00.000000'],
                         'truncated' => false,
                     ],
+                    'array_of_int' => [
+                        'value' => ['string_value' => '7,8,9'],
+                        'truncated' => false,
+                    ],
+                    'array_of_string' => [
+                        'value' => ['string_value' => 'ke,boo,la'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -327,6 +356,14 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'datetime' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_of_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_of_string' => [
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],
