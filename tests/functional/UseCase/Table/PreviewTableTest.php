@@ -119,7 +119,7 @@ class PreviewTableTest extends BaseCase
                 ],
                 'bytes' => [
                     'type' => Bigquery::TYPE_BYTES,
-                    'nullable' => false,
+                    'nullable' => true,
                 ],
                 'geography' => [
                     'type' => Bigquery::TYPE_GEOGRAPHY,
@@ -133,15 +133,15 @@ class PreviewTableTest extends BaseCase
                     'type' => Bigquery::TYPE_JSON,
                     'nullable' => true,
                 ],
-//                'bigdecimal' => [
-//                    'type' => Bigquery::TYPE_BIGDECIMAL,
-//                    'nullable' => false,
-//                ],
-//                'struct' => [
-//                    'type' => Bigquery::TYPE_STRUCT,
-//                    'length' => 'a INT64',
-//                    'nullable' => false,
-//                ],
+                'bigdecimal' => [
+                    'type' => Bigquery::TYPE_BIGDECIMAL,
+                    'nullable' => true,
+                ],
+                'struct' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'a INT64',
+                    'nullable' => true,
+                ],
             ],
             'primaryKeysNames' => ['id'],
         ];
@@ -151,19 +151,19 @@ class PreviewTableTest extends BaseCase
         $insertGroups = [
             [
                 //phpcs:ignore
-                'columns' => '`id`, `int`, `decimal`, `decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`, `array_of_int`, `array_of_string`, `bytes`, `geography`, `interval`, `json`', // , `json`, `bigdecimal`, `struct`',
+                'columns' => '`id`, `int`, `decimal`, `decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`, `array_of_int`, `array_of_string`, `bytes`, `geography`, `interval`, `json`, `bigdecimal`, `struct`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}'", //, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}'", // b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                     sprintf(
                     //phpcs:ignore
-                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}'", // b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                         str_repeat('VeryLongString123456', 5)
                     ),
-                    "4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, b'\x01\x02\x03\x04', NULL, NULL, NULL", //b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1.23456e05, STRUCT(1)",
+                    "4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL",
                 ],
             ],
         ];
@@ -172,7 +172,7 @@ class PreviewTableTest extends BaseCase
         // CHECK: all records + truncated
         $filter = [
             'input' => [
-                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string', 'bytes', 'geography', 'interval', 'json'],//,, 'bigdecimal', 'struct'],
+                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string', 'bytes', 'geography', 'interval', 'json', 'bigdecimal', 'struct'],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -180,7 +180,7 @@ class PreviewTableTest extends BaseCase
                     ]),
                 ],
             ],
-            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string', 'bytes', 'geography', 'interval', 'json'],
+            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'array_of_int', 'array_of_string', 'bytes', 'geography', 'interval', 'json', 'bigdecimal', 'struct'],
             'expectedRows' => [
                 [
                     'id' => [
@@ -243,6 +243,14 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '{"age":30,"city":"New York","name":"John"}'],
                         'truncated' => false,
                     ],
+                    'bigdecimal' => [
+                        'value' => ['string_value' => '1234567890.1234567890123456789'],
+                        'truncated' => false,
+                    ],
+                    'struct' => [
+                        'value' => ['string_value' => '{"a":1}'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -303,6 +311,14 @@ class PreviewTableTest extends BaseCase
                     ],
                     'json' => [
                         'value' => ['string_value' => '{"age":30,"city":"New York","name":"John"}'],
+                        'truncated' => false,
+                    ],
+                    'bigdecimal' => [
+                        'value' => ['string_value' => '1234567890.1234567890123456789'],
+                        'truncated' => false,
+                    ],
+                    'struct' => [
+                        'value' => ['string_value' => '{"a":1}'],
                         'truncated' => false,
                     ],
                 ],
@@ -369,6 +385,14 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '{"age":30,"city":"New York","name":"John"}'],
                         'truncated' => false,
                     ],
+                    'bigdecimal' => [
+                        'value' => ['string_value' => '1234567890.1234567890123456789'],
+                        'truncated' => false,
+                    ],
+                    'struct' => [
+                        'value' => ['string_value' => '{"a":1}'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'id' => [
@@ -416,7 +440,7 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'bytes' => [
-                        'value' => ['string_value' => ''],
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],
                     'geography' => [
@@ -428,6 +452,14 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'json' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'bigdecimal' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'struct' => [
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],

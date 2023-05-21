@@ -298,7 +298,7 @@ abstract class CommonFilterQueryBuilder
             return;
         }
 
-        if ($def->getType() === Bigquery::TYPE_JSON) {
+        if (in_array($def->getType(), [Bigquery::TYPE_JSON, Bigquery::TYPE_STRUCT])) {
             $query->addSelect(
                 sprintf(
                     'IF(%s IS NULL, NULL, TO_JSON_STRING(%s)) AS %s',
