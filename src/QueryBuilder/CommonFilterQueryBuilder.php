@@ -298,6 +298,26 @@ abstract class CommonFilterQueryBuilder
             return;
         }
 
+        if ($def->getType() === Bigquery::TYPE_JSON) {
+            $query->addSelect(
+                sprintf(
+                    'IF(%s IS NULL, NULL, TO_JSON_STRING(%s)) AS %s',
+                    $selectColumnExpression,
+                    $selectColumnExpression,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+
+            //flag not casted
+            $query->addSelect(
+                sprintf(
+                    '0 AS %s',
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+                )
+            );
+            return;
+        }
+
         if ($def->getBasetype() === BaseType::STRING) {
             $this->addSelectLargeString($query, $selectColumnExpression, $column);
             return;
