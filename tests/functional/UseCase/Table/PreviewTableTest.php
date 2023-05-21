@@ -84,6 +84,11 @@ class PreviewTableTest extends BaseCase
                     'length' => 'STRUCT<a ARRAY<INT64>>',
                     'nullable' => true,
                 ],
+                'array_struct_array-int_array-string' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'STRUCT<a ARRAY<INT64>, b ARRAY<STRING>>',
+                    'nullable' => true,
+                ],
             ],
             'primaryKeysNames' => ['id'],
         ];
@@ -92,12 +97,12 @@ class PreviewTableTest extends BaseCase
         // FILL DATA
         $insertGroups = [
             [
-                'columns' => '`id`, `array_int`, `array_string`, `array_struct_int_int`, `array_struct_array_int`',
+                'columns' => '`id`, `array_int`, `array_string`, `array_struct_int_int`, `array_struct_array_int`, `array_struct_array-int_array-string`',
                 'rows' => [
-                    "1, [1,2,3], ['ke', 'boo', 'la'], [STRUCT(1,2), STRUCT(3,4)], [STRUCT([1,2]), STRUCT([3,4])]",
-                    "2, [4,5,6], ['ro', 'man'], [STRUCT(5,6), STRUCT(7,8)], [STRUCT([5,6]), STRUCT([7,8])]",
-                    "3, [7,8,9], ['789', '456', '123'], [STRUCT(9,10), STRUCT(11,12)], [STRUCT([9,10]), STRUCT([11,12])]",
-                    "4, NULL, NULL, NULL, NULL",
+                    "1, [1,2,3], ['ke', 'boo', 'la'], [STRUCT(1,2), STRUCT(3,4)], [STRUCT([1,2]), STRUCT([3,4])], [STRUCT([1,2], ['a', 'b']), STRUCT([3,4], ['c', 'd'])]",
+                    "2, [4,5,6], ['ro', 'man'], [STRUCT(5,6), STRUCT(7,8)], [STRUCT([5,6]), STRUCT([7,8])], [STRUCT([5,6], ['e', 'f']), STRUCT([7,8], ['g', 'h'])]",
+                    "3, [7,8,9], ['789', '456', '123'], [STRUCT(9,10), STRUCT(11,12)], [STRUCT([9,10]), STRUCT([11,12])], [STRUCT([9,10], ['i', 'j']), STRUCT([11,12], ['k', 'l'])]",
+                    "4, NULL, NULL, NULL, NULL, NULL",
                 ],
             ],
         ];
@@ -106,7 +111,7 @@ class PreviewTableTest extends BaseCase
         // CHECK: all records + truncated
         $filter = [
             'input' => [
-                'columns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int'],
+                'columns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int', 'array_struct_array-int_array-string'],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -114,7 +119,7 @@ class PreviewTableTest extends BaseCase
                     ]),
                 ],
             ],
-            'expectedColumns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int'],
+            'expectedColumns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int', 'array_struct_array-int_array-string'],
             'expectedRows' => [
                 [
                     'array_int' => [
@@ -131,6 +136,10 @@ class PreviewTableTest extends BaseCase
                     ],
                     'array_struct_array_int' => [
                         'value' => ['string_value' => '[{"a":[1,2]},{"a":[3,4]}]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array-int_array-string' => [
+                        'value' => ['string_value' => '[{"a":[1,2],"b":["a","b"]},{"a":[3,4],"b":["c","d"]}]'],
                         'truncated' => false,
                     ],
                 ],
@@ -151,6 +160,10 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '[{"a":[5,6]},{"a":[7,8]}]'],
                         'truncated' => false,
                     ],
+                    'array_struct_array-int_array-string' => [
+                        'value' => ['string_value' => '[{"a":[5,6],"b":["e","f"]},{"a":[7,8],"b":["g","h"]}]'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'array_int' => [
@@ -169,6 +182,10 @@ class PreviewTableTest extends BaseCase
                         'value' => ['string_value' => '[{"a":[9,10]},{"a":[11,12]}]'],
                         'truncated' => false,
                     ],
+                    'array_struct_array-int_array-string' => [
+                        'value' => ['string_value' => '[{"a":[9,10],"b":["i","j"]},{"a":[11,12],"b":["k","l"]}]'],
+                        'truncated' => false,
+                    ],
                 ],
                 [
                     'array_int' => [
@@ -184,6 +201,10 @@ class PreviewTableTest extends BaseCase
                         'truncated' => false,
                     ],
                     'array_struct_array_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array-int_array-string' => [
                         'value' => ['null_value' => NullValue::NULL_VALUE],
                         'truncated' => false,
                     ],
