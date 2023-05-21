@@ -51,6 +51,150 @@ class PreviewTableTest extends BaseCase
         $this->cleanTestProject();
     }
 
+    public function testArrayPreviewTable()
+    {
+        $tableName = md5($this->getName()) . '_Test_table';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'id' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+                'array_int' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'INT64',
+                    'nullable' => true,
+                ],
+                'array_string' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'STRING',
+                    'nullable' => true,
+                ],
+                'array_struct_int_int' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'STRUCT<a INT64, b INT64>',
+                    'nullable' => true,
+                ],
+                'array_struct_array_int' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'STRUCT<a ARRAY<INT64>>',
+                    'nullable' => true,
+                ],
+            ],
+            'primaryKeysNames' => ['id'],
+        ];
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                'columns' => '`id`, `array_int`, `array_string`, `array_struct_int_int`, `array_struct_array_int`',
+                'rows' => [
+                    "1, [1,2,3], ['ke', 'boo', 'la'], [STRUCT(1,2), STRUCT(3,4)], [STRUCT([1,2]), STRUCT([3,4])]",
+                    "2, [4,5,6], ['ro', 'man'], [STRUCT(5,6), STRUCT(7,8)], [STRUCT([5,6]), STRUCT([7,8])]",
+                    "3, [7,8,9], ['789', '456', '123'], [STRUCT(9,10), STRUCT(11,12)], [STRUCT([9,10]), STRUCT([11,12])]",
+                    "4, NULL, NULL, NULL, NULL",
+                ],
+            ],
+        ];
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
+
+        // CHECK: all records + truncated
+        $filter = [
+            'input' => [
+                'columns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int'],
+            'expectedRows' => [
+                [
+                    'array_int' => [
+                        'value' => ['string_value' => '[1,2,3]'],
+                        'truncated' => false,
+                    ],
+                    'array_string' => [
+                        'value' => ['string_value' => '["ke","boo","la"]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_int_int' => [
+                        'value' => ['string_value' => '[{"a":1,"b":2},{"a":3,"b":4}]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array_int' => [
+                        'value' => ['string_value' => '[{"a":[1,2]},{"a":[3,4]}]'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'array_int' => [
+                        'value' => ['string_value' => '[4,5,6]'],
+                        'truncated' => false,
+                    ],
+                    'array_string' => [
+                        'value' => ['string_value' => '["ro","man"]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_int_int' => [
+                        'value' => ['string_value' => '[{"a":5,"b":6},{"a":7,"b":8}]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array_int' => [
+                        'value' => ['string_value' => '[{"a":[5,6]},{"a":[7,8]}]'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'array_int' => [
+                        'value' => ['string_value' => '[7,8,9]'],
+                        'truncated' => false,
+                    ],
+                    'array_string' => [
+                        'value' => ['string_value' => '["789","456","123"]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_int_int' => [
+                        'value' => ['string_value' => '[{"a":9,"b":10},{"a":11,"b":12}]'],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array_int' => [
+                        'value' => ['string_value' => '[{"a":[9,10]},{"a":[11,12]}]'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'array_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_string' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_struct_int_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'array_struct_array_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+    }
+
     public function testPreviewTable(): void
     {
         $tableName = md5($this->getName()) . '_Test_table';
@@ -114,7 +258,7 @@ class PreviewTableTest extends BaseCase
                 ],
                 'array_of_string' => [
                     'type' => Bigquery::TYPE_ARRAY,
-                    'length' => 'STRING',
+                    'length' => 'STRUCT<a INT64, b INT64>',
                     'nullable' => true,
                 ],
                 'bytes' => [
@@ -154,13 +298,13 @@ class PreviewTableTest extends BaseCase
                 'columns' => '`id`, `int`, `decimal`, `decimal_varchar`, `float`, `date`, `time`, `_timestamp`, `varchar`, `datetime`, `array_of_int`, `array_of_string`, `bytes`, `geography`, `interval`, `json`, `bigdecimal`, `struct`',
                 'rows' => [
                     //phpcs:ignore
-                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
+                    "1, 100, 100.23, '100.23', 100.23456, '2022-01-01', '12:00:02', '2022-01-01 12:00:02', 'Variable character 1', '1989-08-31 00:00:00', [1,2,3], [STRUCT(1,2), STRUCT(3,4)], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                     // chanched `time` and `varchar`
                     //phpcs:ignore
-                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
+                    "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2', '1989-08-31 01:00:00.123456', [4,5,6], [STRUCT(1,2), STRUCT(3,4)], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                     sprintf(
                     //phpcs:ignore
-                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], ['ke','boo','la'], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
+                        "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', [7,8,9], [STRUCT(1,2), STRUCT(3,4)], b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890, STRUCT(1)",
                         str_repeat('VeryLongString123456', 5)
                     ),
                     "4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL",

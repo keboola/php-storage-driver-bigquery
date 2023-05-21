@@ -261,7 +261,7 @@ abstract class CommonFilterQueryBuilder
         if ($def->getType() === Bigquery::TYPE_ARRAY) {
             $query->addSelect(
                 sprintf(
-                    'IF(ARRAY_LENGTH(%s) = 0, NULL, ARRAY_TO_STRING(ARRAY(SELECT CAST(element AS STRING) FROM UNNEST(%s) as element), \',\')) AS %s',
+                    'IF(ARRAY_LENGTH(%s) = 0, NULL, TO_JSON_STRING(%s) ) AS %s',
                     $selectColumnExpression,
                     $selectColumnExpression,
                     BigqueryQuote::quoteSingleIdentifier($column)
