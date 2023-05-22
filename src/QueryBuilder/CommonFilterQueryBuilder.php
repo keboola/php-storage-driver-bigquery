@@ -261,17 +261,20 @@ abstract class CommonFilterQueryBuilder
         if ($def->getType() === Bigquery::TYPE_ARRAY) {
             $query->addSelect(
                 sprintf(
-                    'IF(ARRAY_LENGTH(%s) = 0, NULL, TO_JSON_STRING(%s) ) AS %s',
+                    'IF(ARRAY_LENGTH(%s) = 0, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
                     $selectColumnExpression,
                     $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
 
-            //flag not casted
+            //flag if is cast
             $query->addSelect(
                 sprintf(
-                    '0 AS %s',
+                    '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
             );
