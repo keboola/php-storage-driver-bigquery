@@ -304,20 +304,24 @@ abstract class CommonFilterQueryBuilder
         if (in_array($def->getType(), [Bigquery::TYPE_JSON, Bigquery::TYPE_STRUCT])) {
             $query->addSelect(
                 sprintf(
-                    'IF(%s IS NULL, NULL, TO_JSON_STRING(%s)) AS %s',
+                    'IF(%s IS NULL, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
                     $selectColumnExpression,
                     $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
 
-            //flag not casted
+            //flag if is cast
             $query->addSelect(
                 sprintf(
-                    '0 AS %s',
+                    '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
             );
+
             return;
         }
 
