@@ -222,6 +222,156 @@ class PreviewTableTest extends BaseCase
         $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
     }
 
+    public function testStructPreviewTable(): void
+    {
+        $tableName = md5($this->getName()) . '_Test_table';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'id' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+                'struct_int' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'a INT64',
+                    'nullable' => true,
+                ],
+                'struct_string' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'a STRING',
+                    'nullable' => true,
+                ],
+                'struct_int_int' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'a INT64, b INT64',
+                    'nullable' => true,
+                ],
+                'struct_struct_int_int' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'x STRUCT<y INT64, z INT64>',
+                    'nullable' => true,
+                ],
+            ],
+            'primaryKeysNames' => ['id'],
+        ];
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                //phpcs:ignore
+                'columns' => '`id`, `struct_int`, `struct_string`, `struct_int_int`, `struct_struct_int_int`',
+                'rows' => [
+                    //phpcs:ignore
+                    "1, STRUCT(1), STRUCT('a'), STRUCT(1,2), STRUCT(STRUCT(1,2))",
+                    //phpcs:ignore
+                    "2, STRUCT(3), STRUCT('b'), STRUCT(3,4), STRUCT(STRUCT(3,4))",
+                    //phpcs:ignore
+                    "3, STRUCT(5), STRUCT('c'), STRUCT(5,6), STRUCT(STRUCT(5,6))",
+                    '4, NULL, NULL, NULL, NULL',
+                ],
+            ],
+        ];
+        $this->fillTableWithData($this->projectCredentials, $bucketDatabaseName, $tableName, $insertGroups);
+
+        // CHECK: all records + truncated
+        $filter = [
+            'input' => [
+                //phpcs:ignore
+                'columns' => ['struct_int', 'struct_string', 'struct_int_int', 'struct_struct_int_int'],
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            //phpcs:ignore
+            'expectedColumns' => ['struct_int', 'struct_string', 'struct_int_int', 'struct_struct_int_int'],
+            'expectedRows' => [
+                [
+                    'struct_int' => [
+                        'value' => ['string_value' => '{"a":1}'],
+                        'truncated' => false,
+                    ],
+                    'struct_string' => [
+                        'value' => ['string_value' => '{"a":"a"}'],
+                        'truncated' => false,
+                    ],
+                    'struct_int_int' => [
+                        'value' => ['string_value' => '{"a":1,"b":2}'],
+                        'truncated' => false,
+                    ],
+                    'struct_struct_int_int' => [
+                        'value' => ['string_value' => '{"x":{"y":1,"z":2}}'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'struct_int' => [
+                        'value' => ['string_value' => '{"a":3}'],
+                        'truncated' => false,
+                    ],
+                    'struct_string' => [
+                        'value' => ['string_value' => '{"a":"b"}'],
+                        'truncated' => false,
+                    ],
+                    'struct_int_int' => [
+                        'value' => ['string_value' => '{"a":3,"b":4}'],
+                        'truncated' => false,
+                    ],
+                    'struct_struct_int_int' => [
+                        'value' => ['string_value' => '{"x":{"y":3,"z":4}}'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'struct_int' => [
+                        'value' => ['string_value' => '{"a":5}'],
+                        'truncated' => false,
+                    ],
+                    'struct_string' => [
+                        'value' => ['string_value' => '{"a":"c"}'],
+                        'truncated' => false,
+                    ],
+                    'struct_int_int' => [
+                        'value' => ['string_value' => '{"a":5,"b":6}'],
+                        'truncated' => false,
+                    ],
+                    'struct_struct_int_int' => [
+                        'value' => ['string_value' => '{"x":{"y":5,"z":6}}'],
+                        'truncated' => false,
+                    ],
+                ],
+                [
+                    'struct_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'struct_string' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'struct_int_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                    'struct_struct_int_int' => [
+                        'value' => ['null_value' => NullValue::NULL_VALUE],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+    }
+
     public function testPreviewTable(): void
     {
         $tableName = md5($this->getName()) . '_Test_table';
