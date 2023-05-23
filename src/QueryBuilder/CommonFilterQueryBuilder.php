@@ -284,17 +284,20 @@ abstract class CommonFilterQueryBuilder
         if ($def->getType() === Bigquery::TYPE_GEOGRAPHY) {
             $query->addSelect(
                 sprintf(
-                    'IF(%s IS NULL, NULL, ST_ASGEOJSON(%s)) AS %s',
+                    'IF(%s IS NULL, NULL, SUBSTRING(ST_ASGEOJSON(%s), 0, %d)) AS %s',
                     $selectColumnExpression,
                     $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
 
-            //flag not casted
+            //flag if is cast
             $query->addSelect(
                 sprintf(
-                    '0 AS %s',
+                    '(CASE WHEN LENGTH(ST_ASGEOJSON(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
             );
