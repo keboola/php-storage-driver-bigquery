@@ -53,7 +53,7 @@ abstract class CommonFilterQueryBuilder
 
     private function addSelectLargeString(QueryBuilder $query, string $selectColumnExpresion, string $column): void
     {
-//casted value
+        //casted value
         $query->addSelect(
             sprintf(
                 'SUBSTRING(CAST(%s as STRING), 0, %d) AS %s',
@@ -254,12 +254,82 @@ abstract class CommonFilterQueryBuilder
 
     private function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
-        string $selectColumnExpresion,
+        string $selectColumnExpression,
         string $column,
         Bigquery $def
     ): void {
+        if ($def->getType() === Bigquery::TYPE_ARRAY) {
+            $query->addSelect(
+                sprintf(
+                    'IF(ARRAY_LENGTH(%s) = 0, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
+                    $selectColumnExpression,
+                    $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+
+            //flag if is cast
+            $query->addSelect(
+                sprintf(
+                    '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+                )
+            );
+            return;
+        }
+
+        if ($def->getType() === Bigquery::TYPE_GEOGRAPHY) {
+            $query->addSelect(
+                sprintf(
+                    'IF(%s IS NULL, NULL, SUBSTRING(ST_ASGEOJSON(%s), 0, %d)) AS %s',
+                    $selectColumnExpression,
+                    $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+
+            //flag if is cast
+            $query->addSelect(
+                sprintf(
+                    '(CASE WHEN LENGTH(ST_ASGEOJSON(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+                )
+            );
+            return;
+        }
+
+        if (in_array($def->getType(), [Bigquery::TYPE_JSON, Bigquery::TYPE_STRUCT])) {
+            $query->addSelect(
+                sprintf(
+                    'IF(%s IS NULL, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
+                    $selectColumnExpression,
+                    $selectColumnExpression,
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier($column)
+                )
+            );
+
+            //flag if is cast
+            $query->addSelect(
+                sprintf(
+                    '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                    self::DEFAULT_CAST_SIZE,
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
+                )
+            );
+
+            return;
+        }
+
         if ($def->getBasetype() === BaseType::STRING) {
-            $this->addSelectLargeString($query, $selectColumnExpresion, $column);
+            $this->addSelectLargeString($query, $selectColumnExpression, $column);
             return;
         }
         if (in_array($def->getType(), [Bigquery::TYPE_TIME, Bigquery::TYPE_TIMESTAMP, Bigquery::TYPE_DATETIME], true)) {
@@ -268,7 +338,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '%s AS %s',
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
@@ -277,7 +347,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'CAST(%s as STRING) AS %s',
-                    $selectColumnExpresion,
+                    $selectColumnExpression,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
