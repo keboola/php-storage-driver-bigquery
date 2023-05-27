@@ -8,12 +8,15 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
+use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Cloud\Iam\V1\Binding;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Throwable;
@@ -177,6 +180,34 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ],
             iterator_to_array($result->rows())
         );
+
+        $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
+        $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
+            ->setBucketObjectName('test_external')
+            ->setProjectReadOnlyRoleName($createdListing->getName());
+        $handler(
+            $this->mainProjectCredentials,
+            $command,
+            []
+        );
+
+        try {
+            $mainBqClient->runQuery(
+                $mainBqClient->query('SELECT * FROM `test_external`.`' . $externalTableName . '`')
+            );
+            $this->fail('Should not be able to get data from external table after revoke access.');
+        } catch (NotFoundException $e) {
+            $mainCredentials = CredentialsHelper::getCredentialsArray($this->mainProjectCredentials);
+            $mainProjectStringId = $mainCredentials['project_id'];
+
+            $this->assertSame(
+                sprintf('Not found: Dataset %s:test_external was not found in location US', $mainProjectStringId),
+                json_decode($e->getMessage())->error->message
+            );
+        }
+
+        $this->assertCount(0, $mainBqClient->datasets());
+        $this->assertCount(1, $externalBqClient->datasets());
     }
 
     private function prepareTestTable(string $bucketDatabaseName, string $externalTableName): void

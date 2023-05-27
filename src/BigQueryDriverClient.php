@@ -8,7 +8,9 @@ use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
@@ -36,7 +38,9 @@ use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
@@ -138,6 +142,10 @@ class BigQueryDriverClient implements ClientInterface
                 return new DeleteTableRowsHandler($manager);
             case $command instanceof CreateTableFromTimeTravelCommand:
                 return new CreateTableFromTimeTravelHandler($manager);
+            case $command instanceof GrantBucketAccessToReadOnlyRoleCommand:
+                return new GrantBucketAccessToReadOnlyRoleHandler($manager);
+            case $command instanceof RevokeBucketAccessFromReadOnlyRoleCommand:
+                return new RevokeBucketAccessFromReadOnlyRoleHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
