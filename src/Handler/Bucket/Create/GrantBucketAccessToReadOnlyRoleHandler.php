@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
+use Google\ApiCore\ApiException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDataset;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDatasetReference;
 use Google\Protobuf\Internal\Message;
@@ -24,11 +25,68 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
         $this->clientManager = $clientManager;
     }
 
+    /**
+     * @inheritDoc
+     */
     public function __invoke(
         Message $credentials,
         Message $command,
         array $features
     ): ?Message {
+        assert($credentials instanceof GenericBackendCredentials);
+        assert($command instanceof GrantBucketAccessToReadOnlyRoleCommand);
+
+        assert(
+            $command->getProjectReadOnlyRoleName() !== '',
+            'GrantBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName is required'
+        );
+        assert(
+            $command->getBucketObjectName() !== '',
+            'GrantBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
+        );
+
+        $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
+
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+
+        $stackPrefix = getenv('BQ_STACK_PREFIX');
+        if ($stackPrefix === false) {
+            $stackPrefix = 'local';
+        }
+
+        $nameGenerator = new NameGenerator($stackPrefix);
+
+        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject($command->getBucketObjectName());
+
+        $datasetReference = new DestinationDatasetReference();
+        $datasetReference->setProjectId($projectCredentials['project_id']);
+        $datasetReference->setDatasetId($newBucketDatabaseName);
+
+        $destinationDataset = new DestinationDataset([
+            'dataset_reference' => $datasetReference,
+            'location' => GCPClientManager::DEFAULT_LOCATION,
+        ]);
+
+        try {
+            $analyticHubClient->subscribeListing($command->getProjectReadOnlyRoleName(), [
+                'destinationDataset' => $destinationDataset,
+            ]);
+        } catch (ApiException $e) {
+            if ($e->getStatus() === 'PERMISSION_DENIED') {
+                throw new Exception(
+                    sprintf(
+                        'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
+                        $command->getBucketObjectName(),
+                        $command->getProjectReadOnlyRoleName(),
+                    ),
+                    $e->getCode(),
+                    $e
+                );
+            }
+
+            throw $e;
+        }
+
         return null;
     }
 }
