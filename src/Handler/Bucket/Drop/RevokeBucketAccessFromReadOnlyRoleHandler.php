@@ -41,7 +41,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
 
-        $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
+        $dataset = $bigQueryClient->dataset($command->getProjectReadOnlyRoleName());
 
         $dataset->delete();
 

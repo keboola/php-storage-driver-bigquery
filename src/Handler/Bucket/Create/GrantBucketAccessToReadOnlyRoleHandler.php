@@ -56,7 +56,9 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
 
         $nameGenerator = new NameGenerator($stackPrefix);
 
-        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject($command->getBucketObjectName());
+        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
+            $command->getProjectReadOnlyRoleName()
+        );
 
         $datasetReference = new DestinationDatasetReference();
         $datasetReference->setProjectId($projectCredentials['project_id']);
@@ -68,7 +70,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
         ]);
 
         try {
-            $analyticHubClient->subscribeListing($command->getProjectReadOnlyRoleName(), [
+            $analyticHubClient->subscribeListing($command->getBucketObjectName(), [
                 'destinationDataset' => $destinationDataset,
             ]);
         } catch (ApiException $e) {
@@ -76,8 +78,8 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
                 throw new Exception(
                     sprintf(
                         'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
-                        $command->getBucketObjectName(),
                         $command->getProjectReadOnlyRoleName(),
+                        $command->getBucketObjectName(),
                     ),
                     $e->getCode(),
                     $e

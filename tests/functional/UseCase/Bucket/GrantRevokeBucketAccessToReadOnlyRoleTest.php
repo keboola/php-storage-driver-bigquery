@@ -69,8 +69,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         try {
             $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
             $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-                ->setBucketObjectName('test_external')
-                ->setProjectReadOnlyRoleName($createdListing->getName());
+                ->setBucketObjectName($createdListing->getName())
+                ->setProjectReadOnlyRoleName('test_external');
             $handler(
                 $this->mainProjectCredentials,
                 $command,
@@ -91,8 +91,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         // Now we should be able to link (register) external bucket
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-            ->setBucketObjectName('test_external')
-            ->setProjectReadOnlyRoleName($createdListing->getName());
+            ->setBucketObjectName($createdListing->getName())
+            ->setProjectReadOnlyRoleName('test_external');
         $handler(
             $this->mainProjectCredentials,
             $command,
@@ -183,8 +183,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
         $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
-            ->setBucketObjectName('test_external')
-            ->setProjectReadOnlyRoleName($createdListing->getName());
+            ->setBucketObjectName($createdListing->getName())
+            ->setProjectReadOnlyRoleName('test_external');
         $handler(
             $this->mainProjectCredentials,
             $command,
