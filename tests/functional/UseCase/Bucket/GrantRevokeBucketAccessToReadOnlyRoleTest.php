@@ -200,9 +200,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $mainCredentials = CredentialsHelper::getCredentialsArray($this->mainProjectCredentials);
             $mainProjectStringId = $mainCredentials['project_id'];
 
+            /** @var array<string, array<string, string>> $message */
+            $message = json_decode($e->getMessage(), true, 512, JSON_THROW_ON_ERROR);
+            assert($message !== null);
+            assert(isset($message['error']['message']));
             $this->assertSame(
                 sprintf('Not found: Dataset %s:test_external was not found in location US', $mainProjectStringId),
-                json_decode($e->getMessage())->error->message
+                $message['error']['message']
             );
         }
 
