@@ -45,6 +45,7 @@ class TableReflectionResponseTransformer
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $dataset;
         $res->setPath($path);
+        $res->setTableType($ref->getTableType()->value);
         $res->setTableName($def->getTableName());
         $pk = new RepeatedField(GPBType::STRING);
         foreach ($def->getPrimaryKeysNames() as $col) {
