@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     google = {
-      source = "hashicorp/google"
-      version = "4.43.0"
+      source  = "hashicorp/google"
+      version = "4.49.0"
     }
   }
 }
@@ -11,7 +11,7 @@ provider "google" {
   # Configuration options
 }
 
-variable "organization_id" {
+variable "folder_id" {
   type = string
 }
 
@@ -42,15 +42,14 @@ variable services {
   ]
 }
 
-resource "google_folder" "storage_backend_folder" {
-  display_name = local.backend_folder_display_name
-  parent       = "organizations/${var.organization_id}"
+data "google_folder" "existing_folder" {
+  folder = "folders/${var.folder_id}"
 }
 
 resource "google_project" "service_project_in_a_folder" {
-  name       = local.service_project_name
-  project_id = local.service_project_id
-  folder_id  = google_folder.storage_backend_folder.id
+  name            = local.service_project_name
+  project_id      = local.service_project_id
+  folder_id       = data.google_folder.existing_folder.folder_id
   billing_account = var.billing_account_id
 }
 
@@ -70,7 +69,7 @@ resource "google_service_account" "service_account" {
 }
 
 resource "google_folder_iam_binding" "folder_service_acc_project_creator_role" {
-  folder  = google_folder.storage_backend_folder.name
+  folder  = data.google_folder.existing_folder.name
   role    = "roles/resourcemanager.projectCreator"
 
   members = [
@@ -79,16 +78,20 @@ resource "google_folder_iam_binding" "folder_service_acc_project_creator_role" {
 }
 
 resource "google_folder_iam_binding" "folder_service_acc_project_list_role" {
-  folder  = google_folder.storage_backend_folder.name
+  folder  = data.google_folder.existing_folder.name
   role    = "roles/browser"
-
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
   ]
 }
 
-output "folder_id" {
-  value = google_folder.storage_backend_folder.id
+resource "google_billing_account_iam_binding" "billing_acc_binding" {
+  billing_account_id = var.billing_account_id
+  role               = "roles/billing.user"
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
 }
 
 output "service_project_id" {
@@ -104,6 +107,26 @@ resource "google_storage_bucket" "kbc_file_storage_backend" {
   public_access_prevention = "enforced"
   versioning {
     enabled = false
+  }
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age            = 2
+      matches_prefix = ["exp-2/"]
+    }
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+
+    condition {
+      age            = 15
+      matches_prefix = ["exp-15/"]
+    }
   }
 }
 

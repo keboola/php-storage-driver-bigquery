@@ -8,11 +8,11 @@ Install [Google Cloud client](https://cloud.google.com/sdk/docs/install-sdk) (vi
 and log in to [generate default credentials](https://cloud.google.com/docs/authentication/application-default-credentials#personal).
 
 To prepare the backend use [Terraform template](./bq-storage-backend-init.tf).
-You must have the `resourcemanager.folders.create` permission for the organization (ask Roman).
+Create a sub folder in the **KBC Team Dev** (id: 431160969986) folder and fill the folder into the terraform command.
 1. get missing pieces (organization_id and billing_id) from [Connection repository](https://github.com/keboola/connection/blob/master/DOCKER.md#bigquery).
 2. (optional) move `bq-storage-backend-init.tf` out of project directory so new files would be out of git
 3. Run `terraform init` 
-4. Run `terraform apply -var organization_id=[organization_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. js-driver-bq>`
+4. Run `terraform apply -var folder_id=[folder_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. js-driver-bq>`
 5. After terraform apply ends go to the service project in folder created by terraform.
    1. go to the newly created service project, the project id is listed at the end of the terraform call. (service_project_id). Typically (https://console.cloud.google.com/welcome?project=<service_project_id>)
    2. click on **IAM & Admin** 
@@ -25,10 +25,7 @@ You must have the `resourcemanager.folders.create` permission for the organizati
       1. note: simply cut&paste it whole even with the quotes and new lines -> your .env will be like `BQ_SECRET="-----BEGIN PRIVATE KEY-----XXXXZQ==\n-----END PRIVATE KEY-----\n"`
    9. remove line breaks from the rest of key file (without `private_key` entry) and set this string as variable `BQ_PRINCIPAL` to `.env` 
       1. You can convert the key to string with `awk -v RS= '{$1=$1}1' <key_file>.json`
-   11. go to https://console.cloud.google.com/iam-admin/iam?organizationId=[organization_id]
-   12. click Grant Access and fill new principal with your email of service account (from step 4)
-   13. add to new roles `Billing Account User` and `Billing Account Viewer` and click save.
-   14. Create new key as described in 5.i - vii, remove its line breaks and set it as `BQ_KEY_FILE` (even with the `private_key`)
+   10. Create new key as described in 5.i - vii, remove its line breaks and set it as `BQ_KEY_FILE` (even with the `private_key`)
 
 At the end, your `.env` file should look like...
 ```bash
