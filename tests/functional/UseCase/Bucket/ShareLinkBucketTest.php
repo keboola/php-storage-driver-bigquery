@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\ApiCore\ApiException;
+use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
@@ -337,6 +338,12 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
+        $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
+        $this->assertTrue($targetDataset->exists());
+        $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
+        $this->assertTrue($testTableBefore->exists());
+
         $handler = new UnShareBucketHandler($this->clientManager);
         $command = (new UnShareBucketCommand())
             ->setBucketShareRoleName($listing->getName());
@@ -347,14 +354,15 @@ class ShareLinkBucketTest extends BaseCase
             []
         );
 
-        /*
-        After unshare, big query does not link datasets (buckets) from target projects.
-        But connection ensures that sharing for a bucket that is linked cannot be disabled
-        */
         $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
         $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
-        $this->assertTrue($testTableBefore->exists());
+
+        // after unshare the table is not available
+        // in connection you can't just unshare a bucket that is lined up first so this is an edge case
+        // handled in connection
+        $this->expectException(BadRequestException::class);
+        $testTableBefore->exists();
     }
 }
