@@ -9,6 +9,7 @@ use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Keboola\CsvOptions\CsvOptions;
@@ -233,6 +234,25 @@ FROM
         );
 
         $this->assertNull($datasets->getIterator()->current());
+
+        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
+        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+            'projects/' . $projectId,
+            (new Google_Service_CloudResourceManager_GetIamPolicyRequest()),
+            []
+        );
+        $actualPolicy = $actualPolicy->getBindings();
+
+        $serviceAccRoles = [];
+        foreach ($actualPolicy as $policy) {
+            $membersString = json_encode($policy->getMembers());
+            assert(is_string($membersString));
+            if (stripos($membersString, 'deleted:serviceAccount:' . $wsServiceAccEmail) !== false) {
+                $serviceAccRoles[] = $policy->getRole();
+            }
+        }
+
+        $this->assertEmpty($serviceAccRoles);
     }
 
     public function testCreateDropCascadeWorkspace(): void
