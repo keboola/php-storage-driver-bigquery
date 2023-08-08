@@ -14,6 +14,7 @@ use Google\Cloud\Storage\StorageClient;
 use Google_Client;
 use Google_Service_CloudResourceManager;
 use Google_Service_Iam;
+use GuzzleHttp\Client;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
 class GCPClientManager
@@ -84,9 +85,11 @@ class GCPClientManager
 
     public function getBigQueryClient(GenericBackendCredentials $credentials): BigQueryClient
     {
+        $handler = new BigQueryClientHandler(new Client());
         // note: the close method is not used in this client
         return new BigQueryClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
+            'httpHandler' => $handler,
         ]);
     }
 
