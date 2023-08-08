@@ -8,12 +8,12 @@ Install [Google Cloud client](https://cloud.google.com/sdk/docs/install-sdk) (vi
 and log in to [generate default credentials](https://cloud.google.com/docs/authentication/application-default-credentials#personal).
 
 To prepare the backend use [Terraform template](./bq-storage-backend-init.tf).
-Create a sub folder in the **KBC Team Dev** (id: 431160969986) folder and fill the folder into the terraform command.
-1. get missing pieces (organization_id and billing_id) from [Connection repository](https://github.com/keboola/connection/blob/master/DOCKER.md#bigquery).
+Create a sub folder in the **KBC Team Dev** (id: [431160969986](https://console.cloud.google.com/cloud-resource-manager?folder=431160969986)) folder and fill the folder into the terraform command.
+1. get missing pieces (organization_id and billing_id) from [Connection repository](https://github.com/keboola/connection/blob/master/docs/DOCKER.md#bigquery).
 2. (optional) move `bq-storage-backend-init.tf` out of project directory so new files would be out of git
 3. Run `terraform init` 
 4. Run `terraform apply -var folder_id=[folder_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. js-driver-bq>`
-5. After terraform apply ends go to the service project in folder created by terraform.
+5. After terraform apply ends go to the service project in your folder.
    1. go to the newly created service project, the project id is listed at the end of the terraform call. (service_project_id). Typically (https://console.cloud.google.com/welcome?project=<service_project_id>)
    2. click on **IAM & Admin** 
    3. on left panel choose **Service Accounts**
@@ -61,11 +61,6 @@ Run tests with following command.
 
 ```bash
 docker-compose run --rm dev composer tests
-```
-
-And than run phpunit
-```bash
-docker-compose run --rm dev composer phpunit
 ```
 
 To disable retry copy `phpunit-retry.xml.dist`
