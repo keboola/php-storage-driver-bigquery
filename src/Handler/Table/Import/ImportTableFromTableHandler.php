@@ -25,6 +25,7 @@ use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
@@ -79,7 +80,12 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
                 );
                 break;
             case ImportType::VIEW:
-                throw new ImportValidationException('Import type "view" is not supported.');
+                $importResult = $this->createView(
+                    $bqClient,
+                    $destination,
+                    $source,
+                );
+                break;
             case ImportType::PBCLONE:
                 throw new ImportValidationException('Import type "clone" is not supported.');
             default:
@@ -262,5 +268,34 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
             }
         }
         return $importResult;
+    }
+
+    private function createView(
+        BigQueryClient $bqClient,
+        CommandDestination $destination,
+        Table $source
+    ): Result {
+        $sql = sprintf(
+            <<<SQL
+CREATE VIEW %s.%s AS (
+  SELECT
+    *
+  FROM
+    %s.%s
+);
+SQL,
+            BigqueryQuote::quoteSingleIdentifier(ProtobufHelper::repeatedStringToArray($destination->getPath())[0]),
+            BigqueryQuote::quoteSingleIdentifier($destination->getTableName()),
+            BigqueryQuote::quoteSingleIdentifier($source->getSchema()),
+            BigqueryQuote::quoteSingleIdentifier($source->getTableName()),
+        );
+
+        $bqClient->runQuery(
+            $bqClient->query($sql)
+        );
+
+        return new Result([
+            'importedRowsCount' => 0,
+        ]);
     }
 }
