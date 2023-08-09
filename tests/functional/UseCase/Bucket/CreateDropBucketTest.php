@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
+use Google\Cloud\BigQuery\Dataset;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -43,6 +47,37 @@ class CreateDropBucketTest extends BaseCase
         $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
         $this->assertFalse($dataset->exists());
+    }
+
+    public function testCreateBucketInBranch(): void
+    {
+        $bucket = md5($this->getName()) . 'in.c-Test';
+
+        $handler = new CreateBucketHandler($this->clientManager);
+        $command = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setProjectId($this->getProjectId())
+            ->setBucketId($bucket)
+            ->setBranchId('123');
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            []
+        );
+
+        $this->assertInstanceOf(CreateBucketResponse::class, $response);
+
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+
+        $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
+
+        $bucketInfo = $dataset->info();
+        $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
+        $this->assertInstanceOf(Dataset::class, $dataset);
+        $this->assertStringStartsWith('123_', $response->getCreateBucketObjectName());
+        $this->assertEquals($response->getCreateBucketObjectName(), $dataset->identity()['datasetId']);
+        $this->assertTrue($dataset->exists());
     }
 
     public function testCreateDropCascadeBucket(): void

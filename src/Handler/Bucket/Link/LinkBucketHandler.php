@@ -46,7 +46,10 @@ final class LinkBucketHandler implements DriverCommandHandlerInterface
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());
 
-        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject($command->getTargetBucketId());
+        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
+            $command->getTargetBucketId(),
+            null
+        );
 
         $datasetReference = new DestinationDatasetReference();
         $datasetReference->setProjectId($targetProjectId);
