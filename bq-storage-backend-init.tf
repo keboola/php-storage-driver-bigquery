@@ -85,13 +85,10 @@ resource "google_folder_iam_binding" "folder_service_acc_project_list_role" {
   ]
 }
 
-resource "google_billing_account_iam_binding" "billing_acc_binding" {
+resource "google_billing_account_iam_member" "billing_acc_binding" {
   billing_account_id = var.billing_account_id
   role               = "roles/billing.user"
-
-  members = [
-    "serviceAccount:${google_service_account.service_account.email}",
-  ]
+  member = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 output "service_project_id" {
