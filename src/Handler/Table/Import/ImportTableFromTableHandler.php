@@ -13,18 +13,17 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
-use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
@@ -67,32 +66,27 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         $source = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
 
-        $stagingTable = null;
-        try {
-            [
-                $stagingTable,
-                $importResult,
-            ] = $this->import(
-                $bqClient,
-                $destination,
-                $importOptions,
-                $source,
-                $bigqueryImportOptions,
-                $sourceMapping
-            );
-        } finally {
-            if ($stagingTable !== null) {
-                try {
-                    $bqClient->runQuery($bqClient->query(
-                        (new BigqueryTableQueryBuilder())->getDropTableCommand(
-                            $stagingTable->getSchemaName(),
-                            $stagingTable->getTableName()
-                        )
-                    ));
-                } catch (Throwable $e) {
-                    // ignore
-                }
-            }
+        switch ($importOptions->getImportType()) {
+            case ImportType::FULL:
+            case ImportType::INCREMENTAL:
+                $importResult = $this->importByTableCopy(
+                    $bqClient,
+                    $destination,
+                    $importOptions,
+                    $source,
+                    $bigqueryImportOptions,
+                    $sourceMapping
+                );
+                break;
+            case ImportType::VIEW:
+                throw new ImportValidationException('Import type "view" is not supported.');
+            case ImportType::PBCLONE:
+                throw new ImportValidationException('Import type "clone" is not supported.');
+            default:
+                throw new LogicException(sprintf(
+                    'Unknown import type "%s".',
+                    $importOptions->getImportType()
+                ));
         }
 
         $response = new TableImportResponse();
@@ -230,5 +224,43 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
             )
         ));
         return $stagingTable;
+    }
+
+    private function importByTableCopy(
+        BigQueryClient $bqClient,
+        CommandDestination $destination,
+        ImportOptions $importOptions,
+        Table $source,
+        BigqueryImportOptions $bigqueryImportOptions,
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+    ): Result {
+        $stagingTable = null;
+        try {
+            [
+                $stagingTable,
+                $importResult,
+            ] = $this->import(
+                $bqClient,
+                $destination,
+                $importOptions,
+                $source,
+                $bigqueryImportOptions,
+                $sourceMapping
+            );
+        } finally {
+            if ($stagingTable !== null) {
+                try {
+                    $bqClient->runQuery($bqClient->query(
+                        (new BigqueryTableQueryBuilder())->getDropTableCommand(
+                            $stagingTable->getSchemaName(),
+                            $stagingTable->getTableName()
+                        )
+                    ));
+                } catch (Throwable $e) {
+                    // ignore
+                }
+            }
+        }
+        return $importResult;
     }
 }
