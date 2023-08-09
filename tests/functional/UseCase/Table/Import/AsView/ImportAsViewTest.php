@@ -45,21 +45,21 @@ class ImportAsViewTest extends BaseCase
 
     public function testImportAsView(): void
     {
+        // create resources
         [$projectCredentials,] = $this->createTestProject();
-
         $bucketResponse = $this->createTestBucket($projectCredentials);
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bqClient = $this->clientManager->getBigQueryClient($projectCredentials);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $qb = new BigqueryTableQueryBuilder();
-
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
             $bqClient
         );
 
+        // import
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
@@ -77,7 +77,6 @@ class ImportAsViewTest extends BaseCase
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::VIEW)
         );
-
         $handler = new ImportTableFromTableHandler($this->clientManager);
         /** @var TableImportResponse $response */
         $response = $handler(
@@ -85,11 +84,14 @@ class ImportAsViewTest extends BaseCase
             $cmd,
             []
         );
+        //check response
         $this->assertSame(0, $response->getImportedRowsCount());
         $this->assertSame(
             [],
             iterator_to_array($response->getImportedColumns())
         );
+
+        // check table read
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
@@ -113,6 +115,7 @@ class ImportAsViewTest extends BaseCase
     public function testImportAsViewSharedBucket(): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        //create linked bucket with table
         [
             $targetProjectCredentials,
             $targetProjectResponse,
@@ -120,12 +123,14 @@ class ImportAsViewTest extends BaseCase
             $linkedBucketTableName,
             $cleanUp,
         ] = $this->createLinkedBucketWithTable();
+        // create workspace to import into
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $targetProjectCredentials,
             $targetProjectResponse
         );
         $bqClient = $this->clientManager->getBigQueryClient($targetProjectCredentials);
 
+        // import
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $linkedBucketDataset;
@@ -145,7 +150,6 @@ class ImportAsViewTest extends BaseCase
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::VIEW)
         );
-
         $handler = new ImportTableFromTableHandler($this->clientManager);
         /** @var TableImportResponse $response */
         $response = $handler(
@@ -153,11 +157,13 @@ class ImportAsViewTest extends BaseCase
             $cmd,
             []
         );
+        // check response
         $this->assertSame(0, $response->getImportedRowsCount());
         $this->assertSame(
             [],
             iterator_to_array($response->getImportedColumns())
         );
+        // check table read
         $ref = new BigqueryTableReflection(
             $bqClient,
             $workspaceResponse->getWorkspaceObjectName(),
@@ -166,6 +172,7 @@ class ImportAsViewTest extends BaseCase
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
+        // check table read as WS user
         $wsBqClient = $this->clientManager->getBigQueryClient($workspaceCredentials);
         $ref = new BigqueryTableReflection(
             $wsBqClient,
@@ -191,7 +198,7 @@ class ImportAsViewTest extends BaseCase
         string $sourceTableName,
         BigQueryClient $bqClient
     ): void {
-// create tables
+        // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $sourceTableName,
@@ -281,7 +288,6 @@ class ImportAsViewTest extends BaseCase
         );
         /** @var string $targetProjectId */
         $targetProjectId = $publicPart['project_id'];
-        // link the bucket
         $handler = new LinkBucketHandler($this->clientManager);
         $command = (new LinkBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
@@ -300,7 +306,6 @@ class ImportAsViewTest extends BaseCase
             $linkedBucketSchemaName,
             'sharedTable',
             function () use ($linkedBucketSchemaName, $targetProjectCredentials): void {
-                // unlink and check that target project cannot access it anymore
                 $unlinkHandler = new UnLinkBucketHandler($this->clientManager);
                 $command = (new UnLinkBucketCommand())
                     ->setBucketObjectName($linkedBucketSchemaName);
