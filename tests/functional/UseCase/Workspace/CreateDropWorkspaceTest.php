@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
-use Google\Cloud\Core\Exception\ServerException;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
-use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
@@ -27,7 +26,6 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
-use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -103,7 +101,7 @@ FROM
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
             'projects/' . $projectId,
-            (new Google_Service_CloudResourceManager_GetIamPolicyRequest()),
+            (new GetIamPolicyRequest()),
             []
         );
         $actualPolicy = $actualPolicy->getBindings();
@@ -233,6 +231,25 @@ FROM
         );
 
         $this->assertNull($datasets->getIterator()->current());
+
+        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
+        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+            'projects/' . $projectId,
+            (new GetIamPolicyRequest()),
+            []
+        );
+        $actualPolicy = $actualPolicy->getBindings();
+
+        $serviceAccRoles = [];
+        foreach ($actualPolicy as $policy) {
+            $membersString = json_encode($policy->getMembers());
+            assert(is_string($membersString));
+            if (stripos($membersString, 'deleted:serviceAccount:' . $wsServiceAccEmail) !== false) {
+                $serviceAccRoles[] = $policy->getRole();
+            }
+        }
+
+        $this->assertEmpty($serviceAccRoles);
     }
 
     public function testCreateDropCascadeWorkspace(): void
