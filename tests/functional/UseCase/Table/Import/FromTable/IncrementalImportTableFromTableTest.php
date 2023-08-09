@@ -162,7 +162,11 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         ], $data);
 
         // cleanup
-        $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
-        $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+        ));
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+        ));
     }
 }

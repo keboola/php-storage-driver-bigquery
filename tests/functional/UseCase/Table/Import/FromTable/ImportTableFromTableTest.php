@@ -132,8 +132,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         // cleanup
-        $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
-        $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+        ));
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+        ));
     }
 
     /**
@@ -254,8 +258,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // cleanup
-        $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
-        $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+        ));
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+        ));
     }
 
     /**
@@ -400,7 +408,11 @@ class ImportTableFromTableTest extends BaseImportTestCase
         ], $data);
 
         // cleanup
-        $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
-        $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+        ));
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+        ));
     }
 }
