@@ -9,32 +9,30 @@ use GuzzleHttp\Exception\RequestException;
 use LogicException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\BackOff\FixedBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 
 class BigQueryClientHandler
 {
     private Client $client;
-    private int $maxRetries;
 
-    public function __construct(Client $client, int $maxRetries = 5)
+    public function __construct(Client $client)
     {
         $this->client = $client;
-        $this->maxRetries = $maxRetries;
     }
 
     public function __invoke(RequestInterface $request): ResponseInterface
     {
-        $retries = 0;
-        do {
-            try {
-                return $this->client->send($request);
-            } catch (RequestException $e) {
-                if ($retries >= $this->maxRetries) {
-                    throw $e;
-                }
-            }
-            usleep(500000); // wait for 0.5 seconds before retrying
-            $retries++;
-        } while ($retries <= $this->maxRetries);
-        throw new LogicException('Max retries exceeded');
+        $retryPolicy = new SimpleRetryPolicy(5);
+        $proxy = new RetryProxy($retryPolicy, new FixedBackOffPolicy());
+
+        /** @var ResponseInterface $result */
+        $result = $proxy->call(function () use ($request) {
+            return $this->client->send($request);
+        });
+        return $result;
     }
 }
