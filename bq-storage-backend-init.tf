@@ -68,27 +68,23 @@ resource "google_service_account" "service_account" {
   project = google_project.service_project_in_a_folder.project_id
 }
 
-resource "google_folder_iam_binding" "folder_service_acc_project_creator_role" {
+resource "google_folder_iam_member" "folder_service_acc_project_creator_role" {
   folder  = data.google_folder.existing_folder.name
   role    = "roles/resourcemanager.projectCreator"
-
-  members = [
-    "serviceAccount:${google_service_account.service_account.email}",
-  ]
+  member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
-resource "google_folder_iam_binding" "folder_service_acc_project_list_role" {
+resource "google_folder_iam_member" "folder_service_acc_project_list_role" {
   folder  = data.google_folder.existing_folder.name
   role    = "roles/browser"
-  members = [
-    "serviceAccount:${google_service_account.service_account.email}",
-  ]
+  member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 resource "google_billing_account_iam_member" "billing_acc_binding" {
+
   billing_account_id = var.billing_account_id
+  member             = "serviceAccount:${google_service_account.service_account.email}"
   role               = "roles/billing.user"
-  member = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 output "service_project_id" {
@@ -131,18 +127,14 @@ output "file_storage_bucket_id" {
   value = google_storage_bucket.kbc_file_storage_backend.id
 }
 
-resource "google_project_iam_binding" "prj_service_acc_owner" {
+resource "google_project_iam_member" "prj_service_acc_owner" {
   project = google_project.service_project_in_a_folder.project_id
-  role = "roles/owner"
-  members = [
-    "serviceAccount:${google_service_account.service_account.email}",
-  ]
+  role    = "roles/owner"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
-resource "google_project_iam_binding" "prj_service_acc_objAdm" {
+resource "google_project_iam_member" "prj_service_acc_objAdm" {
   project = google_project.service_project_in_a_folder.project_id
-  role = "roles/storage.objectAdmin"
-  members = [
-    "serviceAccount:${google_service_account.service_account.email}",
-  ]
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
 }
