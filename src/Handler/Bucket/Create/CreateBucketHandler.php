@@ -34,7 +34,10 @@ final class CreateBucketHandler implements DriverCommandHandlerInterface
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());
 
-        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject($command->getBucketId());
+        $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
+            $command->getBucketId(),
+            $command->getBranchId()
+        );
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
 

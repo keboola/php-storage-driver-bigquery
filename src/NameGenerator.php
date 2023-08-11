@@ -26,9 +26,13 @@ class NameGenerator
         return sprintf('%s-%s', $this->stackPrefix, $projectId);
     }
 
-    public function createObjectNameForBucketInProject(string $bucketId): string
+    public function createObjectNameForBucketInProject(string $bucketId, ?string $branchId): string
     {
-        return str_replace(['.', '-'], '_', $bucketId);
+        $bucketId = str_replace(['.', '-'], '_', $bucketId);
+        if ($branchId !== null && $branchId !== '') {
+            return sprintf('%s_%s', $branchId, $bucketId);
+        }
+        return $bucketId;
     }
 
     public function createWorkspaceObjectNameForWorkspaceId(string $workspaceId): string
