@@ -29,7 +29,7 @@ class NameGenerator
     public function createObjectNameForBucketInProject(string $bucketId, ?string $branchId): string
     {
         $bucketId = str_replace(['.', '-'], '_', $bucketId);
-        if ($branchId !== null) {
+        if ($branchId !== null && $branchId !== '') {
             return sprintf('%s_%s', $branchId, $bucketId);
         }
         return $bucketId;
