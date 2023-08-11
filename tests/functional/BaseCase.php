@@ -87,7 +87,7 @@ class BaseCase extends TestCase
 
     protected function cleanTestProject(): void
     {
-        $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
         $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
 
         $meta = $this->getCredentials()->getMeta();
@@ -102,16 +102,16 @@ class BaseCase extends TestCase
 
         $parent = $folderId;
         // Iterate over pages of elements
-        $pagedResponse = $projectsClient->listProjects('folders/' . $parent);
+        $pagedResponse = $mainClient->listProjects('folders/' . $parent);
         foreach ($pagedResponse->iteratePages() as $page) {
             /** @var Project $element */
             foreach ($page as $element) {
                 if (str_starts_with($element->getProjectId(), $this->getStackPrefix())) {
-                    $formattedName = $projectsClient->projectName($element->getProjectId());
+                    $formattedName = $mainClient->projectName($element->getProjectId());
                     $billingInfo = new ProjectBillingInfo();
                     $billingInfo->setBillingEnabled(false);
                     $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
-                    $operationResponse = $projectsClient->deleteProject($formattedName);
+                    $operationResponse = $mainClient->deleteProject($formattedName);
                     $operationResponse->pollUntilComplete();
                     if (!$operationResponse->operationSucceeded()) {
                         $error = $operationResponse->getError();
