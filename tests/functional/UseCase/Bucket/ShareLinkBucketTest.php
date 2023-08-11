@@ -139,7 +139,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setTargetBucketId($linkedBucketSchemaName)
             ->setSourceShareRoleName($listing); // listing
 
-        // it is sourceProject who does the grants -> that's why the sourceProjectCredentials
+        // root credentials and creating grants
         $result = $handler(
             $this->getCredentials(),
             $command,
