@@ -13,7 +13,10 @@ use Google\Cloud\Storage\StorageObject;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\Project;
+use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_Iam;
 use Keboola\Datatype\Definition\Bigquery;
@@ -89,6 +92,8 @@ class BaseCase extends TestCase
     {
         $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
         $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
+        $storageManager = $this->clientManager->getStorageClient($this->getCredentials());
+        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->getCredentials());
 
         $meta = $this->getCredentials()->getMeta();
         if ($meta !== null) {
@@ -101,6 +106,7 @@ class BaseCase extends TestCase
         }
 
         $parent = $folderId;
+        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         // Iterate over pages of elements
         $pagedResponse = $mainClient->listProjects('folders/' . $parent);
         foreach ($pagedResponse->iteratePages() as $page) {
@@ -111,6 +117,22 @@ class BaseCase extends TestCase
                     $billingInfo = new ProjectBillingInfo();
                     $billingInfo->setBillingEnabled(false);
                     $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
+
+                    $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+                    $policy = $fileStorageBucket->iam()->policy();
+
+                    foreach ($policy['bindings'] as $bindingKey => $binding) {
+                        if ($binding['role'] === 'roles/storage.objectAdmin') {
+                            foreach ($binding['members'] as $key => $member) {
+                                if (strpos($member, 'serviceAccount:' . $element->getProjectId()) === 0) {
+                                    unset($policy['bindings'][$bindingKey]['members'][$key]);
+                                }
+                            }
+                        }
+                    }
+
+                    $fileStorageBucket->iam()->setPolicy($policy);
+
                     $operationResponse = $mainClient->deleteProject($formattedName);
                     $operationResponse->pollUntilComplete();
                     if (!$operationResponse->operationSucceeded()) {
