@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\AsView;
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
+use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -11,6 +12,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
@@ -29,7 +31,7 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
-class ImportAsViewTest extends BaseCase
+class ImportViewCloneTest extends BaseCase
 {
     protected function setUp(): void
     {
@@ -43,7 +45,81 @@ class ImportAsViewTest extends BaseCase
         $this->cleanTestProject();
     }
 
-    public function testImportAsView(): void
+    /**
+     * @return Generator<string,array{ImportOptions\ImportType::*}>
+     */
+    public function importTypeProvider(): Generator
+    {
+        yield 'CLONE' => [
+            ImportOptions\ImportType::PBCLONE,
+        ];
+        yield 'VIEW' => [
+            ImportOptions\ImportType::VIEW,
+        ];
+    }
+
+    /**
+     * @dataProvider importTypeProvider
+     * @param ImportOptions\ImportType::* $importType
+     */
+    public function testConflictImport(int $importType): void
+    {
+        // create resources
+        [$projectCredentials,] = $this->createTestProject();
+        $bucketResponse = $this->createTestBucket($projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($projectCredentials);
+        $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
+        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $qb = new BigqueryTableQueryBuilder();
+        $this->createSourceTable(
+            $bucketDatabaseName,
+            $sourceTableName,
+            $bqClient
+        );
+        // create also destination so table exists
+        $qb = new BigqueryTableQueryBuilder();
+        $this->createSourceTable(
+            $bucketDatabaseName,
+            $sourceTableName . '_dest',
+            $bqClient
+        );
+
+        // import
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($sourceTableName . '_dest')
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType($importType)
+        );
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        try {
+            $handler(
+                $projectCredentials,
+                $cmd,
+                []
+            );
+            $this->fail('Should throw exception');
+        } catch (ObjectAlreadyExistsException $e) {
+            $this->assertSame(2006, $e->getCode());
+        }
+    }
+
+    /**
+     * @dataProvider importTypeProvider
+     * @param ImportOptions\ImportType::* $importType
+     */
+    public function testImportAsView(int $importType): void
     {
         // create resources
         [$projectCredentials,] = $this->createTestProject();
@@ -75,7 +151,7 @@ class ImportAsViewTest extends BaseCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::VIEW)
+                ->setImportType($importType)
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
         /** @var TableImportResponse $response */
@@ -97,13 +173,23 @@ class ImportAsViewTest extends BaseCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         // cleanup
-        $bqClient->runQuery($bqClient->query(
-            sprintf(
-                'DROP VIEW %s.%s',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($destinationTableName)
-            )
-        ));
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            $bqClient->runQuery($bqClient->query(
+                sprintf(
+                    'DROP VIEW %s.%s',
+                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                    BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+                )
+            ));
+        } else {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand(
+                    $bucketDatabaseName,
+                    $destinationTableName
+                )
+            ));
+        }
+
         $bqClient->runQuery($bqClient->query(
             $qb->getDropTableCommand(
                 $bucketDatabaseName,
@@ -112,7 +198,11 @@ class ImportAsViewTest extends BaseCase
         ));
     }
 
-    public function testImportAsViewSharedBucket(): void
+    /**
+     * @dataProvider importTypeProvider
+     * @param ImportOptions\ImportType::* $importType
+     */
+    public function testImportAsViewSharedBucket(int $importType): void
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         //create linked bucket with table
@@ -148,7 +238,7 @@ class ImportAsViewTest extends BaseCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::VIEW)
+                ->setImportType($importType)
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
         /** @var TableImportResponse $response */
@@ -158,7 +248,12 @@ class ImportAsViewTest extends BaseCase
             []
         );
         // check response
-        $this->assertSame(0, $response->getImportedRowsCount());
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            $this->assertSame(0, $response->getImportedRowsCount());
+        } else {
+            // clone will fallback to CTAS and number of rows will be shown
+            $this->assertSame(3, $response->getImportedRowsCount());
+        }
         $this->assertSame(
             [],
             iterator_to_array($response->getImportedColumns())
@@ -183,13 +278,22 @@ class ImportAsViewTest extends BaseCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         // cleanup
-        $bqClient->runQuery($bqClient->query(
-            sprintf(
-                'DROP VIEW %s.%s',
-                BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
-                BigqueryQuote::quoteSingleIdentifier($destinationTableName)
-            )
-        ));
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            $bqClient->runQuery($bqClient->query(
+                sprintf(
+                    'DROP VIEW %s.%s',
+                    BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
+                    BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+                )
+            ));
+        } else {
+            $bqClient->runQuery($bqClient->query(
+                (new BigqueryTableQueryBuilder())->getDropTableCommand(
+                    $workspaceResponse->getWorkspaceObjectName(),
+                    $destinationTableName
+                )
+            ));
+        }
         $cleanUp();
     }
 
