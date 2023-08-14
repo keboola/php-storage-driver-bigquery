@@ -132,7 +132,7 @@ class CreateDropProjectTest extends BaseCase
         foreach ($policy['bindings'] as $binding) {
             if ($binding['role'] === 'roles/storage.objectAdmin') {
                 $key = array_search('serviceAccount:' . $publicPart['client_email'], $binding['members']);
-                if ($key) {
+                if ($key !== false) {
                     $hasStorageObjAdminRole = true;
                 }
             }

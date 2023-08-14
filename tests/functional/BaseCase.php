@@ -13,7 +13,10 @@ use Google\Cloud\Storage\StorageObject;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\Project;
+use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_Iam;
 use Keboola\Datatype\Definition\Bigquery;
@@ -87,8 +90,10 @@ class BaseCase extends TestCase
 
     protected function cleanTestProject(): void
     {
-        $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
         $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
+        $storageManager = $this->clientManager->getStorageClient($this->getCredentials());
+        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->getCredentials());
 
         $meta = $this->getCredentials()->getMeta();
         if ($meta !== null) {
@@ -101,17 +106,34 @@ class BaseCase extends TestCase
         }
 
         $parent = $folderId;
+        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         // Iterate over pages of elements
-        $pagedResponse = $projectsClient->listProjects('folders/' . $parent);
+        $pagedResponse = $mainClient->listProjects('folders/' . $parent);
         foreach ($pagedResponse->iteratePages() as $page) {
             /** @var Project $element */
             foreach ($page as $element) {
                 if (str_starts_with($element->getProjectId(), $this->getStackPrefix())) {
-                    $formattedName = $projectsClient->projectName($element->getProjectId());
+                    $formattedName = $mainClient->projectName($element->getProjectId());
                     $billingInfo = new ProjectBillingInfo();
                     $billingInfo->setBillingEnabled(false);
                     $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
-                    $operationResponse = $projectsClient->deleteProject($formattedName);
+
+                    $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+                    $policy = $fileStorageBucket->iam()->policy();
+
+                    foreach ($policy['bindings'] as $bindingKey => $binding) {
+                        if ($binding['role'] === 'roles/storage.objectAdmin') {
+                            foreach ($binding['members'] as $key => $member) {
+                                if (strpos($member, 'serviceAccount:' . $element->getProjectId()) === 0) {
+                                    unset($policy['bindings'][$bindingKey]['members'][$key]);
+                                }
+                            }
+                        }
+                    }
+
+                    $fileStorageBucket->iam()->setPolicy($policy);
+
+                    $operationResponse = $mainClient->deleteProject($formattedName);
                     $operationResponse->pollUntilComplete();
                     if (!$operationResponse->operationSucceeded()) {
                         $error = $operationResponse->getError();
