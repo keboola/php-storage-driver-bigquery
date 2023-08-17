@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
 
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\Exception\BadRequestException;
+use Google\Cloud\Core\Exception\ConflictException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
@@ -16,6 +18,8 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
@@ -87,7 +91,12 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
                 );
                 break;
             case ImportType::PBCLONE:
-                throw new ImportValidationException('Import type "clone" is not supported.');
+                $importResult = $this->clone(
+                    $bqClient,
+                    $destination,
+                    $source,
+                );
+                break;
             default:
                 throw new LogicException(sprintf(
                     'Unknown import type "%s".',
@@ -270,6 +279,10 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         return $importResult;
     }
 
+    /**
+     * @throws ObjectAlreadyExistsException
+     * @throws ConflictException
+     */
     private function createView(
         BigQueryClient $bqClient,
         CommandDestination $destination,
@@ -290,12 +303,80 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($source->getTableName()),
         );
 
+        try {
+            $bqClient->runQuery(
+                $bqClient->query($sql)
+            );
+        } catch (ConflictException $e) {
+            throw ObjectAlreadyExistsException::handleConflictException($e);
+        }
+
+        return new Result([
+            'importedRowsCount' => 0,
+        ]);
+    }
+
+    /**
+     * @throws ConflictException
+     * @throws BadRequestException
+     * @throws ObjectAlreadyExistsException
+     */
+    private function clone(BigQueryClient $bqClient, CommandDestination $destination, Table $source): Result
+    {
+        $sql = sprintf(
+            <<<SQL
+CREATE TABLE %s.%s CLONE %s.%s;
+SQL,
+            BigqueryQuote::quoteSingleIdentifier(ProtobufHelper::repeatedStringToArray($destination->getPath())[0]),
+            BigqueryQuote::quoteSingleIdentifier($destination->getTableName()),
+            BigqueryQuote::quoteSingleIdentifier($source->getSchema()),
+            BigqueryQuote::quoteSingleIdentifier($source->getTableName()),
+        );
+
+        try {
+            $bqClient->runQuery(
+                $bqClient->query($sql)
+            );
+            return new Result([
+                'importedRowsCount' => 0,
+            ]);
+        } catch (ConflictException $e) {
+            throw ObjectAlreadyExistsException::handleConflictException($e);
+        } catch (BadRequestException $e) {
+            if (str_contains($e->getMessage(), 'Cannot clone tables')) {
+                return $this->cloneFallback($bqClient, $destination, $source);
+            }
+            throw $e;
+        }
+    }
+
+    private function cloneFallback(BigQueryClient $bqClient, CommandDestination $destination, Table $source): Result
+    {
+        $sql = sprintf(
+            <<<SQL
+CREATE TABLE %s.%s AS (
+  SELECT
+    *
+  FROM
+    %s.%s
+);
+SQL,
+            BigqueryQuote::quoteSingleIdentifier(ProtobufHelper::repeatedStringToArray($destination->getPath())[0]),
+            BigqueryQuote::quoteSingleIdentifier($destination->getTableName()),
+            BigqueryQuote::quoteSingleIdentifier($source->getSchema()),
+            BigqueryQuote::quoteSingleIdentifier($source->getTableName()),
+        );
+
         $bqClient->runQuery(
             $bqClient->query($sql)
         );
 
         return new Result([
-            'importedRowsCount' => 0,
+            'importedRowsCount' => (new BigqueryTableReflection(
+                $bqClient,
+                ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
+                $destination->getTableName()
+            ))->getRowsCount(),
         ]);
     }
 }

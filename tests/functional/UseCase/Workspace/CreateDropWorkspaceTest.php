@@ -308,11 +308,8 @@ FROM
         // check if ws service acc still exist
         $iamService = $this->clientManager->getIamClient($this->projectCredentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
-        $wsServiceAcc = $serviceAccountsService->get(sprintf(
-            'projects/%s/serviceAccounts/%s',
-            $projectId,
-            $wsServiceAccEmail
-        ));
+        $serviceAccountUrl = sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail);
+        $wsServiceAcc = $serviceAccountsService->get($serviceAccountUrl);
         $this->assertNotNull($wsServiceAcc);
 
         // try to DROP - should not fail and database will be deleted
@@ -324,8 +321,8 @@ FROM
         );
 
         try {
-            $serviceAccountsService->get(sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail));
-            $this->fail('Service account should be deleted.');
+            $serviceAccountsService->get($serviceAccountUrl);
+            $this->fail(sprintf('Service account "%s" should be deleted.', $serviceAccountUrl));
         } catch (GoogleServiceException $e) {
             $this->assertEquals(404, $e->getCode());
             $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
