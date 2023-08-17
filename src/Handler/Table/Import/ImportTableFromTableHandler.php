@@ -71,6 +71,18 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         $source = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
 
+        // Replace is only available in view or clone import
+        $shouldDropTableIfExists = $importOptions->getCreateMode() === ImportOptions\CreateMode::REPLACE
+            && in_array($importOptions->getImportType(), [ImportType::VIEW, ImportType::PBCLONE], true);
+
+        if ($shouldDropTableIfExists) {
+            $dataset = $bqClient->dataset(ProtobufHelper::repeatedStringToArray($destination->getPath())[0]);
+            $table = $dataset->table($destination->getTableName());
+            if ($table->exists()) {
+                $table->delete();
+            }
+        }
+
         switch ($importOptions->getImportType()) {
             case ImportType::FULL:
             case ImportType::INCREMENTAL:

@@ -113,6 +113,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);

@@ -70,7 +70,6 @@ class ImportViewCloneTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($projectCredentials);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table';
-        $qb = new BigqueryTableQueryBuilder();
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -113,6 +112,30 @@ class ImportViewCloneTest extends BaseCase
         } catch (ObjectAlreadyExistsException $e) {
             $this->assertSame(2006, $e->getCode());
         }
+
+        // try again with replace mode
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType($importType)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE)
+        );
+        $response = $handler(
+            $projectCredentials,
+            $cmd,
+            []
+        );
+        //check response
+        $this->assertInstanceOf(TableImportResponse::class, $response);
+        $this->assertSame(0, $response->getImportedRowsCount());
+        $this->assertSame(
+            [],
+            iterator_to_array($response->getImportedColumns())
+        );
+
+        // check table read
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $sourceTableName . '_dest');
+        $this->assertSame(3, $ref->getRowsCount());
+        $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
     }
 
     /**

@@ -123,6 +123,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
                 ->setNumberOfIgnoredLines(0)
                 ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
                 ->setTimestampColumn('_timestamp')
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
