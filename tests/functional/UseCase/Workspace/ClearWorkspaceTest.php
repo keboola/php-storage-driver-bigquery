@@ -10,6 +10,7 @@ use Keboola\StorageDriver\Command\Workspace\ClearWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Throwable;
 
@@ -94,6 +95,22 @@ class ClearWorkspaceTest extends BaseCase
 
         $this->assertTrue($this->isDatabaseExists($projectBqClient, $response->getWorkspaceObjectName()));
         $this->assertTrue($this->isUserExists($iamService, $response->getWorkspaceUserName()));
+
+        // CLEAR but preserve testTable2
+        $handler = new ClearWorkspaceHandler($this->clientManager);
+        $command = (new ClearWorkspaceCommand())
+            ->setWorkspaceObjectName($response->getWorkspaceObjectName())
+            ->setObjectsToPreserve(ProtobufHelper::arrayToRepeatedString(['testTable2']));
+        $clearResponse = $handler(
+            $this->projectCredentials,
+            $command,
+            []
+        );
+        $this->assertNull($clearResponse);
+
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $this->assertFalse($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable'));
+        $this->assertTrue($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable2'));
 
         // CLEAR
         $handler = new ClearWorkspaceHandler($this->clientManager);

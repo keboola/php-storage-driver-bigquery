@@ -10,6 +10,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Workspace\ClearWorkspaceCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Throwable;
 
 final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
@@ -54,8 +55,13 @@ final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
             return null;
         }
 
+        $preserveTables = ProtobufHelper::repeatedStringToArray($command->getObjectsToPreserve());
+
         /** @var Table $table */
         foreach ($tablesInDataset as $table) {
+            if (in_array($table->id(), $preserveTables, true)) {
+                continue;
+            }
             try {
                 $table->delete();
             } catch (Throwable $e) {
