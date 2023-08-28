@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
@@ -106,7 +107,8 @@ class ImportViewCloneTest extends BaseCase
             $handler(
                 $projectCredentials,
                 $cmd,
-                []
+                [],
+                new RuntimeOptions(),
             );
             $this->fail('Should throw exception');
         } catch (ObjectAlreadyExistsException $e) {
@@ -122,7 +124,8 @@ class ImportViewCloneTest extends BaseCase
         $response = $handler(
             $projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         //check response
         $this->assertInstanceOf(TableImportResponse::class, $response);
@@ -181,7 +184,8 @@ class ImportViewCloneTest extends BaseCase
         $response = $handler(
             $projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         //check response
         $this->assertSame(0, $response->getImportedRowsCount());
@@ -268,7 +272,8 @@ class ImportViewCloneTest extends BaseCase
         $response = $handler(
             $targetProjectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         // check response
         if ($importType === ImportOptions\ImportType::VIEW) {
@@ -402,7 +407,8 @@ class ImportViewCloneTest extends BaseCase
         $result = $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         // link the bucket
@@ -424,7 +430,8 @@ class ImportViewCloneTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         return [
@@ -440,7 +447,8 @@ class ImportViewCloneTest extends BaseCase
                 $unlinkHandler(
                     $targetProjectCredentials,
                     $command,
-                    []
+                    [],
+                    new RuntimeOptions(),
                 );
             },
         ];

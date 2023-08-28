@@ -16,6 +16,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersExcept
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -201,7 +202,8 @@ class ExportTableToFileTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -270,7 +272,8 @@ class ExportTableToFileTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -533,7 +536,8 @@ class ExportTableToFileTest extends BaseCase
         $response = (new ExportTableToFileHandler($this->clientManager))(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -884,7 +888,8 @@ class ExportTableToFileTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 

@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Backend;
 
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 class RemoveTest extends BaseCase
@@ -20,7 +21,8 @@ class RemoveTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 }

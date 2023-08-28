@@ -29,10 +29,14 @@ final class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // workspace credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceObjectCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert(

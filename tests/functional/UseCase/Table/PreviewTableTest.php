@@ -14,6 +14,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersExcept
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -1492,7 +1493,8 @@ class PreviewTableTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 
@@ -1540,7 +1542,8 @@ class PreviewTableTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertInstanceOf(PreviewTableResponse::class, $response);
         return $response;

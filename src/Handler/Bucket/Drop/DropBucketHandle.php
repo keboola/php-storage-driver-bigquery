@@ -26,10 +26,13 @@ class DropBucketHandle implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropBucketCommand);
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         $ignoreErrors = $command->getIgnoreErrors();
 

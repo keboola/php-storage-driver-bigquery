@@ -30,10 +30,13 @@ final class LinkBucketHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // main credentials
         Message $command, // linked bucket
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof LinkBucketCommand);
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         assert($command->getStackPrefix() !== '', 'LinkBucketCommand.stackPrefix must be filled in');
         assert($command->getTargetProjectId() !== '', 'LinkBucketCommand.targetProjectId must be filled in');

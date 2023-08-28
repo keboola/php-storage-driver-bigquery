@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -48,7 +49,8 @@ class ObjectInfoErrorTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 
@@ -64,7 +66,8 @@ class ObjectInfoErrorTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 
@@ -83,7 +86,8 @@ class ObjectInfoErrorTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 
