@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -45,7 +46,18 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
 
-        $dataset = $bigQueryClient->dataset($command->getProjectReadOnlyRoleName());
+        $stackPrefix = getenv('BQ_STACK_PREFIX');
+        if ($stackPrefix === false) {
+            $stackPrefix = 'local';
+        }
+
+        $nameGenerator = new NameGenerator($stackPrefix);
+
+        $bucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
+            $command->getProjectReadOnlyRoleName(),
+            '1'
+        );
+        $dataset = $bigQueryClient->dataset($bucketDatabaseName);
 
         $dataset->delete();
 

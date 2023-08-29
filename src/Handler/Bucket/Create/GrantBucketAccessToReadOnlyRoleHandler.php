@@ -61,7 +61,8 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
         $nameGenerator = new NameGenerator($stackPrefix);
 
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
-            $command->getProjectReadOnlyRoleName()
+            $command->getProjectReadOnlyRoleName(),
+            '1'
         );
 
         $datasetReference = new DestinationDatasetReference();
