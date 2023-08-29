@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
@@ -121,7 +122,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
@@ -242,7 +244,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
@@ -373,7 +376,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertSame(5, $response->getImportedRowsCount());
         $this->assertSame(

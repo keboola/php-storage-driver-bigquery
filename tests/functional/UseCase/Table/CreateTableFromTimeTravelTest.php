@@ -12,6 +12,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
@@ -97,7 +98,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -176,7 +178,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -242,7 +245,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $handler(
                 $this->projectCredentials,
                 $cmd,
-                []
+                [],
+                new RuntimeOptions(),
             );
             $this->fail('Should fail: Table should never be created.');
         } catch (ObjectNotFoundException $e) {
@@ -277,7 +281,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $handler(
                 $this->projectCredentials,
                 $cmd,
-                []
+                [],
+                new RuntimeOptions(),
             );
             $this->fail('Should fail: Table should not exist in this point of time.');
         } catch (BadRequestException $e) {
@@ -318,7 +323,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
     }
 

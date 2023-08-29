@@ -33,10 +33,14 @@ final class ResetWorkspacePasswordHandler implements DriverCommandHandlerInterfa
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ResetWorkspacePasswordCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getWorkspaceUserName() !== '', 'ResetWorkspacePasswordCommand.workspaceUserName is required');

@@ -30,10 +30,13 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // backend credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ShareBucketCommand);
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
         assert(

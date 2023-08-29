@@ -14,6 +14,7 @@ use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -51,7 +52,8 @@ class CreateDropProjectTest extends BaseCase
         $response = $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(CreateProjectResponse::class, $response);
@@ -153,7 +155,8 @@ class CreateDropProjectTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());

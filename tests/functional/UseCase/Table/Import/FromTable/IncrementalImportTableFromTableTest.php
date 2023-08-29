@@ -9,6 +9,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
@@ -131,7 +132,8 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // 1 row unique from source, 3 rows deduped from source and destination

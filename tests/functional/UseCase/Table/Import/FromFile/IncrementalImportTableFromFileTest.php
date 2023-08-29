@@ -10,6 +10,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
@@ -93,7 +94,8 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // 2 not unique rows from destination + 1 unique row from source

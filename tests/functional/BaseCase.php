@@ -28,6 +28,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
@@ -190,7 +191,8 @@ class BaseCase extends TestCase
         $response = $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         assert($response instanceof CreateProjectResponse);
@@ -217,7 +219,8 @@ class BaseCase extends TestCase
         $response = $handler(
             $projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
@@ -300,7 +303,8 @@ class BaseCase extends TestCase
         $response = $handler(
             $projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -348,7 +352,8 @@ class BaseCase extends TestCase
         $createTableResponse = $createTableHandler(
             $credentials,
             $createTableCommand,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
@@ -466,7 +471,8 @@ class BaseCase extends TestCase
         $handler(
             $credentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         return $tableName;
     }

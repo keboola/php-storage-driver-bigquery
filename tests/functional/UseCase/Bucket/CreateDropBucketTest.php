@@ -10,6 +10,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -41,7 +42,8 @@ class CreateDropBucketTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
@@ -63,7 +65,8 @@ class CreateDropBucketTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
@@ -97,7 +100,8 @@ class CreateDropBucketTest extends BaseCase
             $handler(
                 $this->projectCredentials,
                 $command,
-                []
+                [],
+                new RuntimeOptions(),
             );
             $this->fail('Should fail as bucket database contains table');
         } catch (Throwable $e) {
@@ -119,7 +123,8 @@ class CreateDropBucketTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
@@ -132,7 +137,8 @@ class CreateDropBucketTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());

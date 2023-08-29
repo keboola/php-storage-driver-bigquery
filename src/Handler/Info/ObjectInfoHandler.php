@@ -46,10 +46,13 @@ final class ObjectInfoHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials,
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ObjectInfoCommand);
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
 

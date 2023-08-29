@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
@@ -85,7 +86,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->sourceProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`) VALUES (1)',
@@ -117,7 +119,8 @@ class ShareLinkBucketTest extends BaseCase
         $result = $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(ShareBucketResponse::class, $result);
@@ -143,7 +146,8 @@ class ShareLinkBucketTest extends BaseCase
         $result = $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(LinkedBucketResponse::class, $result);
@@ -161,7 +165,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->sourceProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
@@ -191,7 +196,8 @@ class ShareLinkBucketTest extends BaseCase
         $unlinkHandler(
             $this->targetProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         // check that the Project2 cannot access the table anymore
@@ -221,7 +227,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->getCredentials());
@@ -242,7 +249,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->sourceProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         try {
@@ -276,7 +284,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->sourceProjectCredentials);
@@ -295,7 +304,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->sourceProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
@@ -335,7 +345,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
@@ -351,7 +362,8 @@ class ShareLinkBucketTest extends BaseCase
         $handler(
             $this->getCredentials(),
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);

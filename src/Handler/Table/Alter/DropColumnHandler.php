@@ -29,10 +29,14 @@ final class DropColumnHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials,
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropColumnCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'DropColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropColumnCommand.tableName is required');

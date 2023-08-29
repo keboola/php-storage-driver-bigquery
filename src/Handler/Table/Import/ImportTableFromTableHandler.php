@@ -53,10 +53,14 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials,
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         // validate
         $sourceMapping = $command->getSource();

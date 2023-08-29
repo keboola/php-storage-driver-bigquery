@@ -30,10 +30,14 @@ final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ClearWorkspaceCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getWorkspaceObjectName() !== '', 'ClearWorkspaceCommand.workspaceObjectName is required');

@@ -26,10 +26,13 @@ final class UnShareBucketHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials, // backend credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnshareBucketCommand);
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         assert($command->getBucketShareRoleName() !== '', 'UnlinkBucketCommand.bucketShareRoleName must be filled in');
 

@@ -11,6 +11,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
@@ -85,7 +86,8 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // nothing from destination and 3 rows from source dedup to two
@@ -172,7 +174,8 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(['col1', 'col2', 'col3'], iterator_to_array($response->getImportedColumns()));
@@ -292,7 +295,8 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $response = $handler(
             $this->projectCredentials,
             $cmd,
-            []
+            [],
+            new RuntimeOptions(),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(

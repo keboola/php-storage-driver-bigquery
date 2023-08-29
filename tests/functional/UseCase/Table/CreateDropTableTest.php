@@ -10,6 +10,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\TableInfo;
@@ -85,7 +86,8 @@ class CreateDropTableTest extends BaseCase
         $response = $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -146,7 +148,8 @@ class CreateDropTableTest extends BaseCase
         $handler(
             $this->projectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);

@@ -36,10 +36,14 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
     public function __invoke(
         Message $credentials,
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getPath()->count() === 1, 'CreateTableCommand.path is required and size must equal 1');
