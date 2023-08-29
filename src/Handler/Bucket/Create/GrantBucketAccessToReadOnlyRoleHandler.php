@@ -48,6 +48,10 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
             $command->getBucketObjectName() !== '',
             'GrantBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
         );
+        assert(
+            $command->getBranchId() !== '',
+            'GrantBucketAccessToReadOnlyRoleCommand.getBranchId is required'
+        );
 
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 
@@ -62,7 +66,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
 
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
             $command->getBucketObjectName(),
-            '1'
+            $command->getBranchId()
         );
 
         $datasetReference = new DestinationDatasetReference();

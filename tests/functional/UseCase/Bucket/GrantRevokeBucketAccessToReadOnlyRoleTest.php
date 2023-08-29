@@ -71,7 +71,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
             $command = (new GrantBucketAccessToReadOnlyRoleCommand())
                 ->setProjectReadOnlyRoleName($createdListing->getName())
-                ->setBucketObjectName('test_external');
+                ->setBucketObjectName('test_external')
+                ->setBranchId('123');
             $handler(
                 $this->mainProjectCredentials,
                 $command,
@@ -94,7 +95,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
             ->setProjectReadOnlyRoleName($createdListing->getName())
-            ->setBucketObjectName('test_external');
+            ->setBucketObjectName('test_external')
+            ->setBranchId('123');
         $handler(
             $this->mainProjectCredentials,
             $command,
@@ -105,13 +107,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         // Validate is bucket added
         $mainBqClient = $this->clientManager->getBigQueryClient($this->mainProjectCredentials);
         $this->assertCount(1, $mainBqClient->datasets());
-        $registeredExternalBucketInMainProject = $mainBqClient->dataset('1_test_external');
+        $registeredExternalBucketInMainProject = $mainBqClient->dataset('123_test_external');
         $registeredTables = $registeredExternalBucketInMainProject->tables();
         $this->assertCount(1, $registeredTables);
 
         // And I can get rows from external table
         $result = $mainBqClient->runQuery(
-            $mainBqClient->query('SELECT * FROM `1_test_external`.`' . $externalTableName . '`')
+            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
         );
         $this->assertCount(3, $result);
 
@@ -154,7 +156,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         // And I can get rows from external table
         $result = $mainBqClient->runQuery(
-            $mainBqClient->query('SELECT * FROM `1_test_external`.`' . $externalTableName . '`')
+            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
         );
         $this->assertCount(4, $result);
 
@@ -187,7 +189,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
         $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
             ->setProjectReadOnlyRoleName($createdListing->getName())
-            ->setBucketObjectName('test_external');
+            ->setBucketObjectName('test_external')
+            ->setBranchId('123');
         $handler(
             $this->mainProjectCredentials,
             $command,
@@ -197,7 +200,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         try {
             $mainBqClient->runQuery(
-                $mainBqClient->query('SELECT * FROM `1_test_external`.`' . $externalTableName . '`')
+                $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
             );
             $this->fail('Should not be able to get data from external table after revoke access.');
         } catch (NotFoundException $e) {
@@ -209,7 +212,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             assert($message !== null);
             assert(isset($message['error']['message']));
             $this->assertSame(
-                sprintf('Not found: Dataset %s:1_test_external was not found in location US', $mainProjectStringId),
+                sprintf('Not found: Dataset %s:123_test_external was not found in location US', $mainProjectStringId),
                 $message['error']['message']
             );
         }
