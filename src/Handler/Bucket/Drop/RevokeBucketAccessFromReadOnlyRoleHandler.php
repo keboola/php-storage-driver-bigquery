@@ -54,7 +54,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         $nameGenerator = new NameGenerator($stackPrefix);
 
         $bucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
-            $command->getProjectReadOnlyRoleName(),
+            $command->getBucketObjectName(),
             '1'
         );
         $dataset = $bigQueryClient->dataset($bucketDatabaseName);
