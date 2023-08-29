@@ -83,19 +83,11 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
                 'destinationDataset' => $destinationDataset,
             ]);
         } catch (ApiException $e) {
-            if ($e->getStatus() === 'PERMISSION_DENIED') {
-                throw new Exception(
-                    sprintf(
-                        'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
-                        $command->getBucketObjectName(),
-                        $command->getProjectReadOnlyRoleName(),
-                    ),
-                    $e->getCode(),
-                    $e
-                );
-            }
-
-            throw $e;
+            throw SubscribeListingPermissionDeniedException::handlePermissionDeniedException(
+                $e,
+                $command->getBucketObjectName(),
+                $command->getProjectReadOnlyRoleName()
+            );
         }
 
         return null;
