@@ -26,10 +26,14 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
     public function __invoke(
         Message $credentials, // project credentials
         Message $command,
-        array $features
+        array $features,
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof RevokeBucketAccessFromReadOnlyRoleCommand);
+
+        assert($runtimeOptions->getRunId() === '');
+        assert($runtimeOptions->getMeta() === null);
         assert(
             $command->getProjectReadOnlyRoleName() !== '',
             'RevokeBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName is required'

@@ -17,6 +17,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromRea
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Throwable;
@@ -74,7 +75,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $handler(
                 $this->mainProjectCredentials,
                 $command,
-                []
+                [],
+                new RuntimeOptions(),
             );
             $this->fail('Should not be able to register bucket from another project, until user grant subscription.');
         } catch (Throwable $e) {
@@ -96,7 +98,8 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $handler(
             $this->mainProjectCredentials,
             $command,
-            []
+            [],
+            new RuntimeOptions(),
         );
 
         // Validate is bucket added
