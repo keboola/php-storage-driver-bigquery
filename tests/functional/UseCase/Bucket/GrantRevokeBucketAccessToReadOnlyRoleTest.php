@@ -16,6 +16,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToRead
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleResponse;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -97,13 +98,16 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setProjectReadOnlyRoleName($createdListing->getName())
             ->setBucketObjectName('test_external')
             ->setBranchId('123');
-        $handler(
+
+        /** @var GrantBucketAccessToReadOnlyRoleResponse $result */
+        $result = $handler(
             $this->mainProjectCredentials,
             $command,
             [],
             new RuntimeOptions(),
         );
 
+        $this->assertSame('123_test_external', $result->getCreateBucketObjectName());
         // Validate is bucket added
         $mainBqClient = $this->clientManager->getBigQueryClient($this->mainProjectCredentials);
         $this->assertCount(1, $mainBqClient->datasets());
@@ -189,8 +193,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
         $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
             ->setProjectReadOnlyRoleName($createdListing->getName())
-            ->setBucketObjectName('test_external')
-            ->setBranchId('123');
+            ->setBucketObjectName('123_test_external');
         $handler(
             $this->mainProjectCredentials,
             $command,
