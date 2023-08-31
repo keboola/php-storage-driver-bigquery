@@ -12,6 +12,7 @@ use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
@@ -86,6 +87,6 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
             );
         }
 
-        return null;
+        return (new GrantBucketAccessToReadOnlyRoleResponse())->setCreateBucketObjectName($newBucketDatabaseName);
     }
 }
