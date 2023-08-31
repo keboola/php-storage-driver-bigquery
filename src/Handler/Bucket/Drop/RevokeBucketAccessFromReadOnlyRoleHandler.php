@@ -43,25 +43,9 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
             $command->getBucketObjectName() !== '',
             'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
         );
-        assert(
-            $command->getBranchId() !== '',
-            'GrantBucketAccessToReadOnlyRoleCommand.getBranchId is required'
-        );
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
-
-        $stackPrefix = getenv('BQ_STACK_PREFIX');
-        if ($stackPrefix === false) {
-            $stackPrefix = 'local';
-        }
-
-        $nameGenerator = new NameGenerator($stackPrefix);
-
-        $bucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
-            $command->getBucketObjectName(),
-            $command->getBranchId()
-        );
-        $dataset = $bigQueryClient->dataset($bucketDatabaseName);
+        $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
         $dataset->delete();
 
