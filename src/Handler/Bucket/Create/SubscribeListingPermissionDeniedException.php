@@ -23,8 +23,11 @@ class SubscribeListingPermissionDeniedException extends Exception implements Non
         );
     }
 
-    public static function handlePermissionDeniedException(ApiException $e, string $externalBucketName, string $listingName): ApiException|self
-    {
+    public static function handlePermissionDeniedException(
+        ApiException $e,
+        string $externalBucketName,
+        string $listingName
+    ): ApiException|self {
         if ($e->getStatus() === 'PERMISSION_DENIED') {
             throw new self(
                 message: sprintf(
@@ -37,6 +40,5 @@ class SubscribeListingPermissionDeniedException extends Exception implements Non
         }
 
         throw $e;
-
     }
 }
