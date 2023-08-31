@@ -192,7 +192,6 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
         $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
-            ->setProjectReadOnlyRoleName($createdListing->getName())
             ->setBucketObjectName('123_test_external');
         $handler(
             $this->mainProjectCredentials,
