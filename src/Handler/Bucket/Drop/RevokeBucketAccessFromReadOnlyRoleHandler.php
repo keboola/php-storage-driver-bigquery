@@ -37,7 +37,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         assert($runtimeOptions->getMeta() === null);
         assert(
             $command->getProjectReadOnlyRoleName() === '',
-            'RevokeBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName is not required'
+            'RevokeBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName must be empty(not used)'
         );
         assert(
             $command->getBucketObjectName() !== '',
@@ -45,6 +45,8 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         );
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
+        // In case of deleting an external bucket, we only need the dataset name.
+        // This information is stored in the connection so we just delete the dataset
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
         $dataset->delete();
