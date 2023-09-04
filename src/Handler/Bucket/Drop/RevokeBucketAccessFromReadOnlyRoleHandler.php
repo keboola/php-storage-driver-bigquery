@@ -10,6 +10,7 @@ use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Throwable;
 
 final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHandlerInterface
 {
@@ -43,13 +44,20 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
             $command->getBucketObjectName() !== '',
             'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
         );
+        $ignoreErrors = $command->getIgnoreErrors();
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
         // In case of deleting an external bucket, we only need the dataset name.
         // This information is stored in the connection so we just delete the dataset
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
+        try {
         $dataset->delete();
+        } catch (Throwable $e) {
+            if (!$ignoreErrors) {
+                throw $e;
+            }
+        }
 
         return null;
     }
