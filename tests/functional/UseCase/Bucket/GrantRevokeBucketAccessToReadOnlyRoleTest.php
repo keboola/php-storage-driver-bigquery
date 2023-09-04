@@ -68,12 +68,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName
         );
 
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setProjectReadOnlyRoleName($createdListing->getName())
+            ->setBucketObjectName('test_external')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
         try {
-            $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
-            $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-                ->setProjectReadOnlyRoleName($createdListing->getName())
-                ->setBucketObjectName('test_external')
-                ->setBranchId('123');
             $handler(
                 $this->mainProjectCredentials,
                 $command,
@@ -91,17 +92,6 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         // 2. Grant subscribe permission to external bucket to service account if destination project
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
-
-        // Now we should be able to link (register) external bucket
-        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
-        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-            // in this case we send the listing in the parameter
-            ->setProjectReadOnlyRoleName($createdListing->getName())
-            // in this case we send the name of linked bucked in the parameter
-            ->setBucketObjectName('test_external')
-            // branchId is an optional parameter and is used as a prefix
-            // of the target schema name in case we use branch storage
-            ->setBranchId('123');
 
         /** @var GrantBucketAccessToReadOnlyRoleResponse $result */
         $result = $handler(
