@@ -52,7 +52,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
         try {
-        $dataset->delete();
+            $dataset->delete();
         } catch (Throwable $e) {
             if (!$ignoreErrors) {
                 throw $e;
