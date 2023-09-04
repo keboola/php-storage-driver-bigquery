@@ -50,6 +50,11 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
             'GrantBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
         );
 
+        assert(
+            $command->getStackPrefix() !== '',
+            'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required'
+        );
+
         $listingName = $command->getProjectReadOnlyRoleName();
 
         // This is the name of a bucket created in the target project that represents an external bucket
@@ -59,12 +64,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
 
-        $stackPrefix = getenv('BQ_STACK_PREFIX');
-        if ($stackPrefix === false) {
-            $stackPrefix = 'local';
-        }
-
-        $nameGenerator = new NameGenerator($stackPrefix);
+        $nameGenerator = new NameGenerator($command->getStackPrefix());
 
         // 1. Create new name for dataset
         // In BQ, the linked dataset is physically created in the target project,
