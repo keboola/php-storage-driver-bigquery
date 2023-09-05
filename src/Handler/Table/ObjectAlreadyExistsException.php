@@ -27,7 +27,7 @@ class ObjectAlreadyExistsException extends Exception implements NonRetryableExce
     {
         if ($e->getCode() === 409) {
             throw new self(
-                message: sprintf('Object "%s" already exists.', ''),
+                message: 'Object already exists.',
                 previous: $e
             );
         }
