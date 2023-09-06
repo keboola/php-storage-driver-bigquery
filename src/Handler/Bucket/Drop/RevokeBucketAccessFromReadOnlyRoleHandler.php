@@ -36,10 +36,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
 
         assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
-        assert(
-            $command->getProjectReadOnlyRoleName() === '',
-            'RevokeBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName must be empty(not used)'
-        );
+
         assert(
             $command->getBucketObjectName() !== '',
             'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
