@@ -53,7 +53,7 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableExportToFileCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -82,7 +82,7 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
             $requestExportOptions
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $datasetName = ProtobufHelper::repeatedStringToArray($source->getPath())[0];
         $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $source->getTableName()))

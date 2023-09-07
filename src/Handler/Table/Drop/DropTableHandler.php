@@ -34,14 +34,14 @@ class DropTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropTableCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getPath()->count() === 1, 'DropTableCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropTableCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bqClient->dataset($datasetName);

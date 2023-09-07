@@ -32,7 +32,6 @@ final class CreateBucketHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateBucketCommand);
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());
@@ -42,7 +41,7 @@ final class CreateBucketHandler implements DriverCommandHandlerInterface
             $command->getBranchId()
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $bigQueryClient->createDataset($newBucketDatabaseName);
 

@@ -47,14 +47,14 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getWorkspaceUserName() !== '', 'DropWorkspaceCommand.workspaceUserName is required');
         assert($command->getWorkspaceObjectName() !== '', 'DropWorkspaceCommand.workspaceObjectName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
 
         $deleteWsDatasetRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {

@@ -36,13 +36,13 @@ final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ClearWorkspaceCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
         assert($command->getWorkspaceObjectName() !== '', 'ClearWorkspaceCommand.workspaceObjectName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $tablesInDataset = $bqClient->dataset($command->getWorkspaceObjectName())->tables();
         try {

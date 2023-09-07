@@ -31,12 +31,12 @@ class DropBucketHandle implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropBucketCommand);
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         $ignoreErrors = $command->getIgnoreErrors();
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 

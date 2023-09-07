@@ -35,7 +35,7 @@ final class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceObjectCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -48,7 +48,7 @@ final class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
             'DropWorkspaceObjectCommand.objectNameToDrop is required'
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $isTableExists = $this->isTableExists(
             $bqClient,

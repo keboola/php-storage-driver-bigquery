@@ -44,13 +44,13 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DeleteTableRowsCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'AddColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'AddColumnCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 

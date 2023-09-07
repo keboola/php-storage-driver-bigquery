@@ -33,6 +33,7 @@ final class DropProjectHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropProjectCommand);
+
         assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
