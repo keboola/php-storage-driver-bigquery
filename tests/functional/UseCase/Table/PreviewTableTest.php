@@ -1494,7 +1494,7 @@ class PreviewTableTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
@@ -1543,7 +1543,7 @@ class PreviewTableTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(PreviewTableResponse::class, $response);
         return $response;

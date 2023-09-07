@@ -232,12 +232,12 @@ class BaseCase extends TestCase
             $projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
@@ -316,7 +316,7 @@ class BaseCase extends TestCase
             $projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -365,7 +365,7 @@ class BaseCase extends TestCase
             $credentials,
             $createTableCommand,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
@@ -382,7 +382,7 @@ class BaseCase extends TestCase
         array $insertGroups,
         bool $truncate = false
     ): void {
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         if ($truncate) {
             $bqClient->runQuery($bqClient->query(sprintf(
                 'TRUNCATE TABLE %s.%s',
@@ -484,7 +484,7 @@ class BaseCase extends TestCase
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         return $tableName;
     }

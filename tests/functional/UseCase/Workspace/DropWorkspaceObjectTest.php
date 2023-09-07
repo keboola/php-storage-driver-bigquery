@@ -43,7 +43,7 @@ class DropWorkspaceObjectTest extends BaseCase
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create tables
         $bqClient->runQuery($bqClient->query(sprintf(
@@ -74,7 +74,7 @@ class DropWorkspaceObjectTest extends BaseCase
                 $credentials,
                 $command,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail');
         } catch (Throwable $e) {
@@ -100,11 +100,11 @@ class DropWorkspaceObjectTest extends BaseCase
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($dropResponse);
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         $this->assertTrue($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertTrue($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable2'));
 
@@ -118,11 +118,11 @@ class DropWorkspaceObjectTest extends BaseCase
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($dropResponse);
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         $this->assertTrue($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertFalse($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable2'));
 
@@ -136,11 +136,11 @@ class DropWorkspaceObjectTest extends BaseCase
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($dropResponse);
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         $this->assertFalse($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertFalse($this->isTableExists($bqClient, $response->getWorkspaceObjectName(), 'testTable2'));
     }

@@ -57,7 +57,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
 
         // create tables
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->initTestTableAndImportBaseData($bqClient, $bucketDatasetName, $sourceTableName);
 
         sleep(1);
@@ -99,7 +99,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -133,7 +133,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
     {
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->initTestTableAndImportBaseData($bqClient, $bucketDatasetName, $sourceTableName);
 
         sleep(1);
@@ -149,7 +149,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             ))
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bqClient->runQuery($bqClient->query($sql));
 
         $cmd = new CreateTableFromTimeTravelCommand();
@@ -179,7 +179,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -213,7 +213,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
     {
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->initTestTableAndImportBaseData($bqClient, $bucketDatasetName, $sourceTableName);
 
         // test create table from non-existing table
@@ -246,7 +246,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 $this->projectCredentials,
                 $cmd,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail: Table should never be created.');
         } catch (ObjectNotFoundException $e) {
@@ -282,7 +282,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 $this->projectCredentials,
                 $cmd,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail: Table should not exist in this point of time.');
         } catch (BadRequestException $e) {
@@ -324,7 +324,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 

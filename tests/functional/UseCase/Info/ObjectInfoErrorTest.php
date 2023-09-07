@@ -50,7 +50,7 @@ class ObjectInfoErrorTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
@@ -67,7 +67,7 @@ class ObjectInfoErrorTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
@@ -87,7 +87,7 @@ class ObjectInfoErrorTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 

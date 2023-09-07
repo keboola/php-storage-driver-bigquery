@@ -52,7 +52,7 @@ class ObjectInfoTest extends BaseCase
             $this->bucketResponse->getCreateBucketObjectName(),
             'bucket_table1'
         );
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE VIEW %s.`bucket_view1` AS '
             . 'SELECT * FROM %s.`bucket_table1`;',
@@ -90,7 +90,7 @@ class ObjectInfoTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::DATABASE, $response->getObjectType());
@@ -112,7 +112,7 @@ class ObjectInfoTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::SCHEMA, $response->getObjectType());
@@ -152,7 +152,7 @@ class ObjectInfoTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::TABLE, $response->getObjectType());
@@ -201,7 +201,7 @@ class ObjectInfoTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::VIEW, $response->getObjectType());

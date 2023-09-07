@@ -44,7 +44,7 @@ class ClearWorkspaceTest extends BaseCase
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create tables
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
@@ -66,7 +66,7 @@ class ClearWorkspaceTest extends BaseCase
                 $this->projectCredentials,
                 $command,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail');
         } catch (Throwable $e) {
@@ -87,11 +87,11 @@ class ClearWorkspaceTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($clearResponse);
 
-        $projectBqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $iamService = $this->clientManager->getIamClient($this->projectCredentials);
         $this->assertTrue($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertTrue($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable2'));
@@ -108,11 +108,11 @@ class ClearWorkspaceTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($clearResponse);
 
-        $projectBqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->assertFalse($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertTrue($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable2'));
 
@@ -125,11 +125,11 @@ class ClearWorkspaceTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($clearResponse);
 
-        $projectBqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $iamService = $this->clientManager->getIamClient($this->projectCredentials);
         $this->assertFalse($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable'));
         $this->assertFalse($this->isTableExists($projectBqClient, $response->getWorkspaceObjectName(), 'testTable2'));

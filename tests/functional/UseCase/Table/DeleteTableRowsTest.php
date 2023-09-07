@@ -261,7 +261,7 @@ class DeleteTableRowsTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
@@ -297,7 +297,7 @@ class DeleteTableRowsTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(DeleteTableRowsResponse::class, $response);
         $this->assertSame($expectedDeletedRowsCount, $response->getDeletedRowsCount());
@@ -324,7 +324,7 @@ class DeleteTableRowsTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(PreviewTableResponse::class, $response);
         return $response;

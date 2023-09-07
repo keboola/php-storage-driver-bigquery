@@ -34,7 +34,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
@@ -87,7 +87,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // nothing from destination and 3 rows from source dedup to two
@@ -122,7 +122,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     {
         $destinationTableName = md5($this->getName()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
@@ -175,7 +175,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(['col1', 'col2', 'col3'], iterator_to_array($response->getImportedColumns()));
@@ -210,7 +210,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     {
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $this->createAccountsTable($bqClient, $bucketDatabaseName, $destinationTableName);
         // init some values
@@ -296,7 +296,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(

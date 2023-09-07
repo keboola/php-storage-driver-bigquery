@@ -66,7 +66,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $wsKeyData = CredentialsHelper::getCredentialsArray($credentials);
         $projectId = $wsKeyData['project_id'];
         $wsServiceAccEmail = $wsKeyData['client_email'];
@@ -79,7 +79,7 @@ class CreateDropWorkspaceTest extends BaseCase
         );
         $this->assertNotNull($wsServiceAcc);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         /** @var array<string, string> $datasets */
         $datasets = $bqClient->runQuery($bqClient->query(sprintf('SELECT
@@ -202,7 +202,7 @@ FROM
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertNull($dropResponse);
 
@@ -261,7 +261,7 @@ FROM
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create table
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
@@ -269,7 +269,7 @@ FROM
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
         )));
 
-        $projectBqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // try to DROP - should fail, there is a table
         $handler = new DropWorkspaceHandler($this->clientManager);
@@ -282,7 +282,7 @@ FROM
                 $this->projectCredentials,
                 $command,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail as workspace database contains table');
         } catch (Throwable $e) {
@@ -321,7 +321,7 @@ FROM
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         try {
@@ -422,7 +422,7 @@ FROM
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
@@ -439,7 +439,7 @@ FROM
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         return $bucketResponse->getCreateBucketObjectName();

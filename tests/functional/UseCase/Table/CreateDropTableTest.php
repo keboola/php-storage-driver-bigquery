@@ -87,7 +87,7 @@ class CreateDropTableTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
@@ -149,10 +149,10 @@ class CreateDropTableTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $bucket = $bqClient->dataset($bucketDatasetName);
         $this->assertTrue($bucket->exists());

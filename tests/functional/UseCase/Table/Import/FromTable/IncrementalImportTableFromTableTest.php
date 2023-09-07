@@ -38,7 +38,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -133,7 +133,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // 1 row unique from source, 3 rows deduped from source and destination
