@@ -10,6 +10,7 @@ services:
         - BQ_STACK_PREFIX
         - BQ_BUCKET_NAME
         - BQ_KEY_FILE
+        - BUILD_ID
   dev: &dev
     <<: *prod
     image: keboola/php-storage-driver-bigquery

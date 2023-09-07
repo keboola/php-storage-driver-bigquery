@@ -49,6 +49,18 @@ class BaseCase extends TestCase
     // to distinguish projects if you need more projects in one test case
     protected string $projectSuffix = '';
 
+    protected string $testRunId;
+
+    protected function setUp(): void
+    {
+        $ghRunId = getenv('BUILD_ID');
+        if ($ghRunId === false) {
+            $this->testRunId = (string) rand(100000, 999999);
+        } else {
+            $this->testRunId = (string) $ghRunId;
+        }
+    }
+
     /**
      * @param array<mixed> $data
      */
