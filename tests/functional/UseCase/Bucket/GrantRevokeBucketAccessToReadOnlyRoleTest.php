@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleComma
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use LogicException;
 use Throwable;
 
 class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
@@ -68,10 +69,23 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName
         );
 
+        $pattern = '/projects\/([\w-]+)\/locations\/([\w-]+)\/dataExchanges\/([\w-]+)\/listings\/([\w-]+)/';
+
+        if (preg_match($pattern, $createdListing->getName(), $matches)) {
+            $path = [
+                $matches[1],
+                $matches[2],
+                $matches[3],
+                $matches[4],
+            ];
+        } else {
+            throw new LogicException('Invalid listing name');
+        }
+
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-            ->setProjectReadOnlyRoleName($createdListing->getName())
-            ->setBucketObjectName('test_external')
+            ->setPath($path)
+            ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
         try {
