@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery;
 
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Job;
 use Google\Cloud\BigQuery\JobConfigurationInterface;
 use Google\Cloud\BigQuery\QueryJobConfiguration;
 use Google\Cloud\BigQuery\QueryResults;
@@ -32,5 +33,15 @@ class BigQueryClientWrapper extends BigQueryClient
         /** @var QueryJobConfiguration $query */
         $query = $query->labels(['run_id' => $this->runId]);
         return parent::runQuery($query, $options);
+    }
+
+    /**
+     * @inheritdoc
+     * @param array<mixed> $options
+     */
+    public function runJob(JobConfigurationInterface $config, array $options = []): Job
+    {
+        $config = $config->labels(['run_id' => $this->runId]);
+        return parent::runJob($config, $options);
     }
 }
