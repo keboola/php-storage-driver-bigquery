@@ -55,13 +55,18 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
             'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required'
         );
 
-        $path = $command->getPath();
+        [
+            $projectId,
+            $location,
+            $dataExchangerId,
+            $listingId,
+        ] = $command->getPath();
         $listingName = $this->clientManager->getAnalyticHubClient($credentials)
             ->listingName(
-                $path[0],
-                $path[1],
-                $path[2],
-                $path[3]
+                $projectId,
+                $location,
+                $dataExchangerId,
+                $listingId
             );
 
         // This is the name of a bucket created in the target project that represents an external bucket

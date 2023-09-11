@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
+use Google\ApiCore\PathTemplate;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
@@ -69,22 +70,16 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName
         );
 
-        $pattern = '/projects\/([\w-]+)\/locations\/([\w-]+)\/dataExchanges\/([\w-]+)\/listings\/([\w-]+)/';
-
-        if (preg_match($pattern, $createdListing->getName(), $matches)) {
-            $path = [
-                $matches[1],
-                $matches[2],
-                $matches[3],
-                $matches[4],
-            ];
-        } else {
-            throw new LogicException('Invalid listing name');
-        }
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-            ->setPath($path)
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
             ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
