@@ -88,7 +88,7 @@ class GCPClientManager
     {
         $handler = new BigQueryClientHandler(new Client());
         // note: the close method is not used in this client
-        return new CustomBigQueryClient($runId, [
+        return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'httpHandler' => $handler,
         ]);

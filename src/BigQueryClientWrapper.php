@@ -9,7 +9,7 @@ use Google\Cloud\BigQuery\JobConfigurationInterface;
 use Google\Cloud\BigQuery\QueryJobConfiguration;
 use Google\Cloud\BigQuery\QueryResults;
 
-class CustomBigQueryClient extends BigQueryClient
+class BigQueryClientWrapper extends BigQueryClient
 {
     /**
      * @inheritdoc
