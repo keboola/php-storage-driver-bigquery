@@ -42,12 +42,12 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
         assert($runtimeOptions->getMeta() === null);
 
         assert(
-            $command->getProjectReadOnlyRoleName() !== '',
-            'GrantBucketAccessToReadOnlyRoleCommand.projectReadOnlyRoleName is required'
+            $command->getPath()->count() === 4,
+            'GrantBucketAccessToReadOnlyRoleCommand.path is required and size must equal 4'
         );
         assert(
-            $command->getBucketObjectName() !== '',
-            'GrantBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
+            $command->getDestinationObjectName() !== '',
+            'GrantBucketAccessToReadOnlyRoleCommand.getDestinationObjectName is required'
         );
 
         assert(
@@ -55,10 +55,22 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
             'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required'
         );
 
-        $listingName = $command->getProjectReadOnlyRoleName();
+        [
+            $projectId,
+            $location,
+            $dataExchangerId,
+            $listingId,
+        ] = $command->getPath();
+        $listingName = $this->clientManager->getAnalyticHubClient($credentials)
+            ->listingName(
+                $projectId,
+                $location,
+                $dataExchangerId,
+                $listingId
+            );
 
         // This is the name of a bucket created in the target project that represents an external bucket
-        $registeredBucketName = $command->getBucketObjectName();
+        $registeredBucketName = $command->getDestinationObjectName();
 
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 

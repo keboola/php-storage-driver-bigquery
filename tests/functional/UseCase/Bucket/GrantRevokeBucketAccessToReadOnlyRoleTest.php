@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
+use Google\ApiCore\PathTemplate;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
@@ -21,6 +22,7 @@ use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleComma
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use LogicException;
 use Throwable;
 
 class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
@@ -68,10 +70,17 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName
         );
 
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
-            ->setProjectReadOnlyRoleName($createdListing->getName())
-            ->setBucketObjectName('test_external')
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
+            ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
         try {
