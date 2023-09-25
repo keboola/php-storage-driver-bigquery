@@ -9,15 +9,22 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google\Service\Iam\Resource\ProjectsServiceAccounts;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 
 final class DropWorkspaceHandler implements DriverCommandHandlerInterface
 {
+    private const ERROR_CODES_FOR_RETRY = [401, 403, 429];
+
     public GCPClientManager $clientManager;
 
     public function __construct(GCPClientManager $clientManager)
@@ -48,7 +55,18 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
 
         $bqClient = $this->clientManager->getBigQueryClient($credentials);
         $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
-        $dataset->delete(['deleteContents' => $command->getIsCascade()]);
+
+        $deleteWsDatasetRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY)) {
+                return true;
+            }
+            return false;
+        });
+
+        $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy->call(function () use ($dataset, $command): void {
+            $dataset->delete(['deleteContents' => $command->getIsCascade()]);
+        });
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
@@ -57,38 +75,59 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
         $keyData = json_decode($command->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-        $getIamPolicyRequest = new GetIamPolicyRequest();
-        $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
-        $projectName = 'projects/' . $projectCredentials['project_id'];
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
-        $actualBinding[] = $actualPolicy->getBindings();
 
-        $newBinding = [];
-        /** @var Binding $binding */
-        foreach ($actualBinding[0] as $binding) {
-            $tmpBinding = new Binding();
-            $tmpBinding->setRole($binding->getRole());
-            if ($binding->getCondition() !== null) {
-                $tmpBinding->setCondition($binding->getCondition());
+        $setIamPolicyRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            if (in_array($e->getCode(), array_merge(self::ERROR_CODES_FOR_RETRY, [409]))) {
+                return true;
             }
-            $newMembers = [];
-            foreach ($binding->getMembers() as $member) {
-                if ($member !== 'serviceAccount:'.$keyData['client_email']) {
-                    $newMembers[] = $member;
+            return false;
+        });
+        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy->call(function () use ($cloudResourceManager, $credentials, $keyData): void {
+            $getIamPolicyRequest = new GetIamPolicyRequest();
+            $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
+            $projectName = 'projects/' . $projectCredentials['project_id'];
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            $actualBinding[] = $actualPolicy->getBindings();
+
+            $newBinding = [];
+            /** @var Binding $binding */
+            foreach ($actualBinding[0] as $binding) {
+                $tmpBinding = new Binding();
+                $tmpBinding->setRole($binding->getRole());
+                if ($binding->getCondition() !== null) {
+                    $tmpBinding->setCondition($binding->getCondition());
                 }
+                $newMembers = [];
+                foreach ($binding->getMembers() as $member) {
+                    if ($member !== 'serviceAccount:'.$keyData['client_email']) {
+                        $newMembers[] = $member;
+                    }
+                }
+                $tmpBinding->setMembers($newMembers);
+                $newBinding[] = $tmpBinding;
             }
-            $tmpBinding->setMembers($newMembers);
-            $newBinding[] = $tmpBinding;
-        }
-        $policy = new Policy();
-        $policy->setBindings($newBinding);
-        $setIamPolicyRequest = new SetIamPolicyRequest();
-        $setIamPolicyRequest->setPolicy($policy);
-        $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $policy = new Policy();
+            $policy->setBindings($newBinding);
+            $setIamPolicyRequest = new SetIamPolicyRequest();
+            $setIamPolicyRequest->setPolicy($policy);
+            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+        });
 
-        $serviceAccountsService->delete(
-            sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email'])
-        );
+        $deleteServiceAccRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY)) {
+                return true;
+            }
+            return false;
+        });
+
+        $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy->call(function () use ($serviceAccountsService, $keyData): void {
+            $serviceAccountsService->delete(
+                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email'])
+            );
+        });
+
         return null;
     }
 }
