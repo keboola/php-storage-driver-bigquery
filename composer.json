@@ -27,7 +27,7 @@
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
         "google/cloud-resource-manager": "^0.3.5",
-        "keboola/storage-driver-common": "^5.0",
+        "keboola/storage-driver-common": "^6.0",
         "google/cloud-service-usage": "^0.2.7",
         "google/apiclient": "^2.12.1",
         "google/cloud-bigquery": "^1.23",
