@@ -11,6 +11,7 @@ use Google\Cloud\ResourceManager\V3\FoldersClient;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
 use Google\Cloud\Storage\StorageClient;
+use Google\Service\Iam;
 use Google_Client;
 use Google_Service_CloudResourceManager;
 use Google_Service_Iam;
@@ -61,7 +62,7 @@ class GCPClientManager
         return $client;
     }
 
-    public function getIamClient(GenericBackendCredentials $credentials): Google_Service_Iam
+    public function getIamClient(GenericBackendCredentials $credentials): Iam
     {
         $client = new Google_Client([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
@@ -69,7 +70,7 @@ class GCPClientManager
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
-        return new Google_Service_Iam($client);
+        return new Iam($client);
     }
 
     public function getCloudResourceManager(GenericBackendCredentials $credentials): Google_Service_CloudResourceManager
