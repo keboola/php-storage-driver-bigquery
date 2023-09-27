@@ -20,7 +20,6 @@ class BigQueryClientWrapper extends BigQueryClient
         readonly string $runId,
         array $config = []
     ) {
-        assert($this->runId !== '');
         parent::__construct($config);
     }
 
@@ -31,7 +30,9 @@ class BigQueryClientWrapper extends BigQueryClient
     public function runQuery(JobConfigurationInterface $query, array $options = []): QueryResults
     {
         /** @var QueryJobConfiguration $query */
-        $query = $query->labels(['run_id' => $this->runId]);
+        if ($this->runId !== '') {
+            $query = $query->labels(['run_id' => $this->runId]);
+        }
         return parent::runQuery($query, $options);
     }
 
@@ -41,7 +42,9 @@ class BigQueryClientWrapper extends BigQueryClient
      */
     public function runJob(JobConfigurationInterface $config, array $options = []): Job
     {
-        $config = $config->labels(['run_id' => $this->runId]);
+        if ($this->runId !== '') {
+            $config = $config->labels(['run_id' => $this->runId]);
+        }
         return parent::runJob($config, $options);
     }
 }
