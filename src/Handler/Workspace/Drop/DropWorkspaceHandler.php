@@ -24,6 +24,7 @@ use Throwable;
 final class DropWorkspaceHandler implements DriverCommandHandlerInterface
 {
     private const ERROR_CODES_FOR_RETRY = [401, 403, 429];
+    private const ERROR_CODES_FOR_RETRY_IAM = [409, ...self::ERROR_CODES_FOR_RETRY];
 
     public GCPClientManager $clientManager;
 
@@ -77,7 +78,7 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
 
         $setIamPolicyRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
-            if (in_array($e->getCode(), array_merge(self::ERROR_CODES_FOR_RETRY, [409]))) {
+            if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY_IAM)) {
                 return true;
             }
             return false;
