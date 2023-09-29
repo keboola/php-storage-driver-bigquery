@@ -22,7 +22,6 @@ final class RemoveBackendHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof RemoveBackendCommand);
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         return null;

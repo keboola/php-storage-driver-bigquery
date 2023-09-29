@@ -39,7 +39,6 @@ final class ResetWorkspacePasswordHandler implements DriverCommandHandlerInterfa
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ResetWorkspacePasswordCommand);
 
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         // validate

@@ -35,7 +35,6 @@ final class ShareBucketHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ShareBucketCommand);
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
