@@ -34,7 +34,6 @@ final class InitBackendHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof InitBackendCommand);
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         $foldersClient = $this->clientManager->getFoldersClient($credentials);
