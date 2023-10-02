@@ -84,11 +84,11 @@ class GCPClientManager
         return new Google_Service_CloudResourceManager($client);
     }
 
-    public function getBigQueryClient(GenericBackendCredentials $credentials): BigQueryClient
+    public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
     {
         $handler = new BigQueryClientHandler(new Client());
         // note: the close method is not used in this client
-        return new BigQueryClient([
+        return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'httpHandler' => $handler,
         ]);

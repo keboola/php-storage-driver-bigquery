@@ -31,7 +31,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -123,7 +123,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
@@ -152,7 +152,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -245,7 +245,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
@@ -279,7 +279,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -377,7 +377,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(5, $response->getImportedRowsCount());
         $this->assertSame(

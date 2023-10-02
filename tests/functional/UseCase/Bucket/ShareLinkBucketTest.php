@@ -69,7 +69,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
 
-        $sourceBqClient = $this->clientManager->getBigQueryClient($this->sourceProjectCredentials);
+        $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->sourceProjectCredentials);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
         $handler = new CreateTableHandler($this->clientManager);
@@ -87,7 +87,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`) VALUES (1)',
@@ -95,7 +95,10 @@ class ShareLinkBucketTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
         )));
 
-        $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials
+        );
 
 //      check that the Project2 cannot access the table yet
         $dataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
@@ -166,7 +169,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
@@ -197,7 +200,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->targetProjectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         // check that the Project2 cannot access the table anymore
@@ -288,7 +291,7 @@ class ShareLinkBucketTest extends BaseCase
             new RuntimeOptions(),
         );
 
-        $sourceBqClient = $this->clientManager->getBigQueryClient($this->sourceProjectCredentials);
+        $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->sourceProjectCredentials);
 
         $handler = new CreateTableHandler($this->clientManager);
         $path = new RepeatedField(GPBType::STRING);
@@ -305,7 +308,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         // check that there is no need to re-share or whatever
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
@@ -349,7 +352,10 @@ class ShareLinkBucketTest extends BaseCase
             new RuntimeOptions(),
         );
 
-        $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials
+        );
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
         $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
@@ -366,7 +372,10 @@ class ShareLinkBucketTest extends BaseCase
             new RuntimeOptions(),
         );
 
-        $targetProjectBqClient = $this->clientManager->getBigQueryClient($this->targetProjectCredentials);
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials
+        );
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
         $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);

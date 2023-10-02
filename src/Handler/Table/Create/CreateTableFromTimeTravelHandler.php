@@ -42,7 +42,7 @@ class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableFromTimeTravelCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -73,7 +73,7 @@ class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
 
         /** @var string $datetime */
         $datetime = date(self::TIME_TRAVEL_TIMESTAMP_FORMAT, (int) $timestamp);
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $query = sprintf(
             'CREATE TABLE %s.%s AS SELECT * FROM %s.%s FOR SYSTEM_TIME AS OF %s;',
             BigqueryQuote::quoteSingleIdentifier($destinationDatasetName),

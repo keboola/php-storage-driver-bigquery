@@ -50,7 +50,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof PreviewTableCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -58,7 +58,7 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($command->getTableName() !== '', 'PreviewTableCommand.tableName is required');
         assert($command->getColumns()->count() > 0, 'PreviewTableCommand.columns is required');
 
-        $bqClient = $this->manager->getBigQueryClient($credentials);
+        $bqClient = $this->manager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 

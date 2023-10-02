@@ -35,7 +35,6 @@ final class LinkBucketHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof LinkBucketCommand);
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getStackPrefix() !== '', 'LinkBucketCommand.stackPrefix must be filled in');

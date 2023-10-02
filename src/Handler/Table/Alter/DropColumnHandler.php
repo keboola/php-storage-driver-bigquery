@@ -35,13 +35,13 @@ final class DropColumnHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropColumnCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'DropColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropColumnCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         // define columns
         // validate

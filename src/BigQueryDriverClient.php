@@ -73,7 +73,7 @@ class BigQueryDriverClient implements ClientInterface
     /**
      * @param string[] $features
      */
-    public function runCommand(Message $credentials, Message $command, array $features): ?Message
+    public function runCommand(Message $credentials, Message $command, array $features, Message $runtimeOptions): ?Message
     {
         assert($credentials instanceof GenericBackendCredentials);
         $manager = new GCPClientManager();
@@ -83,7 +83,7 @@ class BigQueryDriverClient implements ClientInterface
             $credentials,
             $command,
             $features,
-            new RuntimeOptions(),
+            $runtimeOptions,
         );
     }
 

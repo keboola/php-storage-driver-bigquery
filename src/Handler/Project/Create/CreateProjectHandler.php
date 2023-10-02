@@ -71,7 +71,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateProjectCommand);
-        assert($runtimeOptions->getRunId() === '');
+
         assert($runtimeOptions->getMeta() === null);
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());

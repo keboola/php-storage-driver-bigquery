@@ -55,8 +55,11 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         // validate initial state of projects
-        $mainBqClient = $this->clientManager->getBigQueryClient($this->mainProjectCredentials);
-        $externalBqClient = $this->clientManager->getBigQueryClient($this->externalProjectCredentials);
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
+        $externalBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->externalProjectCredentials
+        );
 
         $this->assertCount(0, $mainBqClient->datasets());
         $this->assertCount(1, $externalBqClient->datasets());
@@ -112,7 +115,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $this->assertSame('123_test_external', $result->getCreateBucketObjectName());
         // Validate is bucket added
-        $mainBqClient = $this->clientManager->getBigQueryClient($this->mainProjectCredentials);
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
         $this->assertCount(1, $mainBqClient->datasets());
         $registeredExternalBucketInMainProject = $mainBqClient->dataset('123_test_external');
         $registeredTables = $registeredExternalBucketInMainProject->tables();
@@ -200,7 +203,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $this->mainProjectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         try {

@@ -41,7 +41,7 @@ final class AddColumnHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof AddColumnCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         $column = $command->getColumnDefinition();
@@ -52,7 +52,7 @@ final class AddColumnHandler implements DriverCommandHandlerInterface
 
         assert($column->getNullable() === false, 'You cannot add a REQUIRED column to an existing table schema.');
         assert($column->getDefault() === '', 'You cannot add a DEFAULT to column an existing table schema.');
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         // define columns
         // validate

@@ -49,6 +49,18 @@ class BaseCase extends TestCase
     // to distinguish projects if you need more projects in one test case
     protected string $projectSuffix = '';
 
+    protected string $testRunId;
+
+    protected function setUp(): void
+    {
+        $ghRunId = getenv('BUILD_ID');
+        if ($ghRunId === false) {
+            $this->testRunId = (string) rand(100000, 999999);
+        } else {
+            $this->testRunId = (string) $ghRunId;
+        }
+    }
+
     /**
      * @param array<mixed> $data
      */
@@ -220,12 +232,12 @@ class BaseCase extends TestCase
             $projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
@@ -304,7 +316,7 @@ class BaseCase extends TestCase
             $projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -353,7 +365,7 @@ class BaseCase extends TestCase
             $credentials,
             $createTableCommand,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $createTableResponse);
@@ -370,7 +382,7 @@ class BaseCase extends TestCase
         array $insertGroups,
         bool $truncate = false
     ): void {
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         if ($truncate) {
             $bqClient->runQuery($bqClient->query(sprintf(
                 'TRUNCATE TABLE %s.%s',
@@ -472,7 +484,7 @@ class BaseCase extends TestCase
             $credentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         return $tableName;
     }

@@ -34,7 +34,6 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof RevokeBucketAccessFromReadOnlyRoleCommand);
 
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         assert(
@@ -43,7 +42,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHa
         );
         $ignoreErrors = $command->getIgnoreErrors();
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         // In case of deleting an external bucket, we only need the dataset name.
         // This information is stored in the connection so we just delete the dataset
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());

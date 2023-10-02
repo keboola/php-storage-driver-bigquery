@@ -53,7 +53,7 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateWorkspaceCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -64,7 +64,7 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
             'CreateWorkspaceCommand.projectReadOnlyRoleName is required',
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());

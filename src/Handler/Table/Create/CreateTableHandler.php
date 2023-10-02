@@ -42,7 +42,7 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -70,7 +70,7 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         $builder = new BigqueryTableQueryBuilder();
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $dataset = $bqClient->dataset($datasetName);
 
         $createTableSql = $builder->getCreateTableCommand(

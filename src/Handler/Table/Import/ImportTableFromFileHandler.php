@@ -58,7 +58,7 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromFileCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -96,7 +96,7 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
 
         $stagingTable = null;
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],

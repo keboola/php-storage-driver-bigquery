@@ -51,7 +51,7 @@ class AddDropColumnTest extends BaseCase
 
     public function testAddColumn(): void
     {
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $tableName = md5($this->getName()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -94,14 +94,14 @@ class AddDropColumnTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::TABLE, $response->getObjectType());
         $this->assertNotNull($response->getTableInfo());
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $tableRef = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $tableName);
         $this->assertEquals(['col1', 'col2', 'col3', 'newCol'], $tableRef->getColumnsNames());
@@ -115,7 +115,7 @@ class AddDropColumnTest extends BaseCase
     }
     public function testDropColumn(): void
     {
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $tableName = md5($this->getName()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -154,10 +154,10 @@ class AddDropColumnTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $tableRef = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $tableName);
         $this->assertEquals(['col1', 'col3'], $tableRef->getColumnsNames());

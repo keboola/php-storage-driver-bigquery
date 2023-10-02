@@ -59,7 +59,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
 
-        assert($runtimeOptions->getRunId() === '');
+        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -70,7 +70,7 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         $importOptions = $command->getImportOptions();
         assert($importOptions !== null, 'TableImportFromFileCommand.importOptions is required.');
 
-        $bqClient = $this->clientManager->getBigQueryClient($credentials);
+        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $source = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);

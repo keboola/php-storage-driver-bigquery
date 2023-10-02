@@ -57,7 +57,7 @@ class ResetWorkspacePasswordTest extends BaseCase
         );
         assert($passwordResponse instanceof ResetWorkspacePasswordResponse);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         try {
             $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
             $this->fail('Should fail');
@@ -69,7 +69,7 @@ class ResetWorkspacePasswordTest extends BaseCase
         $credentials->setPrincipal($passwordResponse->getWorkspaceUserName());
         $credentials->setSecret($passwordResponse->getWorkspacePassword());
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         /** @var array<string, string> $result */
         $result = $wsBqClient->runQuery(
             $wsBqClient->query('SELECT SESSION_USER() AS USER')

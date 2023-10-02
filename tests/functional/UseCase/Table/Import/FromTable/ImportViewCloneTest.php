@@ -68,7 +68,7 @@ class ImportViewCloneTest extends BaseCase
         // create resources
         [$projectCredentials,] = $this->createTestProject();
         $bucketResponse = $this->createTestBucket($projectCredentials);
-        $bqClient = $this->clientManager->getBigQueryClient($projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $this->createSourceTable(
@@ -108,7 +108,7 @@ class ImportViewCloneTest extends BaseCase
                 $projectCredentials,
                 $cmd,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should throw exception');
         } catch (ObjectAlreadyExistsException $e) {
@@ -125,7 +125,7 @@ class ImportViewCloneTest extends BaseCase
             $projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         //check response
         $this->assertInstanceOf(TableImportResponse::class, $response);
@@ -151,7 +151,7 @@ class ImportViewCloneTest extends BaseCase
         [$projectCredentials,] = $this->createTestProject();
         $bucketResponse = $this->createTestBucket($projectCredentials);
         $destinationTableName = md5($this->getName()) . '_Test_table_final';
-        $bqClient = $this->clientManager->getBigQueryClient($projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = md5($this->getName()) . '_Test_table';
         $qb = new BigqueryTableQueryBuilder();
@@ -185,7 +185,7 @@ class ImportViewCloneTest extends BaseCase
             $projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         //check response
         $this->assertSame(0, $response->getImportedRowsCount());
@@ -245,7 +245,7 @@ class ImportViewCloneTest extends BaseCase
             $targetProjectCredentials,
             $targetProjectResponse
         );
-        $bqClient = $this->clientManager->getBigQueryClient($targetProjectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 
         // import
         $cmd = new TableImportFromTableCommand();
@@ -273,7 +273,7 @@ class ImportViewCloneTest extends BaseCase
             $targetProjectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
         // check response
         if ($importType === ImportOptions\ImportType::VIEW) {
@@ -296,7 +296,7 @@ class ImportViewCloneTest extends BaseCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         // check table read as WS user
-        $wsBqClient = $this->clientManager->getBigQueryClient($workspaceCredentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $workspaceCredentials);
         $ref = new BigqueryTableReflection(
             $wsBqClient,
             $workspaceResponse->getWorkspaceObjectName(),
@@ -378,7 +378,7 @@ class ImportViewCloneTest extends BaseCase
 
         $bucketResponse = $this->createTestBucket($sourceProjectCredentials);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
-        $sourceBqClient = $this->clientManager->getBigQueryClient($sourceProjectCredentials);
+        $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $sourceProjectCredentials);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
         // create source table to be shared
@@ -448,7 +448,7 @@ class ImportViewCloneTest extends BaseCase
                     $targetProjectCredentials,
                     $command,
                     [],
-                    new RuntimeOptions(),
+                    new RuntimeOptions(['runId' => $this->testRunId]),
                 );
             },
         ];

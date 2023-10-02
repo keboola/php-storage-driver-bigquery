@@ -38,7 +38,6 @@ final class GrantBucketAccessToReadOnlyRoleHandler implements DriverCommandHandl
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof GrantBucketAccessToReadOnlyRoleCommand);
 
-        assert($runtimeOptions->getRunId() === '');
         assert($runtimeOptions->getMeta() === null);
 
         assert(

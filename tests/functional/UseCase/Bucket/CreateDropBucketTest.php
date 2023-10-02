@@ -43,10 +43,10 @@ class CreateDropBucketTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
         $this->assertFalse($dataset->exists());
     }
@@ -66,12 +66,12 @@ class CreateDropBucketTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
@@ -87,7 +87,7 @@ class CreateDropBucketTest extends BaseCase
     {
         $bucket = $this->createTestBucket($this->projectCredentials);
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $createdDataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
         $tableName = md5($this->getName()) . '_Test_table';
         $createdDataset->createTable($tableName);
@@ -101,7 +101,7 @@ class CreateDropBucketTest extends BaseCase
                 $this->projectCredentials,
                 $command,
                 [],
-                new RuntimeOptions(),
+                new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Should fail as bucket database contains table');
         } catch (Throwable $e) {
@@ -124,7 +124,7 @@ class CreateDropBucketTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
@@ -138,7 +138,7 @@ class CreateDropBucketTest extends BaseCase
             $this->projectCredentials,
             $command,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());

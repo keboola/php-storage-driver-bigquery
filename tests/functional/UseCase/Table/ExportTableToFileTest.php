@@ -76,7 +76,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         // create table
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         $this->clearGCSBucketDir(
@@ -122,7 +122,7 @@ class ExportTableToFileTest extends BaseCase
         }
 
         // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
@@ -140,7 +140,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         // create table from file
@@ -203,7 +203,7 @@ class ExportTableToFileTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -216,7 +216,7 @@ class ExportTableToFileTest extends BaseCase
         $this->assertSame($expectedFiles, $files['files']);
 
         // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
     }
 
@@ -230,7 +230,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         // create table
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         // clear files
@@ -273,7 +273,7 @@ class ExportTableToFileTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -307,7 +307,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
@@ -537,7 +537,7 @@ class ExportTableToFileTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         $this->assertInstanceOf(TableExportToFileResponse::class, $response);
@@ -889,7 +889,7 @@ class ExportTableToFileTest extends BaseCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(),
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
     }
 
