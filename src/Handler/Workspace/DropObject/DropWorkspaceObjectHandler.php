@@ -35,7 +35,6 @@ final class DropWorkspaceObjectHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceObjectCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

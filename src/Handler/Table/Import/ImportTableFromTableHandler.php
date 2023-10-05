@@ -59,7 +59,6 @@ class ImportTableFromTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

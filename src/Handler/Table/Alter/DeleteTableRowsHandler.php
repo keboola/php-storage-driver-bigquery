@@ -44,7 +44,6 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DeleteTableRowsCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'AddColumnCommand.path is required and size must equal 1');

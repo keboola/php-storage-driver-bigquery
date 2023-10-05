@@ -42,7 +42,6 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

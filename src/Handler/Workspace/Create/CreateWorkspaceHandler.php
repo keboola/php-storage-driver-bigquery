@@ -53,7 +53,6 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateWorkspaceCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

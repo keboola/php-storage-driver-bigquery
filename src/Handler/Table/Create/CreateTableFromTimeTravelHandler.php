@@ -42,7 +42,6 @@ class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableFromTimeTravelCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

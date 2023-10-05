@@ -36,7 +36,6 @@ final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ClearWorkspaceCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

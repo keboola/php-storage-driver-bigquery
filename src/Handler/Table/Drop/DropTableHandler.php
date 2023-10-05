@@ -34,7 +34,6 @@ class DropTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropTableCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
