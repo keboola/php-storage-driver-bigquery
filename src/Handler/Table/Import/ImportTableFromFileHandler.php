@@ -163,6 +163,7 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         }
 
         $response = new TableImportResponse();
+        $destinationRef->refresh();
         $destinationStats = $destinationRef->getTableStats();
         $response->setTableRowsCount($destinationStats->getRowsCount());
         $response->setTableSizeBytes($destinationStats->getDataSizeBytes());
