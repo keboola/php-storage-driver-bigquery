@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 
+use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\Backend\BigQuery\Clustering;
+use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
+use Keboola\StorageDriver\Backend\BigQuery\TimePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -19,6 +23,7 @@ use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 
 class CreateDropTableTest extends BaseCase
 {
@@ -157,5 +162,99 @@ class CreateDropTableTest extends BaseCase
 
         $table = $bucket->table($tableName);
         $this->assertFalse($table->exists());
+    }
+
+    public function testCreateTableWithPartitioningClustering(): void
+    {
+        // Range partitioning and clustering
+        $tableInfo = $this->createTableForPartitioning(
+            (new CreateTableCommand\BigQueryTableMeta())
+                ->setClustering((new Clustering())->setFields(['id']))
+                ->setRangePartitioning((new RangePartitioning())
+                    ->setField('id')
+                    ->setRange((new RangePartitioning\Range())
+                        ->setStart('0')
+                        ->setEnd('10')
+                        ->setInterval('1'))),
+            'range'
+        );
+
+        $this->assertNotNull($tableInfo->getMeta());
+        $meta = $tableInfo->getMeta()->unpack();
+        $this->assertInstanceOf(TableInfo\BigQueryTableMeta::class, $meta);
+        $this->assertNotNull($meta->getClustering());
+        $this->assertSame(['id'], ProtobufHelper::repeatedStringToArray($meta->getClustering()->getFields()));
+        $this->assertNull($meta->getTimePartitioning());
+        $this->assertNotNull($meta->getRangePartitioning());
+        $this->assertSame('id', $meta->getRangePartitioning()->getField());
+        $this->assertNotNull($meta->getRangePartitioning()->getRange());
+        $this->assertSame('0', $meta->getRangePartitioning()->getRange()->getStart());
+        $this->assertSame('10', $meta->getRangePartitioning()->getRange()->getEnd());
+        $this->assertSame('1', $meta->getRangePartitioning()->getRange()->getInterval());
+
+        // Range partitioning and clustering
+        $expirationMs = (string) (1000 * 60 * 60 * 24 * 10);
+        $tableInfo = $this->createTableForPartitioning(
+            (new CreateTableCommand\BigQueryTableMeta())
+                ->setClustering((new Clustering())->setFields(['id']))
+                ->setTimePartitioning((new TimePartitioning())
+                    ->setType('DAY')
+                    ->setField('time')
+                    ->setExpirationMs($expirationMs)/**10 days*/),
+            'time'
+        );
+
+        $this->assertNotNull($tableInfo->getMeta());
+        $meta = $tableInfo->getMeta()->unpack();
+        $this->assertInstanceOf(TableInfo\BigQueryTableMeta::class, $meta);
+        $this->assertNotNull($meta->getClustering());
+        $this->assertSame(['id'], ProtobufHelper::repeatedStringToArray($meta->getClustering()->getFields()));
+        $this->assertNull($meta->getRangePartitioning());
+        $this->assertNotNull($meta->getTimePartitioning());
+        $this->assertSame('DAY', $meta->getTimePartitioning()->getType());
+        $this->assertSame('time', $meta->getTimePartitioning()->getField());
+        $this->assertSame($expirationMs, $meta->getTimePartitioning()->getExpirationMs());
+    }
+
+    private function createTableForPartitioning(
+        CreateTableCommand\BigQueryTableMeta $meta,
+        string $nameSuffix
+    ): TableInfo {
+        $tableName = md5($this->getName()) . $nameSuffix;
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setNullable(false)
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = (new TableColumnShared)
+            ->setName('time')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+        $any = new Any();
+        $any->pack($meta);
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns)
+            ->setMeta($any);
+        /** @var ObjectInfoResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertSame(ObjectType::TABLE, $response->getObjectType());
+        $this->assertNotNull($response->getTableInfo());
+        return $response->getTableInfo();
     }
 }
