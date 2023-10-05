@@ -60,9 +60,8 @@ class NameGeneratorTest extends TestCase
     {
         $nameGenerator = new NameGenerator('KBC_prefix_');
         $this->assertSame(
-            'local_project_12_02_09_04_31_SHARE_exchanger',
-            $nameGenerator->createDataExchangeId('local-project-12-02-09-04-31')
+            'KBC_PREFIX_123_RO',
+            $nameGenerator->createDataExchangeId('123')
         );
-        $this->assertSame('project_SHARE_exchanger', $nameGenerator->createDataExchangeId('project'));
     }
 }

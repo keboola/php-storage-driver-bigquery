@@ -50,8 +50,8 @@ class NameGenerator
         return $this->stackPrefix . '-workspace-' . $workspaceId;
     }
 
-    public function createDataExchangeId(string $projectStringId): string
+    public function createDataExchangeId(string $projectId): string
     {
-        return str_replace('-', '_', $projectStringId) . '_SHARE_exchanger';
+        return str_replace('-', '_', strtoupper($this->stackPrefix) . '_' . $projectId) . '_RO';
     }
 }
