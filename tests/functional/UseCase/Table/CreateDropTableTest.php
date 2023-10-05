@@ -19,8 +19,6 @@ use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
-use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
-use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class CreateDropTableTest extends BaseCase
 {
@@ -101,7 +99,7 @@ class CreateDropTableTest extends BaseCase
         /** @var TableInfo\TableColumn $column */
         $column = $columns[0];
         $this->assertSame('id', $column->getName());
-        $this->assertSame(Bigquery::TYPE_INT64, $column->getType());
+        $this->assertSame(Bigquery::TYPE_INTEGER, $column->getType());
         $this->assertFalse($column->getNullable());
         $this->assertSame('', $column->getDefault());
 
@@ -128,15 +126,15 @@ class CreateDropTableTest extends BaseCase
         $column = $columns[3];
         $this->assertSame('ordes', $column->getName());
         $this->assertSame(Bigquery::TYPE_ARRAY, $column->getType());
-        $this->assertSame('STRUCT<x ARRAY<STRUCT<xz ARRAY<INT64>>>>', $column->getLength());
-        $this->assertFalse($column->getNullable());
+        $this->assertSame('STRUCT<x ARRAY<STRUCT<xz ARRAY<INTEGER>>>>', $column->getLength());
+        $this->assertTrue($column->getNullable());
 
         // check column array
         /** @var TableInfo\TableColumn $column */
         $column = $columns[4];
         $this->assertSame('organization', $column->getName());
         $this->assertSame(Bigquery::TYPE_STRUCT, $column->getType());
-        $this->assertSame('x ARRAY<INT64>', $column->getLength());
+        $this->assertSame('x ARRAY<INTEGER>', $column->getLength());
         $this->assertTrue($column->getNullable());
 
         // DROP TABLE

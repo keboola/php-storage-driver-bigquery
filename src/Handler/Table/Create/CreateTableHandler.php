@@ -15,8 +15,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
-use Keboola\TableBackendUtils\Column\ColumnCollection;
-use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 final class CreateTableHandler implements DriverCommandHandlerInterface
@@ -50,6 +49,9 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         assert($command->getColumns()->count() > 0, 'CreateTableCommand.columns is required');
 
         // define columns
+        $createTableOptions = [
+            'schema' => [],
+        ];
         $columns = [];
         /** @var TableColumnShared $column */
         foreach ($command->getColumns() as $column) {
@@ -62,25 +64,25 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
                 'nullable' => $column->getNullable(),
                 'default' => $column->getDefault() === '' ? null : $column->getDefault(),
             ]);
-            $columns[] = new BigqueryColumn($column->getName(), $columnDefinition);
+            $createTableOptions['schema'][] = SQLtoRestDatatypeConverter::convertColumnToRestFormat(
+                new BigqueryColumn($column->getName(), $columnDefinition)
+            );
         }
-        $columnsCollection = new ColumnCollection($columns);
 
-        $builder = new BigqueryTableQueryBuilder();
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        if ($runtimeOptions->getRunId() !== '') {
+            $createTableOptions['labels'] = [
+                'run_id' => $runtimeOptions->getRunId(),
+            ];
+        }
+
         $dataset = $bqClient->dataset($datasetName);
-
-        $createTableSql = $builder->getCreateTableCommand(
-            $dataset->id(),
+        $dataset->createTable(
             $command->getTableName(),
-            $columnsCollection,
-            [] // primary keys aren't supported in BQ
+            $createTableOptions,
         );
-
-        $query = $bqClient->query($createTableSql);
-        $bqClient->runQuery($query);
 
         return (new ObjectInfoResponse())
             ->setPath($command->getPath())
