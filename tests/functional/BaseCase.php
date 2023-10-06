@@ -183,7 +183,7 @@ class BaseCase extends TestCase
 
     protected function getProjectId(): string
     {
-        return 'project-' . date('m-d-H-i-s') . $this->projectSuffix;
+        return 'project-' . date('mdHis') . $this->projectSuffix;
     }
 
     /**
@@ -298,9 +298,8 @@ class BaseCase extends TestCase
 
     protected function getWorkspaceId(): string
     {
-        return substr(md5($this->getName()), 0, 9) . '_test';
+        return substr(md5($this->getName()), 0, 9) . '_t';
     }
-
     /**
      * @return array{GenericBackendCredentials, CreateWorkspaceResponse}
      */
