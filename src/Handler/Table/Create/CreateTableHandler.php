@@ -78,11 +78,16 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         if ($meta !== null) {
             assert($meta instanceof CreateTableCommand\BigQueryTableMeta);
             if ($meta->getTimePartitioning() !== null) {
-                $createTableOptions['timePartitioning'] = [
+                $timePartitioningOptions = [
                     'type' => $meta->getTimePartitioning()->getType(),
-                    'field' => $meta->getTimePartitioning()->getField(),
-                    'expirationMs' => $meta->getTimePartitioning()->getExpirationMs(),
                 ];
+                if ($meta->getTimePartitioning()->getExpirationMs() !== null) {
+                    $timePartitioningOptions['expirationMs'] = $meta->getTimePartitioning()->getExpirationMs();
+                }
+                if ($meta->getTimePartitioning()->getField() !== null) {
+                    $timePartitioningOptions['field'] = $meta->getTimePartitioning()->getField();
+                }
+                $createTableOptions['timePartitioning'] = $timePartitioningOptions;
             }
             if ($meta->getClustering() !== null) {
                 $createTableOptions['clustering'] = [
@@ -111,6 +116,7 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         }
 
         $dataset = $bqClient->dataset($datasetName);
+
         try {
             $dataset->createTable(
                 $command->getTableName(),

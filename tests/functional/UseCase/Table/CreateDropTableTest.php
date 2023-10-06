@@ -11,6 +11,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\Backend\BigQuery\TimePartitioning;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\BadTableDefinitionException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -214,6 +215,18 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('DAY', $meta->getTimePartitioning()->getType());
         $this->assertSame('time', $meta->getTimePartitioning()->getField());
         $this->assertSame($expirationMs, $meta->getTimePartitioning()->getExpirationMs());
+    }
+
+    public function testCreateTableFail(): void
+    {
+        $this->expectException(BadTableDefinitionException::class);
+        $this->expectExceptionMessage('Failed to create table');
+        $this->createTableForPartitioning(
+            (new CreateTableCommand\BigQueryTableMeta())
+                // clustering without partitioning will throw exception
+                ->setClustering((new Clustering())->setFields(['id'])),
+            'range'
+        );
     }
 
     private function createTableForPartitioning(
