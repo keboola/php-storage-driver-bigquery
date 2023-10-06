@@ -44,6 +44,8 @@ use PHPUnit\Framework\TestCase;
 
 class BaseCase extends TestCase
 {
+    use \PHPUnitRetry\RetryTrait;
+
     protected GCPClientManager $clientManager;
 
     // to distinguish projects if you need more projects in one test case
