@@ -88,8 +88,6 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         }
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
-
-        $ref->refresh();
         $initialRowsCount = $ref->getRowsCount();
 
         $bqClient->runQuery(
@@ -97,6 +95,7 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
                 ->parameters($queryDataBindings)
         );
 
+        $ref->refresh();
         $stats = $ref->getTableStats();
 
         return (new DeleteTableRowsResponse())
