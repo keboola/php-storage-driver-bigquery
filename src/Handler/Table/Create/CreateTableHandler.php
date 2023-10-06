@@ -8,7 +8,6 @@ use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\BadTableDefinitionException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
@@ -122,6 +121,7 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
                 $e,
                 $datasetName,
                 $command->getTableName(),
+                $createTableOptions,
             );
         }
 
