@@ -14,7 +14,6 @@ use Google\Cloud\Storage\StorageClient;
 use Google\Service\Iam;
 use Google_Client;
 use Google_Service_CloudResourceManager;
-use Google_Service_Iam;
 use GuzzleHttp\Client;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
@@ -26,6 +25,18 @@ class GCPClientManager
 
     /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */
     private array $clients = [];
+
+    public const DEFAULT_RETRY_SETTINGS =
+        [
+            // try max 3 times
+            'retries' => 3,
+            // multiplicator of backoff time between runs. First = $initial_delay ; second $previousDelay * $factor
+            'factor' => 1.1,
+            // by default, we know that we have to wait 60 seconds
+            'initial_delay' => 60,
+            // randomize backoff time +/- 10%
+            'jitter' => 0.1,
+        ];
 
     /**
      * @throws \Google\ApiCore\ValidationException
@@ -66,6 +77,7 @@ class GCPClientManager
     {
         $client = new Google_Client([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
+            'retry' => self::DEFAULT_RETRY_SETTINGS,
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
@@ -77,6 +89,7 @@ class GCPClientManager
     {
         $client = new Google_Client([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
+            'retry' => self::DEFAULT_RETRY_SETTINGS,
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
