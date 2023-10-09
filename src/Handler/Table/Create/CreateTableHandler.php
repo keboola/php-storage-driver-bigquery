@@ -99,9 +99,9 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
                 $createTableOptions['rangePartitioning'] = [
                     'field' => $meta->getRangePartitioning()->getField(),
                     'range' => [
-                        'start' => $meta->getRangePartitioning()->getRange()->getStart(),
-                        'end' => $meta->getRangePartitioning()->getRange()->getEnd(),
-                        'interval' => $meta->getRangePartitioning()->getRange()->getInterval(),
+                        'start' => (int) $meta->getRangePartitioning()->getRange()->getStart(),
+                        'end' => (int) $meta->getRangePartitioning()->getRange()->getEnd(),
+                        'interval' => (int) $meta->getRangePartitioning()->getRange()->getInterval(),
                     ],
                 ];
             }
