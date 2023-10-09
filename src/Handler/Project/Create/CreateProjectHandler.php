@@ -151,7 +151,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $location = GCPClientManager::DEFAULT_LOCATION;
         $formattedParent = $analyticHubClient->locationName($projectCreateResult->getProjectId(), $location);
 
-        $dataExchangeId = $nameGenerator->createDataExchangeId($projectCreateResult->getProjectId());
+        $dataExchangeId = $nameGenerator->createDataExchangeId($command->getProjectId());
         $dataExchange = new DataExchange();
         $dataExchange->setDisplayName($dataExchangeId);
         $analyticHubClient->createDataExchange($formattedParent, $dataExchangeId, $dataExchange);
