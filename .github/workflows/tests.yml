@@ -35,4 +35,4 @@ jobs:
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
           BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm production composer tests
+        run: docker-compose run --rm production composer tests-functional
