@@ -24,20 +24,19 @@ class BigQueryClientWrapper extends BigQueryClient
     }
 
     /**
-     * @inheritdoc
      * @param array<mixed> $options
      */
     public function runQuery(JobConfigurationInterface $query, array $options = []): QueryResults
     {
-        /** @var QueryJobConfiguration $query */
         if ($this->runId !== '') {
+            /** @var QueryJobConfiguration $query */
             $query = $query->labels(['run_id' => $this->runId]);
         }
         return parent::runQuery($query, $options);
     }
 
     /**
-     * @inheritdoc
+     * @param QueryJobConfiguration $config
      * @param array<mixed> $options
      */
     public function runJob(JobConfigurationInterface $config, array $options = []): Job

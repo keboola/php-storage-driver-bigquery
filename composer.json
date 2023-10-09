@@ -62,9 +62,11 @@
         "phpcs": "phpcs --extensions=php src tests",
         "phpcbf": "phpcbf --extensions=php src tests",
         "phpstan": "phpstan analyse --no-progress",
-        "phpunit": "phpunit",
+        "tests-unit": "phpunit --colors=always --testsuite unit",
+        "tests-functional": "phpunit --colors=always --testsuite functional",
         "tests": [
-            "@phpunit"
+            "tests-unit",
+            "tests-functional"
         ],
         "loadGcs": "php ./tests/StubLoader/loader.php gcs",
         "load-data": [
@@ -78,7 +80,7 @@
         ],
         "ci": [
             "@check",
-            "@tests"
+            "@tests-unit"
         ]
     },
     "extra": {
