@@ -50,7 +50,6 @@ class PreviewTableHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof PreviewTableCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

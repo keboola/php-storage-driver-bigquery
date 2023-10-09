@@ -58,7 +58,6 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromFileCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate
@@ -164,6 +163,7 @@ class ImportTableFromFileHandler implements DriverCommandHandlerInterface
         }
 
         $response = new TableImportResponse();
+        $destinationRef->refresh();
         $destinationStats = $destinationRef->getTableStats();
         $response->setTableRowsCount($destinationStats->getRowsCount());
         $response->setTableSizeBytes($destinationStats->getDataSizeBytes());

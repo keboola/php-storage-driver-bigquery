@@ -73,8 +73,12 @@ class BigQueryDriverClient implements ClientInterface
     /**
      * @param string[] $features
      */
-    public function runCommand(Message $credentials, Message $command, array $features, Message $runtimeOptions): ?Message
-    {
+    public function runCommand(
+        Message $credentials,
+        Message $command,
+        array $features,
+        Message $runtimeOptions
+    ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         $manager = new GCPClientManager();
         $handler = $this->getHandler($command, $manager);

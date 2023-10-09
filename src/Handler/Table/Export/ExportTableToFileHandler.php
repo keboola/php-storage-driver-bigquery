@@ -53,7 +53,6 @@ class ExportTableToFileHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableExportToFileCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         // validate

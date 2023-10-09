@@ -35,7 +35,6 @@ final class DropColumnHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropColumnCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'DropColumnCommand.path is required and size must equal 1');

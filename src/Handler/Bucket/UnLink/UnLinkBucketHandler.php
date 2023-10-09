@@ -31,7 +31,7 @@ final class UnLinkBucketHandler implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnlinkBucketCommand);
-        
+
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getBucketObjectName() !== '', 'UnlinkBucketCommand.bucketObjectName must be filled in');

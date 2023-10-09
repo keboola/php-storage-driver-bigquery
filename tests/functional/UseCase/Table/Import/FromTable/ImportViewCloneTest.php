@@ -77,7 +77,6 @@ class ImportViewCloneTest extends BaseCase
             $bqClient
         );
         // create also destination so table exists
-        $qb = new BigqueryTableQueryBuilder();
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName . '_dest',
@@ -137,8 +136,20 @@ class ImportViewCloneTest extends BaseCase
 
         // check table read
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $sourceTableName . '_dest');
-        $this->assertSame(3, $ref->getRowsCount());
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            // rest api is not returning rows count for views
+            $this->assertSame(0, $ref->getRowsCount());
+        } else {
+            $this->assertSame(3, $ref->getRowsCount());
+        }
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        $this->assertViewOrTableRowsCount(
+            $bqClient,
+            $bucketDatabaseName,
+            $sourceTableName . '_dest',
+            3
+        );
     }
 
     /**
@@ -196,8 +207,20 @@ class ImportViewCloneTest extends BaseCase
 
         // check table read
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
-        $this->assertSame(3, $ref->getRowsCount());
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            // rest api is not returning rows count for views
+            $this->assertSame(0, $ref->getRowsCount());
+        } else {
+            $this->assertSame(3, $ref->getRowsCount());
+        }
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        $this->assertViewOrTableRowsCount(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            3
+        );
 
         // cleanup
         if ($importType === ImportOptions\ImportType::VIEW) {
@@ -287,13 +310,26 @@ class ImportViewCloneTest extends BaseCase
             iterator_to_array($response->getImportedColumns())
         );
         // check table read
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            // rest api is not returning rows count for views
+            $this->assertSame(0, $response->getImportedRowsCount());
+        } else {
+            $this->assertSame(3, $response->getImportedRowsCount());
+        }
         $ref = new BigqueryTableReflection(
             $bqClient,
             $workspaceResponse->getWorkspaceObjectName(),
             $destinationTableName
         );
-        $this->assertSame(3, $ref->getRowsCount());
+        // this will be also 0 for view but will match result from reflection
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        $this->assertViewOrTableRowsCount(
+            $bqClient,
+            $workspaceResponse->getWorkspaceObjectName(),
+            $destinationTableName,
+            3
+        );
 
         // check table read as WS user
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $workspaceCredentials);
@@ -302,8 +338,20 @@ class ImportViewCloneTest extends BaseCase
             $workspaceResponse->getWorkspaceObjectName(),
             $destinationTableName
         );
-        $this->assertSame(3, $ref->getRowsCount());
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            // rest api is not returning rows count for views
+            $this->assertSame(0, $ref->getRowsCount());
+        } else {
+            $this->assertSame(3, $ref->getRowsCount());
+        }
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        $this->assertViewOrTableRowsCount(
+            $wsBqClient,
+            $workspaceResponse->getWorkspaceObjectName(),
+            $destinationTableName,
+            3
+        );
 
         // cleanup
         if ($importType === ImportOptions\ImportType::VIEW) {
@@ -452,5 +500,24 @@ class ImportViewCloneTest extends BaseCase
                 );
             },
         ];
+    }
+
+    /**
+     * count rows by selecting whole table
+     */
+    private function assertViewOrTableRowsCount(
+        BigQueryClient $bqClient,
+        string $datasetName,
+        string $tableName,
+        int $expectedRowsCount
+    ): void {
+        $result = $bqClient->runQuery($bqClient->query(
+            sprintf(
+                'SELECT * FROM %s.%s',
+                BigqueryQuote::quoteSingleIdentifier($datasetName),
+                BigqueryQuote::quoteSingleIdentifier($tableName)
+            )
+        ));
+        $this->assertCount($expectedRowsCount, $result);
     }
 }

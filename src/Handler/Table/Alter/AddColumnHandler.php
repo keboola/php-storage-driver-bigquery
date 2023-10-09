@@ -41,7 +41,6 @@ final class AddColumnHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof AddColumnCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         $column = $command->getColumnDefinition();

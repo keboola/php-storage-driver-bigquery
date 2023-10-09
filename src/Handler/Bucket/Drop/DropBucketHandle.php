@@ -31,7 +31,7 @@ class DropBucketHandle implements DriverCommandHandlerInterface
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropBucketCommand);
-        
+
         assert($runtimeOptions->getMeta() === null);
 
         $ignoreErrors = $command->getIgnoreErrors();

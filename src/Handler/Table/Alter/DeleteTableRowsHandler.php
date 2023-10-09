@@ -44,7 +44,6 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DeleteTableRowsCommand);
 
-        
         assert($runtimeOptions->getMeta() === null);
 
         assert($command->getPath()->count() === 1, 'AddColumnCommand.path is required and size must equal 1');
@@ -89,7 +88,6 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
         }
         /** @var array<string> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
-
         $initialRowsCount = $ref->getRowsCount();
 
         $bqClient->runQuery(
@@ -97,6 +95,7 @@ final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
                 ->parameters($queryDataBindings)
         );
 
+        $ref->refresh();
         $stats = $ref->getTableStats();
 
         return (new DeleteTableRowsResponse())
