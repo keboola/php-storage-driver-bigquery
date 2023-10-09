@@ -41,10 +41,11 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
+use PHPUnitRetry\RetryTrait;
 
 class BaseCase extends TestCase
 {
-    use \PHPUnitRetry\RetryTrait;
+    use RetryTrait;
 
     protected GCPClientManager $clientManager;
 
