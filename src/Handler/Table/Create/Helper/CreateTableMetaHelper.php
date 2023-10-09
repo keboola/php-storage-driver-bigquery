@@ -49,10 +49,12 @@ final class CreateTableMetaHelper
             $timePartitioningOptions = [
                 'type' => $meta->getTimePartitioning()->getType(),
             ];
-            if ($meta->getTimePartitioning()->getExpirationMs() !== null) {
+            if ($meta->getTimePartitioning()->getExpirationMs() !== null
+                && $meta->getTimePartitioning()->getExpirationMs() !== ''
+            ) {
                 $timePartitioningOptions['expirationMs'] = (int) $meta->getTimePartitioning()->getExpirationMs();
             }
-            if ($meta->getTimePartitioning()->getField() !== null) {
+            if ($meta->getTimePartitioning()->getField() !== null && $meta->getTimePartitioning()->getField() !== '') {
                 $timePartitioningOptions['field'] = $meta->getTimePartitioning()->getField();
             }
             $options['timePartitioning'] = $timePartitioningOptions;
