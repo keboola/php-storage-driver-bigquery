@@ -8,6 +8,7 @@ use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\Helper\CreateTableMetaHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
@@ -15,8 +16,6 @@ use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\Shared\Utils\MetaHelper;
-use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
@@ -71,42 +70,10 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
             );
         }
 
-        $meta = MetaHelper::getMetaFromCommand(
-            $command,
-            CreateTableCommand\BigQueryTableMeta::class
+        $createTableOptions = array_merge(
+            $createTableOptions,
+            CreateTableMetaHelper::convertTableMetaToRest($command)
         );
-        if ($meta !== null) {
-            assert($meta instanceof CreateTableCommand\BigQueryTableMeta);
-            if ($meta->getTimePartitioning() !== null) {
-                $timePartitioningOptions = [
-                    'type' => $meta->getTimePartitioning()->getType(),
-                ];
-                if ($meta->getTimePartitioning()->getExpirationMs() !== null) {
-                    $timePartitioningOptions['expirationMs'] = $meta->getTimePartitioning()->getExpirationMs();
-                }
-                if ($meta->getTimePartitioning()->getField() !== null) {
-                    $timePartitioningOptions['field'] = $meta->getTimePartitioning()->getField();
-                }
-                $createTableOptions['timePartitioning'] = $timePartitioningOptions;
-            }
-            if ($meta->getClustering() !== null) {
-                $createTableOptions['clustering'] = [
-                    'fields' => ProtobufHelper::repeatedStringToArray($meta->getClustering()->getFields()),
-                ];
-            }
-            if ($meta->getRangePartitioning() !== null) {
-                assert($meta->getRangePartitioning()->getRange() !== null);
-                $createTableOptions['rangePartitioning'] = [
-                    'field' => $meta->getRangePartitioning()->getField(),
-                    'range' => [
-                        'start' => (int) $meta->getRangePartitioning()->getRange()->getStart(),
-                        'end' => (int) $meta->getRangePartitioning()->getRange()->getEnd(),
-                        'interval' => (int) $meta->getRangePartitioning()->getRange()->getInterval(),
-                    ],
-                ];
-            }
-            $createTableOptions['requirePartitionFilter'] = $meta->getRequirePartitionFilter();
-        }
 
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
