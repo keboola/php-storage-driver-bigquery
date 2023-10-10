@@ -28,9 +28,8 @@ class ServiceAccountRetryTest extends BaseCase
         $this->cleanTestProject();
     }
 
-    public function testCreateManyServiceAcounts(): void
+    public function skipCreateManyServiceAccounts(): void
     {
-        $this->markTestSkipped('for manual testing only');
         $credentials = $this->getCredentials();
         $projectsClient = $this->clientManager->getProjectClient($credentials);
         $iamClient = $this->clientManager->getIamClient($credentials);
