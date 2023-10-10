@@ -223,8 +223,10 @@ class CreateDropTableTest extends BaseCase
         $this->expectExceptionMessage('Failed to create table');
         $this->createTableForPartitioning(
             (new CreateTableCommand\BigQueryTableMeta())
-                // clustering without partitioning will throw exception
-                ->setClustering((new Clustering())->setFields(['id'])),
+                // range partitioning must have range defined
+                ->setRangePartitioning((new RangePartitioning())
+                    ->setField('id')
+                    ->setRange((new RangePartitioning\Range()))),
             'range'
         );
     }
