@@ -75,7 +75,10 @@ final class CreateTableMetaHelper
                 ],
             ];
         }
-        $options['requirePartitionFilter'] = $meta->getRequirePartitionFilter();
+
+        if ($meta->getTimePartitioning() !== null || $meta->getRangePartitioning() !== null) {
+            $options['requirePartitionFilter'] = $meta->getRequirePartitionFilter();
+        }
 
         return $options;
     }

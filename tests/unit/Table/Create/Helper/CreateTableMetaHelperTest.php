@@ -24,6 +24,18 @@ class CreateTableMetaHelperTest extends TestCase
             [],
         ];
         $meta = new Any();
+        $meta->pack((new CreateTableCommand\BigQueryTableMeta()));
+        yield 'empty metadata' => [
+            (new CreateTableCommand())->setMeta($meta),
+            [],
+        ];
+        $meta = new Any();
+        $meta->pack((new CreateTableCommand\BigQueryTableMeta())->setRequirePartitionFilter(true));
+        yield 'partition filter without partitioning' => [
+            (new CreateTableCommand())->setMeta($meta),
+            [],
+        ];
+        $meta = new Any();
         $meta->pack((new CreateTableCommand\BigQueryTableMeta())->setTimePartitioning(
             (new TimePartitioning())
                 ->setType('DAY')
