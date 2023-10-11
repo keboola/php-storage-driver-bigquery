@@ -217,8 +217,21 @@ class ObjectInfoTest extends BaseCase
         $this->assertFalse($response->hasTableInfo());
         $this->assertTrue($response->hasViewInfo());
 
-        // todo: test view props
-        //$tableInfo = $response->getViewReflection();
+        $viewInfo = $response->getViewInfo();
+
+        $this->assertNotNull($viewInfo);
+        $this->assertSame('bucket_view1', $viewInfo->getViewName());
+        $this->assertSame(
+            [$this->bucketResponse->getCreateBucketObjectName()],
+            ProtobufHelper::repeatedStringToArray($viewInfo->getPath())
+        );
+        /** @var TableColumn[] $columns */
+        $columns = iterator_to_array($viewInfo->getColumns()->getIterator());
+        $columnsNames = array_map(
+            static fn(TableColumn $col) => $col->getName(),
+            $columns
+        );
+        $this->assertSame(['id', 'name', 'large'], $columnsNames);
     }
 
     /** @param Traversable<ObjectInfo> $objects */
