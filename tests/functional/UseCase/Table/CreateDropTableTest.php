@@ -35,23 +35,14 @@ class CreateDropTableTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     public function testCreateTable(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE

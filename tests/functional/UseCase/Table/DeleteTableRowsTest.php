@@ -7,7 +7,6 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
-use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DeleteTableRowsHandler;
@@ -19,7 +18,6 @@ use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
@@ -27,8 +25,6 @@ use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
-use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Throwable;
 
 class DeleteTableRowsTest extends BaseCase
 {
@@ -85,23 +81,14 @@ class DeleteTableRowsTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     public function testDeleteTableRows(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE

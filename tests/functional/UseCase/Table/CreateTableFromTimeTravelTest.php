@@ -37,23 +37,14 @@ class CreateTableFromTimeTravelTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     public function testCreateTableFromTimestamp(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
 
         // create tables
@@ -81,7 +72,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 ->setTableName($sourceTableName)
         );
 
-        $destinationTableName = md5($this->getName()) . '_createdFromTimeTravel';
+        $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
@@ -131,7 +122,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
 
     public function testCreateTableFromTimestampOfAlteredTable(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->initTestTableAndImportBaseData($bqClient, $bucketDatasetName, $sourceTableName);
@@ -161,7 +152,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 ->setTableName($sourceTableName)
         );
 
-        $destinationTableName = md5($this->getName()) . '_createdFromTimeTravel';
+        $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
@@ -211,7 +202,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
 
     public function testInvalidCreateTableFromTimestamp(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $this->initTestTableAndImportBaseData($bqClient, $bucketDatasetName, $sourceTableName);
@@ -226,7 +217,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 ->setTableName('table_should_never_be_created')
         );
 
-        $destinationTableName = md5($this->getName()) . '_createdFromTimeTravel';
+        $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $destPath = new RepeatedField(GPBType::STRING);
         $destPath[] = $bucketDatasetName;
         $cmd->setDestination(
@@ -263,7 +254,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 ->setTableName($sourceTableName)
         );
 
-        $destinationTableName = md5($this->getName()) . '_createdFromTimeTravel';
+        $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $destPath = new RepeatedField(GPBType::STRING);
         $destPath[] = $bucketDatasetName;
         $cmd->setDestination(
@@ -304,7 +295,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
                 ->setTableName($sourceTableName)
         );
 
-        $destinationTableName = md5($this->getName()) . '_createdFromTimeTravel';
+        $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $destPath = new RepeatedField(GPBType::STRING);
         $destPath[] = $bucketDatasetName;
         $cmd->setDestination(
