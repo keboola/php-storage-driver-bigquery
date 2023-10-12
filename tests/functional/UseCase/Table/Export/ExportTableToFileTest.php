@@ -38,6 +38,9 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 
+/**
+ * @group Export
+ */
 class ExportTableToFileTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;
@@ -47,18 +50,9 @@ class ExportTableToFileTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials,] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     /**
@@ -69,10 +63,10 @@ class ExportTableToFileTest extends BaseCase
     public function testExportTableToFile(array $input, ?array $exportData): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $sourceTableName = md5($this->getName()) . '_Test_table_export';
+        $sourceTableName = $this->getTestHash() . '_Test_table_export';
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getName())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
         );
 
         // create table
@@ -133,10 +127,10 @@ class ExportTableToFileTest extends BaseCase
     public function testExportTableToSlicedFile(bool $isCompressed, array $expectedFiles): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $sourceTableName = md5($this->getName()) . '_Test_table_export_sliced';
+        $sourceTableName = $this->getTestHash() . '_Test_table_export_sliced';
         $exportDir = sprintf(
             'export/%s/',
-            md5($this->getName())
+            $this->getTestHash()
         );
 
         // cleanup
@@ -223,10 +217,10 @@ class ExportTableToFileTest extends BaseCase
     public function testExportTableToFileLimitColumns(): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $sourceTableName = md5($this->getName()) . '_Test_table_export';
+        $sourceTableName = $this->getTestHash() . '_Test_table_export';
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getName())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
         );
 
         // create table
@@ -420,7 +414,7 @@ class ExportTableToFileTest extends BaseCase
                 ]),
             ],
             [ // expected data
-                ['1','2022-01-01 12:00:01 UTC'],
+                ['1', '2022-01-01 12:00:01 UTC'],
             ],
         ];
         yield 'filter simple where' => [
@@ -551,7 +545,7 @@ class ExportTableToFileTest extends BaseCase
      */
     public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -605,7 +599,7 @@ class ExportTableToFileTest extends BaseCase
 
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getName())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
         );
         try {
             $this->exportTable($bucketDatabaseName, $tableName, $params, $exportDir);
@@ -725,23 +719,22 @@ class ExportTableToFileTest extends BaseCase
         ];
     }
 
-
     public function slicedExportProvider(): Generator
     {
         yield 'plain csv' => [
             false, // compression
             [
-                'export/1d855d619357989e2544891957ffd565/exp000000000000.csv',
-                'export/1d855d619357989e2544891957ffd565/exp000000000001.csv',
-                'export/1d855d619357989e2544891957ffd565/expmanifest',
+                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/exp000000000000.csv',
+                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/exp000000000001.csv',
+                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/expmanifest',
             ],
         ];
         yield 'gzipped csv' => [
             true, // compression
             [
-                'export/fedd6d661573483354212e9303f96743/exp000000000000.csv.gz',
-                'export/fedd6d661573483354212e9303f96743/exp000000000001.csv.gz',
-                'export/fedd6d661573483354212e9303f96743/expmanifest',
+                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/exp000000000000.csv.gz',
+                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/exp000000000001.csv.gz',
+                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/expmanifest',
             ],
         ];
     }
