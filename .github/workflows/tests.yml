@@ -27,7 +27,7 @@ jobs:
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
         run: docker-compose run --rm production composer loadGcs
 
-      - name: Run Tests
+      - name: Run Tests other than import/export
         env:
           BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
           BQ_SECRET: ${{ secrets.BQ_SECRET }}
@@ -35,4 +35,22 @@ jobs:
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
           BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm production composer tests-functional
+        run: docker-compose run --rm production composer paratest
+      - name: Run Tests Import
+        env:
+          BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
+          BQ_SECRET: ${{ secrets.BQ_SECRET }}
+          BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
+          BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
+          BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
+          BUILD_ID: ${{ github.run_id }}
+        run: docker-compose run --rm production composer paratest-import
+      - name: Run Tests Export
+        env:
+          BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
+          BQ_SECRET: ${{ secrets.BQ_SECRET }}
+          BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
+          BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
+          BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
+          BUILD_ID: ${{ github.run_id }}
+        run: docker-compose run --rm production composer paratest-export
