@@ -33,39 +33,30 @@ class ShareLinkBucketTest extends BaseCase
 {
     private const TESTTABLE_BEFORE_NAME = 'TESTTABLE_BEFORE';
     private const TESTTABLE_AFTER_NAME = 'TESTTABLE_AFTER';
+
     protected GenericBackendCredentials $sourceProjectCredentials;
+
     protected CreateProjectResponse $sourceProjectResponse;
 
     protected GenericBackendCredentials $targetProjectCredentials;
+
     protected CreateProjectResponse $targetProjectResponse;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-
-        [$credentials1, $response1] = $this->createTestProject();
-        $this->projectSuffix = '-s';
-        [$credentials2, $response2] = $this->createTestProject();
-
         // project1 shares bucket
-        $this->sourceProjectCredentials = $credentials1;
-        $this->sourceProjectResponse = $response1;
+        $this->sourceProjectCredentials = $this->projects[0][0];
+        $this->sourceProjectResponse = $this->projects[0][1];
 
         // project2 checks the access
-        $this->targetProjectCredentials = $credentials2;
-        $this->targetProjectResponse = $response2;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->targetProjectCredentials = $this->projects[1][0];
+        $this->targetProjectResponse = $this->projects[1][1];
     }
 
     public function testShareAndLinkBucket(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
 
@@ -210,7 +201,7 @@ class ShareLinkBucketTest extends BaseCase
 
     public function testShareUnshare(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $publicPart = (array) json_decode(
@@ -236,7 +227,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->getCredentials());
 
-        $formattedName = $analyticHubClient->listingName(
+        $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
             GCPClientManager::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
@@ -266,7 +257,7 @@ class ShareLinkBucketTest extends BaseCase
 
     public function testShareUnshareLinkedBucket(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
 
