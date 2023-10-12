@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
-use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Cloud\Core\Exception\ServiceException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -25,22 +24,17 @@ class ResetWorkspacePasswordTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-        [$credentials, $response] = $this->createTestProject();
-        $this->projectCredentials = $credentials;
-        $this->projectResponse = $response;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
+        $this->projectResponse = $this->projects[0][1];
     }
 
     public function testResetWorkspacePassword(): void
     {
         // create workspace
-        [$credentials, $createResponse] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+        [
+            $credentials,
+            $createResponse,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
         assert($credentials instanceof GenericBackendCredentials);
         assert($createResponse instanceof CreateWorkspaceResponse);
 

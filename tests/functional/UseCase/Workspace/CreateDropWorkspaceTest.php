@@ -46,23 +46,17 @@ class CreateDropWorkspaceTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-
-        [$credentials, $response] = $this->createTestProject();
-        $this->projectCredentials = $credentials;
-        $this->projectResponse = $response;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
+        $this->projectResponse = $this->projects[0][1];
     }
 
     public function testCreateDropWorkspace(): void
     {
         // CREATE
-        [$credentials, $response] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -82,15 +76,14 @@ class CreateDropWorkspaceTest extends BaseCase
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         /** @var array<string, string> $datasets */
-        $datasets = $bqClient->runQuery($bqClient->query(sprintf('SELECT
-  schema_name
-FROM
-  %s.INFORMATION_SCHEMA.SCHEMATA;', BigqueryQuote::quoteSingleIdentifier($projectId))))->getIterator()->current();
+        $datasets = $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
+            BigqueryQuote::quoteSingleIdentifier($projectId),
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+        )));
 
-        $this->assertSame(
-            strtoupper($response->getWorkspaceObjectName()),
-            $datasets['schema_name']
-        );
+        $this->assertCount(1, $datasets);
 
         // test ws service acc is owner of ws dataset
         $workspaceDataset = $bqClient->dataset($response->getWorkspaceObjectName())->info();
@@ -122,7 +115,7 @@ FROM
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         try {
-            $this->createBucketInProject($credentials, 'should_fail');
+            $this->createTestBucket($credentials, $this->projects[0][2]);
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
             $this->assertSame(403, $exception->getCode());
@@ -132,11 +125,9 @@ FROM
             );
         }
 
-        $bucketName = 'testReadOnlySchema';
         $tableName = 'testTable';
-
-        $bucketDatasetName = $this->createBucketInProject($this->projectCredentials, $bucketName);
-        $this->createNonEmptyTableInBucket($bucketDatasetName, $tableName);
+        $bucketDatasetName = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
+        $this->createNonEmptyTableInBucket($bucketDatasetName->getCreateBucketObjectName(), $tableName);
 
         // FILL DATA
         $insertGroups = [
@@ -151,7 +142,12 @@ FROM
         ];
 
         try {
-            $this->fillTableWithData($credentials, $bucketDatasetName, $tableName, $insertGroups);
+            $this->fillTableWithData(
+                $credentials,
+                $bucketDatasetName->getCreateBucketObjectName(),
+                $tableName,
+                $insertGroups
+            );
             $this->fail('Insert to read only table should failed');
         } catch (ServiceException $e) {
             $this->assertSame(403, $e->getCode());
@@ -160,7 +156,7 @@ FROM
 
         $result = $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'SELECT * FROM %s.%s;',
-            BigqueryQuote::quoteSingleIdentifier($bucketName),
+            BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($tableName)
         )));
 
@@ -257,7 +253,10 @@ FROM
     public function testCreateDropCascadeWorkspace(): void
     {
         // CREATE
-        [$credentials, $response] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -296,17 +295,15 @@ FROM
         $projectId = $wsKeyData['project_id'];
         $wsServiceAccEmail = $wsKeyData['client_email'];
 
-        /** @var array<string, string> $datasets */
-        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf('SELECT
-  schema_name
-FROM
-  %s.INFORMATION_SCHEMA.SCHEMATA;', BigqueryQuote::quoteSingleIdentifier($projectId))))->getIterator()->current();
+        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
+            /** @lang BigQuery */
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
+            BigqueryQuote::quoteSingleIdentifier($projectId),
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+        )));
 
         // ws dataset exist
-        $this->assertSame(
-            strtoupper($response->getWorkspaceObjectName()),
-            $datasets['schema_name']
-        );
+        $this->assertCount(1, $datasets);
 
         // check if ws service acc still exist
         $iamService = $this->clientManager->getIamClient($this->projectCredentials);
@@ -332,10 +329,12 @@ FROM
             $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
         }
 
-        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf('SELECT
-  schema_name
-FROM
-  %s.INFORMATION_SCHEMA.SCHEMATA;', BigqueryQuote::quoteSingleIdentifier($projectId))));
+        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
+        /** @lang BigQuery */
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
+            BigqueryQuote::quoteSingleIdentifier($projectId),
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+        )));
 
         $this->assertNull($datasets->getIterator()->current());
     }
@@ -424,24 +423,5 @@ FROM
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
-    }
-
-    private function createBucketInProject(GenericBackendCredentials $credentials, string $bucketName): string
-    {
-        $handler = new CreateBucketHandler($this->clientManager);
-        $command = (new CreateBucketCommand())
-            ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($this->getProjectId())
-            ->setBucketId($bucketName);
-
-        /** @var CreateBucketResponse $bucketResponse */
-        $bucketResponse = $handler(
-            $credentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
-        );
-
-        return $bucketResponse->getCreateBucketObjectName();
     }
 }
