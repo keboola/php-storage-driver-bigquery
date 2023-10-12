@@ -22,6 +22,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
+/**
+ * @group Import
+ */
 class IncrementalImportTableFromTableTest extends BaseImportTestCase
 {
     /**
@@ -35,8 +38,8 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         // typed tables have to have same structure, but string tables can do the mapping
         $sourceExtraColumn = $isTypedTable ? 'col3' : 'colX';
 
-        $sourceTableName = md5($this->getName()) . '_Test_table';
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 

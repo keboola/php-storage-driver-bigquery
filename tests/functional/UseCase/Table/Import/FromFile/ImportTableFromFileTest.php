@@ -28,11 +28,14 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
+/**
+ * @group Import
+ */
 class ImportTableFromFileTest extends BaseImportTestCase
 {
     public function testImportTableFromFileFullLoadWithDeduplication(): void
     {
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
@@ -120,7 +123,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
 
     public function testImportTableFromFileFullLoadWithoutDeduplication(): void
     {
-        $destinationTableName = md5($this->getName()) . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
@@ -208,7 +211,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
      */
     public function testImportTableFromFileFullLoadSlicedWithoutDeduplication(int $compression): void
     {
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 

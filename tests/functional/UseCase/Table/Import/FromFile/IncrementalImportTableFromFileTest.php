@@ -26,6 +26,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
+/**
+ * @group Import
+ */
 class IncrementalImportTableFromFileTest extends BaseImportTestCase
 {
     /**
@@ -33,7 +36,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
      */
     public function testImportTableFromFileIncrementalLoad(bool $isTypedTable): void
     {
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 

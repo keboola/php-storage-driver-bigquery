@@ -32,20 +32,11 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
+/**
+ * @group Import
+ */
 class ImportViewCloneTest extends BaseCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->cleanTestProject();
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
-    }
-
     /**
      * @return Generator<string,array{ImportOptions\ImportType::*}>
      */
@@ -66,11 +57,10 @@ class ImportViewCloneTest extends BaseCase
     public function testConflictImport(int $importType): void
     {
         // create resources
-        [$projectCredentials,] = $this->createTestProject();
-        $bucketResponse = $this->createTestBucket($projectCredentials);
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
-        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -104,7 +94,7 @@ class ImportViewCloneTest extends BaseCase
         $handler = new ImportTableFromTableHandler($this->clientManager);
         try {
             $handler(
-                $projectCredentials,
+                $this->projects[0][0],
                 $cmd,
                 [],
                 new RuntimeOptions(['runId' => $this->testRunId]),
@@ -121,7 +111,7 @@ class ImportViewCloneTest extends BaseCase
                 ->setCreateMode(ImportOptions\CreateMode::REPLACE)
         );
         $response = $handler(
-            $projectCredentials,
+            $this->projects[0][0],
             $cmd,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
@@ -159,12 +149,11 @@ class ImportViewCloneTest extends BaseCase
     public function testImportAsView(int $importType): void
     {
         // create resources
-        [$projectCredentials,] = $this->createTestProject();
-        $bucketResponse = $this->createTestBucket($projectCredentials);
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
-        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $qb = new BigqueryTableQueryBuilder();
         $this->createSourceTable(
             $bucketDatabaseName,
@@ -193,7 +182,7 @@ class ImportViewCloneTest extends BaseCase
         $handler = new ImportTableFromTableHandler($this->clientManager);
         /** @var TableImportResponse $response */
         $response = $handler(
-            $projectCredentials,
+            $this->projects[0][0],
             $cmd,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
@@ -254,7 +243,7 @@ class ImportViewCloneTest extends BaseCase
      */
     public function testImportAsViewSharedBucket(int $importType): void
     {
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         //create linked bucket with table
         [
             $targetProjectCredentials,
@@ -266,7 +255,8 @@ class ImportViewCloneTest extends BaseCase
         // create workspace to import into
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $targetProjectCredentials,
-            $targetProjectResponse
+            $targetProjectResponse,
+            $this->projects[1][2]
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 
@@ -418,15 +408,10 @@ class ImportViewCloneTest extends BaseCase
     private function createLinkedBucketWithTable(): array
     {
         parent::setUp();
-        $this->cleanTestProject();
 
-        [$sourceProjectCredentials, $sourceProjectResponse] = $this->createTestProject();
-        $this->projectSuffix = '-s';
-        [$targetProjectCredentials, $targetProjectResponse] = $this->createTestProject();
-
-        $bucketResponse = $this->createTestBucket($sourceProjectCredentials);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
-        $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $sourceProjectCredentials);
+        $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
         // create source table to be shared
@@ -438,7 +423,7 @@ class ImportViewCloneTest extends BaseCase
 
         // share the bucket
         $publicPart = (array) json_decode(
-            $sourceProjectResponse->getProjectUserName(),
+            $this->projects[0][1]->getProjectUserName(),
             true,
             512,
             JSON_THROW_ON_ERROR
@@ -449,7 +434,7 @@ class ImportViewCloneTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceProjectReadOnlyRoleName($sourceProjectResponse->getProjectReadOnlyRoleName());
+            ->setSourceProjectReadOnlyRoleName($this->projects[0][1]->getProjectReadOnlyRoleName());
 
         /** @var ShareBucketResponse $result */
         $result = $handler(
@@ -462,7 +447,7 @@ class ImportViewCloneTest extends BaseCase
         // link the bucket
         $listing = $result->getBucketShareRoleName();
         $publicPart = (array) json_decode(
-            $targetProjectResponse->getProjectUserName(),
+            $this->projects[1][1]->getProjectUserName(),
             true,
             512,
             JSON_THROW_ON_ERROR
@@ -482,18 +467,19 @@ class ImportViewCloneTest extends BaseCase
             new RuntimeOptions(),
         );
 
+        $credentials = $this->projects[1][0];
         return [
-            $targetProjectCredentials,
-            $targetProjectResponse,
+            $this->projects[1][0],
+            $this->projects[1][1],
             $linkedBucketSchemaName,
             'sharedTable',
-            function () use ($linkedBucketSchemaName, $targetProjectCredentials): void {
+            function () use ($linkedBucketSchemaName, $credentials): void {
                 $unlinkHandler = new UnLinkBucketHandler($this->clientManager);
                 $command = (new UnLinkBucketCommand())
                     ->setBucketObjectName($linkedBucketSchemaName);
 
                 $unlinkHandler(
-                    $targetProjectCredentials,
+                    $credentials,
                     $command,
                     [],
                     new RuntimeOptions(['runId' => $this->testRunId]),
