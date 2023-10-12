@@ -33,7 +33,9 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\BackOff\FixedBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
+use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
@@ -321,13 +323,16 @@ class CreateDropWorkspaceTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        try {
-            $serviceAccountsService->get($serviceAccountUrl);
-            $this->fail(sprintf('Service account "%s" should be deleted.', $serviceAccountUrl));
-        } catch (GoogleServiceException $e) {
-            $this->assertEquals(404, $e->getCode());
-            $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
-        }
+        (new RetryProxy(new SimpleRetryPolicy(5), new FixedBackOffPolicy()))
+            ->call(function () use ($serviceAccountsService, $serviceAccountUrl): void {
+                try {
+                    $serviceAccountsService->get($serviceAccountUrl);
+                    $this->fail(sprintf('Service account "%s" should be deleted.', $serviceAccountUrl));
+                } catch (Throwable $e) {
+                    $this->assertEquals(404, $e->getCode());
+                    $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
+                }
+            });
 
         $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
         /** @lang BigQuery */
