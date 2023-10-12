@@ -73,7 +73,7 @@ class GCPClientManager
         return $client;
     }
 
-    public function getIamClient(GenericBackendCredentials $credentials): Iam
+    public function getIamClient(GenericBackendCredentials $credentials): IAMServiceWrapper
     {
         $client = new Google_Client([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
@@ -82,7 +82,7 @@ class GCPClientManager
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
-        return new Iam($client);
+        return new IAMServiceWrapper($client);
     }
 
     public function getCloudResourceManager(GenericBackendCredentials $credentials): Google_Service_CloudResourceManager
