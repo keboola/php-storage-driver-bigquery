@@ -7,15 +7,12 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
-use Keboola\StorageDriver\Command\Info\DatabaseInfo;
 use Keboola\StorageDriver\Command\Info\ObjectInfo;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Info\SchemaInfo;
 use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
-use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
@@ -28,59 +25,45 @@ class ObjectInfoTest extends BaseCase
 
     protected CreateBucketResponse $bucketResponse;
 
-    protected GenericBackendCredentials $workspaceCredentials;
-
-    protected CreateWorkspaceResponse $workspaceResponse;
-
     private CreateProjectResponse $projectResponse;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-
-        // create project
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-        $this->projectResponse = $projectResponse;
+        $this->projectCredentials = $this->projects[0][0];
+        $this->projectResponse = $this->projects[0][1];
 
         // create bucket
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
 
         $this->createTestTable(
             $this->projectCredentials,
             $this->bucketResponse->getCreateBucketObjectName(),
-            'bucket_table1'
+            $this->getTestHash()
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE VIEW %s.`bucket_view1` AS '
-            . 'SELECT * FROM %s.`bucket_table1`;',
+            . 'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName())
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
         )));
+    }
+
+    public function testInfoDatabase(): void
+    {
         // create workspace
         [
-            $workspaceCredentials,
+            ,
             $workspaceResponse,
-        ] = $this->createTestWorkspace($this->projectCredentials, $projectResponse);
-        $this->workspaceCredentials = $workspaceCredentials;
-        $this->workspaceResponse = $workspaceResponse;
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projects[0][1], $this->projects[0][2]);
         $this->createTestTable(
             $this->projectCredentials,
             $workspaceResponse->getWorkspaceObjectName(),
             'ws_table1'
         );
-    }
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
-    }
-
-    public function testInfoDatabase(): void
-    {
         $handler = new ObjectInfoHandler($this->clientManager);
         $command = new ObjectInfoCommand();
         // expect database
@@ -99,7 +82,22 @@ class ObjectInfoTest extends BaseCase
         $this->assertFalse($response->hasTableInfo());
         $this->assertFalse($response->hasViewInfo());
         $this->assertNotNull($response->getDatabaseInfo());
-        $this->assertDatabase($response, $response->getDatabaseInfo());
+        $this->assertSame(
+            [$this->projectResponse->getProjectUserName()],
+            ProtobufHelper::repeatedStringToArray($response->getPath())
+        );
+        /** @var Traversable<ObjectInfo> $objects */
+        $objects = $response->getDatabaseInfo()->getObjects()->getIterator();
+        $bucketObject = $this->getObjectByNameAndType(
+            $objects,
+            $this->bucketResponse->getCreateBucketObjectName()
+        );
+        $this->assertSame(ObjectType::SCHEMA, $bucketObject->getObjectType());
+        $workspaceObject = $this->getObjectByNameAndType(
+            $objects,
+            $workspaceResponse->getWorkspaceObjectName()
+        );
+        $this->assertSame(ObjectType::SCHEMA, $workspaceObject->getObjectType());
     }
 
     public function testInfoSchema(): void
@@ -129,7 +127,7 @@ class ObjectInfoTest extends BaseCase
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
         $table = $this->getObjectByNameAndType(
             $objects,
-            'bucket_table1'
+            $this->getTestHash()
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
@@ -146,7 +144,7 @@ class ObjectInfoTest extends BaseCase
         $command->setExpectedObjectType(ObjectType::TABLE);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([
             $this->bucketResponse->getCreateBucketObjectName(),
-            'bucket_table1',
+            $this->getTestHash(),
         ]));
         $response = $handler(
             $this->projectCredentials,
@@ -159,7 +157,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertSame(
             [
                 $this->bucketResponse->getCreateBucketObjectName(),
-                'bucket_table1',
+                $this->getTestHash(),
             ],
             ProtobufHelper::repeatedStringToArray($response->getPath())
         );
@@ -170,7 +168,7 @@ class ObjectInfoTest extends BaseCase
 
         $tableInfo = $response->getTableInfo();
         $this->assertNotNull($tableInfo);
-        $this->assertSame('bucket_table1', $tableInfo->getTableName());
+        $this->assertSame($this->getTestHash(), $tableInfo->getTableName());
         $this->assertSame(
             [$this->bucketResponse->getCreateBucketObjectName()],
             ProtobufHelper::repeatedStringToArray($tableInfo->getPath())
@@ -243,25 +241,5 @@ class ObjectInfoTest extends BaseCase
             }
         }
         $this->fail(sprintf('Expected object name "%s" not found.', $expectedName));
-    }
-
-    private function assertDatabase(ObjectInfoResponse $response, SchemaInfo|DatabaseInfo $infoObject): void
-    {
-        $this->assertSame(
-            [$this->projectResponse->getProjectUserName()],
-            ProtobufHelper::repeatedStringToArray($response->getPath())
-        );
-        /** @var Traversable<ObjectInfo> $objects */
-        $objects = $infoObject->getObjects()->getIterator();
-        $bucketObject = $this->getObjectByNameAndType(
-            $objects,
-            $this->bucketResponse->getCreateBucketObjectName()
-        );
-        $this->assertSame(ObjectType::SCHEMA, $bucketObject->getObjectType());
-        $workspaceObject = $this->getObjectByNameAndType(
-            $objects,
-            $this->workspaceResponse->getWorkspaceObjectName()
-        );
-        $this->assertSame(ObjectType::SCHEMA, $workspaceObject->getObjectType());
     }
 }
