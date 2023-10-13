@@ -20,6 +20,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
+/**
+ * @group Import
+ */
 class ImportTableFromTableTest extends BaseImportTestCase
 {
     /**
@@ -28,8 +31,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
      */
     public function testImportTableFromTableFullLoadNoDedup(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
@@ -149,8 +152,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
      */
     public function testImportTableFromTableFullLoadWithTimestamp(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
@@ -276,8 +279,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
      */
     public function testImportTableFromTableFullLoadWithTimestampWithDeduplication(): void
     {
-        $sourceTableName = md5($this->getName()) . '_Test_table';
-        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 

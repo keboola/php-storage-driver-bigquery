@@ -23,18 +23,8 @@ class ObjectInfoErrorTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-        // create project
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-        $this->projectCredentials = $projectCredentials;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $this->projectCredentials = $this->projects[0][0];
     }
 
     public function testInfoSchemaNotExists(): void

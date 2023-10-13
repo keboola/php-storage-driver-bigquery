@@ -19,13 +19,11 @@ class ServiceAccountRetryTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->cleanTestProject();
     }
 
     public function skipCreateManyServiceAccounts(): void
@@ -41,7 +39,11 @@ class ServiceAccountRetryTest extends BaseCase
 
         $projectId = $nameGenerator->createProjectId('-retry-' . time());
 
-        $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
+        $projectCreateResult = $this->createProjectForTest(
+            $projectsClient,
+            $folderId,
+            $projectId
+        );
         $projectName = $projectCreateResult->getName();
 
         $tooManyRequestsTested = false;
@@ -89,7 +91,7 @@ class ServiceAccountRetryTest extends BaseCase
     }
 
     // custom project creation because we need project name, should be cleaned by cleanTestProject()
-    private function createProject(ProjectsClient $projectsClient, string $folderId, string $projectId): Project
+    private function createProjectForTest(ProjectsClient $projectsClient, string $folderId, string $projectId): Project
     {
         $project = new Project();
 

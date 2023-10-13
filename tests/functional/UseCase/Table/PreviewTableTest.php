@@ -38,23 +38,14 @@ class PreviewTableTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     public function testArrayPreviewTable(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -122,7 +113,14 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 //phpcs:ignore
-                'columns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int', 'array_struct_array-int_array-string', 'array_very_long_string'],
+                'columns' => [
+                    'array_int',
+                    'array_string',
+                    'array_struct_int_int',
+                    'array_struct_array_int',
+                    'array_struct_array-int_array-string',
+                    'array_very_long_string',
+                ],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -131,7 +129,14 @@ class PreviewTableTest extends BaseCase
                 ],
             ],
             //phpcs:ignore
-            'expectedColumns' => ['array_int', 'array_string', 'array_struct_int_int', 'array_struct_array_int', 'array_struct_array-int_array-string', 'array_very_long_string'],
+            'expectedColumns' => [
+                'array_int',
+                'array_string',
+                'array_struct_int_int',
+                'array_struct_array_int',
+                'array_struct_array-int_array-string',
+                'array_very_long_string',
+            ],
             'expectedRows' => [
                 [
                     'array_int' => [
@@ -247,7 +252,7 @@ class PreviewTableTest extends BaseCase
 
     public function testStructPreviewTable(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -310,7 +315,13 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 //phpcs:ignore
-                'columns' => ['struct_int', 'struct_string', 'struct_int_int', 'struct_struct_int_int', 'struct_very_long_string'],
+                'columns' => [
+                    'struct_int',
+                    'struct_string',
+                    'struct_int_int',
+                    'struct_struct_int_int',
+                    'struct_very_long_string',
+                ],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -319,7 +330,13 @@ class PreviewTableTest extends BaseCase
                 ],
             ],
             //phpcs:ignore
-            'expectedColumns' => ['struct_int', 'struct_string', 'struct_int_int', 'struct_struct_int_int', 'struct_very_long_string'],
+            'expectedColumns' => [
+                'struct_int',
+                'struct_string',
+                'struct_int_int',
+                'struct_struct_int_int',
+                'struct_very_long_string',
+            ],
             'expectedRows' => [
                 [
                     'struct_int' => [
@@ -419,7 +436,7 @@ class PreviewTableTest extends BaseCase
 
     public function testPreviewTable(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -524,7 +541,22 @@ class PreviewTableTest extends BaseCase
         $filter = [
             'input' => [
                 //phpcs:ignore
-                'columns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'bytes', 'geography', 'interval', 'json', 'bigdecimal'],
+                'columns' => [
+                    'id',
+                    'int',
+                    'decimal',
+                    'float',
+                    'date',
+                    'time',
+                    '_timestamp',
+                    'varchar',
+                    'datetime',
+                    'bytes',
+                    'geography',
+                    'interval',
+                    'json',
+                    'bigdecimal',
+                ],
                 'orderBy' => [
                     new ExportOrderBy([
                         'columnName' => 'id',
@@ -533,7 +565,22 @@ class PreviewTableTest extends BaseCase
                 ],
             ],
             //phpcs:ignore
-            'expectedColumns' => ['id', 'int', 'decimal', 'float', 'date', 'time', '_timestamp', 'varchar', 'datetime', 'bytes', 'geography', 'interval', 'json', 'bigdecimal'],
+            'expectedColumns' => [
+                'id',
+                'int',
+                'decimal',
+                'float',
+                'date',
+                'time',
+                '_timestamp',
+                'varchar',
+                'datetime',
+                'bytes',
+                'geography',
+                'interval',
+                'json',
+                'bigdecimal',
+            ],
             'expectedRows' => [
                 [
                     'id' => [
@@ -1167,7 +1214,7 @@ class PreviewTableTest extends BaseCase
 
     public function testPreviewTableMissingArguments(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -1325,7 +1372,7 @@ class PreviewTableTest extends BaseCase
      */
     public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE

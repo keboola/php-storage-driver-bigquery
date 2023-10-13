@@ -29,19 +29,10 @@ class BaseImportTestCase extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $bucketResponse = $this->createTestBucket($projectCredentials);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
         $this->bucketResponse = $bucketResponse;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
     }
 
     protected function createDestinationTable(
@@ -134,9 +125,10 @@ class BaseImportTestCase extends BaseCase
         $bqClient->runQuery($bqClient->query($sql));
         // init some values
         foreach ([
-            ['1', '2', '4', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
-            ['2', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
-            ['3', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')]] as $i) {
+                     ['1', '2', '4', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
+                     ['2', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
+                     ['3', '3', '3', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
+                 ] as $i) {
             $queryJobConfiguration = $bqClient->query(sprintf(
                 'INSERT %s.%s (`col1`, `col2`, `col3`, `_timestamp`) VALUES (%s)',
                 BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),

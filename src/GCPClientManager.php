@@ -12,6 +12,7 @@ use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
 use Google\Cloud\Storage\StorageClient;
 use Google\Service\Iam;
+use Google\Task\Runner;
 use Google_Client;
 use Google_Service_CloudResourceManager;
 use GuzzleHttp\Client;
@@ -20,7 +21,6 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 class GCPClientManager
 {
     public const DEFAULT_LOCATION = 'US';
-
     public const SCOPES_CLOUD_PLATFORM = 'https://www.googleapis.com/auth/cloud-platform';
 
     /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */
@@ -90,6 +90,20 @@ class GCPClientManager
         $client = new Google_Client([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
             'retry' => self::DEFAULT_RETRY_SETTINGS,
+            'retry_map' => [ // extends Google\Task\Runner::$retryMap
+                '500' => Runner::TASK_RETRY_ALWAYS,
+                '503' => Runner::TASK_RETRY_ALWAYS,
+                '409' => Runner::TASK_RETRY_ALWAYS,
+                'rateLimitExceeded' => Runner::TASK_RETRY_ALWAYS,
+                'accessDenied' => Runner::TASK_RETRY_ONCE,
+                'userRateLimitExceeded' => Runner::TASK_RETRY_ALWAYS,
+                6 => Runner::TASK_RETRY_ALWAYS,  // CURLE_COULDNT_RESOLVE_HOST
+                7 => Runner::TASK_RETRY_ALWAYS,  // CURLE_COULDNT_CONNECT
+                28 => Runner::TASK_RETRY_ALWAYS,  // CURLE_OPERATION_TIMEOUTED
+                35 => Runner::TASK_RETRY_ALWAYS,  // CURLE_SSL_CONNECT_ERROR
+                52 => Runner::TASK_RETRY_ALWAYS,  // CURLE_GOT_NOTHING
+                'lighthouseError' => Runner::TASK_RETRY_NEVER,
+            ],
         ]);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 

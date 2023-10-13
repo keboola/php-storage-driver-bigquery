@@ -23,23 +23,17 @@ class DropWorkspaceObjectTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-
-        [$credentials, $response] = $this->createTestProject();
-        $this->projectCredentials = $credentials;
-        $this->projectResponse = $response;
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
+        $this->projectResponse = $this->projects[0][1];
     }
 
     public function testCreateDropWorkspace(): void
     {
         // CREATE
-        [$credentials, $response] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 

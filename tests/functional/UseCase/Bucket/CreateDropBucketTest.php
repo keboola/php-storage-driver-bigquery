@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\Cloud\BigQuery\Dataset;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -25,15 +23,13 @@ class CreateDropBucketTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-        [$credentials, $response] = $this->createTestProject();
-        $this->projectCredentials = $credentials;
-        $this->projectResponse = $response;
+        $this->projectCredentials = $this->projects[0][0];
+        $this->projectResponse = $this->projects[0][1];
     }
 
     public function testCreateDropBucket(): void
     {
-        $response = $this->createTestBucket($this->projectCredentials);
+        $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
 
         $handler = new DropBucketHandle($this->clientManager);
         $command = (new DropBucketCommand())
@@ -53,21 +49,7 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateBucketInBranch(): void
     {
-        $bucket = md5($this->getName()) . 'in.c-Test';
-
-        $handler = new CreateBucketHandler($this->clientManager);
-        $command = (new CreateBucketCommand())
-            ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($this->getProjectId())
-            ->setBucketId($bucket)
-            ->setBranchId('123');
-
-        $response = $handler(
-            $this->projectCredentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
-        );
+        $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2], '123');
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
@@ -85,11 +67,11 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateDropCascadeBucket(): void
     {
-        $bucket = $this->createTestBucket($this->projectCredentials);
+        $bucket = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $createdDataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $createdDataset->createTable($tableName);
 
         $handler = new DropBucketHandle($this->clientManager);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
-use Google\ApiCore\PathTemplate;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
@@ -22,28 +21,22 @@ use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleComma
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
-use LogicException;
 use Throwable;
 
 class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 {
     private GenericBackendCredentials $mainProjectCredentials;
-    private GenericBackendCredentials $externalProjectCredentials;
-    private CreateBucketResponse $bucketResponse;
 
-    private const PROJ_SUFFIX = '-e';
+    private GenericBackendCredentials $externalProjectCredentials;
+
+    private CreateBucketResponse $bucketResponse;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
-        [$credentials1, $response1] = $this->createTestProject();
-        $this->mainProjectCredentials = $credentials1;
-        $this->projectSuffix = self::PROJ_SUFFIX;
-
-        [$credentials2, $response2] = $this->createTestProject();
-        $this->externalProjectCredentials = $credentials2;
-        $bucketResponse = $this->createTestBucket($credentials2);
+        $this->mainProjectCredentials = $this->projects[0][0];
+        $this->externalProjectCredentials = $this->projects[1][0];
+        $bucketResponse = $this->createTestBucket($this->projects[1][0], $this->projects[1][2]);
         $this->bucketResponse = $bucketResponse;
     }
 
@@ -54,15 +47,10 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $externalTableName = md5($this->getName()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
-        // validate initial state of projects
-        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
         $externalBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $this->externalProjectCredentials
         );
-
-        $this->assertCount(0, $mainBqClient->datasets());
-        $this->assertCount(1, $externalBqClient->datasets());
 
         // this part simulate user who want to register ext bucket
         // 1. and 2. will be done in one step, but we need to test it can't be registered before grant permission
@@ -116,7 +104,6 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $this->assertSame('123_test_external', $result->getCreateBucketObjectName());
         // Validate is bucket added
         $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
-        $this->assertCount(1, $mainBqClient->datasets());
         $registeredExternalBucketInMainProject = $mainBqClient->dataset('123_test_external');
         $registeredTables = $registeredExternalBucketInMainProject->tables();
         $this->assertCount(1, $registeredTables);
@@ -224,9 +211,6 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
                 $message['error']['message']
             );
         }
-
-        $this->assertCount(0, $mainBqClient->datasets());
-        $this->assertCount(1, $externalBqClient->datasets());
     }
 
     private function prepareTestTable(string $bucketDatabaseName, string $externalTableName): void

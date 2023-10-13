@@ -13,10 +13,7 @@ use Google\Cloud\Storage\StorageObject;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
-use Google\Service\CloudResourceManager\Binding;
-use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\Project;
-use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
 use Google_Service_Iam;
 use Keboola\Datatype\Definition\Bigquery;
@@ -26,6 +23,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -42,25 +40,227 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\Store\FlockStore;
+use Throwable;
 
 class BaseCase extends TestCase
 {
     use RetryTrait;
 
+    protected string $testRunId;
+
+    /**
+     * @var array{
+     *     0:array{GenericBackendCredentials, CreateProjectResponse, string},
+     *     1:array{GenericBackendCredentials, CreateProjectResponse, string},
+     * }
+     */
+    // @phpstan-ignore-next-line
+    protected array $projects = [];
+
     protected GCPClientManager $clientManager;
 
-    // to distinguish projects if you need more projects in one test case
-    protected string $projectSuffix = '';
+    protected Log $log;
 
-    protected string $testRunId;
+    protected static function getRand(): string
+    {
+        return substr(md5(uniqid((string) mt_rand(), true)), 0, 3);
+    }
+
+    private function initialize(): void
+    {
+        if (file_exists('/tmp/prj0-cred')) {
+            unlink('/tmp/prj0-cred');
+        }
+        if (file_exists('/tmp/prj0-res')) {
+            unlink('/tmp/prj0-res');
+        }
+        if (file_exists('/tmp/prj0-id')) {
+            unlink('/tmp/prj0-id');
+        }
+
+        if (file_exists('/tmp/prj1-cred')) {
+            unlink('/tmp/prj1-cred');
+        }
+        if (file_exists('/tmp/prj1-res')) {
+            unlink('/tmp/prj1-res');
+        }
+        if (file_exists('/tmp/prj1-id')) {
+            unlink('/tmp/prj1-id');
+        }
+
+        $this->dropProjects($this->getStackPrefix());
+        $nameGenerator = new NameGenerator($this->getStackPrefix());
+        $suffix = date('mdHis') . self::getRand();
+        $project0 = [
+            ...$this->createProject('main-' . $suffix),
+            $nameGenerator->createProjectId('main-' . $suffix),
+        ];
+        $project1 = [
+            ...$this->createProject('link-' . $suffix),
+            $nameGenerator->createProjectId('link-' . $suffix),
+        ];
+        file_put_contents('/tmp/prj0-cred', $project0[0]->serializeToJsonString());
+        file_put_contents('/tmp/prj0-res', $project0[1]->serializeToJsonString());
+        file_put_contents('/tmp/prj0-id', $project0[2]);
+
+        file_put_contents('/tmp/prj1-cred', $project1[0]->serializeToJsonString());
+        file_put_contents('/tmp/prj1-res', $project1[1]->serializeToJsonString());
+        file_put_contents('/tmp/prj1-id', $project1[2]);
+    }
 
     protected function setUp(): void
     {
+        $this->log = new Log($this->getName(false));
+        $this->log->setPrefix($this->getTestHash());
+        $this->log->add($this->getName());
+        $GLOBALS['log'] = $this->log;
+        if (!file_exists('/tmp/initialized')) {
+            $store = new FlockStore('/tmp/test-lock');
+            $factory = new LockFactory($store);
+            $lock = $factory->createLock('init');
+            $this->log->add('init lock');
+            if ($lock->acquire(true)) {
+                if (!file_exists('/tmp/initialized')) {
+                    $this->log->add('initialize');
+                    $this->initialize();
+                    touch('/tmp/initialized');
+                    $lock->release();
+                } else {
+                    $this->log->add('initialized');
+                }
+            } else {
+                $this->log->add('not locked');
+            }
+        } else {
+            $this->log->add('already initialized');
+        }
+
         $ghRunId = getenv('BUILD_ID');
         if ($ghRunId === false) {
             $this->testRunId = (string) rand(100000, 999999);
         } else {
             $this->testRunId = (string) $ghRunId;
+        }
+
+        $prj0Cred = new GenericBackendCredentials();
+        $prj0Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj0-cred'));
+        $prj0Res = new CreateProjectResponse();
+        $prj0Res->mergeFromJsonString((string) file_get_contents('/tmp/prj0-res'));
+
+        $prj1Cred = new GenericBackendCredentials();
+        $prj1Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj1-cred'));
+        $prj1Res = new CreateProjectResponse();
+        $prj1Res->mergeFromJsonString((string) file_get_contents('/tmp/prj1-res'));
+        $this->projects = [
+            [
+                $prj0Cred,
+                $prj0Res,
+                (string) file_get_contents('/tmp/prj0-id'),
+            ],
+            [
+                $prj1Cred,
+                $prj1Res,
+                (string) file_get_contents('/tmp/prj1-id'),
+            ],
+        ];
+    }
+
+    /**
+     * @return array{GenericBackendCredentials, CreateProjectResponse}
+     * @throws \Google\ApiCore\ApiException
+     * @throws \Google\ApiCore\ValidationException
+     * @throws \Keboola\StorageDriver\Shared\Driver\Exception\Exception
+     */
+    protected function createProject(string $id): array
+    {
+        $this->log->add('CREATING: ' . $id);
+
+        $handler = new CreateProjectHandler($this->clientManager);
+        $command = new CreateprojectCommand();
+
+        $meta = new Any();
+        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
+            (string) getenv('BQ_BUCKET_NAME')
+        ));
+        $command->setStackPrefix($this->getStackPrefix());
+        $command->setProjectId($id);
+        $command->setMeta($meta);
+
+        $response = $handler(
+            $this->getCredentials(),
+            $command,
+            [],
+            new RuntimeOptions()
+        );
+
+        assert($response instanceof CreateProjectResponse);
+
+        return [
+            (new GenericBackendCredentials())
+                ->setPrincipal($response->getProjectUserName())
+                ->setSecret($response->getProjectPassword()),
+            $response,
+        ];
+    }
+
+    public function dropProjects(string $startingWith): void
+    {
+        $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
+        $storageManager = $this->clientManager->getStorageClient($this->getCredentials());
+
+        $meta = $this->getCredentials()->getMeta();
+        if ($meta !== null) {
+            // override root user and use other database as root
+            $meta = $meta->unpack();
+            assert($meta instanceof GenericBackendCredentials\BigQueryCredentialsMeta);
+            $folderId = $meta->getFolderId();
+        } else {
+            throw new Exception('BigQueryCredentialsMeta is required.');
+        }
+
+        $parent = $folderId;
+        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
+        // Iterate over pages of elements
+        $pagedResponse = $mainClient->listProjects('folders/' . $parent);
+        $this->log->add('TRY DEL:' . $startingWith);
+        foreach ($pagedResponse->iteratePages() as $page) {
+            /** @var Project $element */
+            foreach ($page as $element) {
+                if (str_starts_with($element->getProjectId(), $startingWith)) {
+                    $this->log->add('DROPPING:' . $element->getProjectId());
+                    $formattedName = $mainClient->projectName($element->getProjectId());
+                    $billingInfo = new ProjectBillingInfo();
+                    $billingInfo->setBillingEnabled(false);
+                    $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
+
+                    $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+                    $fileStorageBucket->iam()->reload();
+                    $policy = $fileStorageBucket->iam()->policy();
+
+                    foreach ($policy['bindings'] as $bindingKey => $binding) {
+                        if ($binding['role'] === 'roles/storage.objectAdmin') {
+                            foreach ($binding['members'] as $key => $member) {
+                                if (strpos($member, 'serviceAccount:' . $element->getProjectId()) === 0) {
+                                    unset($policy['bindings'][$bindingKey]['members'][$key]);
+                                }
+                            }
+                        }
+                    }
+
+                    $fileStorageBucket->iam()->setPolicy($policy);
+
+                    $operationResponse = $mainClient->deleteProject($formattedName);
+                    $operationResponse->pollUntilComplete();
+                    if (!$operationResponse->operationSucceeded()) {
+                        $error = $operationResponse->getError();
+                        assert($error !== null);
+                        throw new Exception($error->getMessage(), $error->getCode());
+                    }
+                }
+            }
         }
     }
 
@@ -104,63 +304,6 @@ class BaseCase extends TestCase
             ->setMeta($any);
     }
 
-    protected function cleanTestProject(): void
-    {
-        $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
-        $billingClient = $this->clientManager->getBillingClient($this->getCredentials());
-        $storageManager = $this->clientManager->getStorageClient($this->getCredentials());
-        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->getCredentials());
-
-        $meta = $this->getCredentials()->getMeta();
-        if ($meta !== null) {
-            // override root user and use other database as root
-            $meta = $meta->unpack();
-            assert($meta instanceof GenericBackendCredentials\BigQueryCredentialsMeta);
-            $folderId = $meta->getFolderId();
-        } else {
-            throw new Exception('BigQueryCredentialsMeta is required.');
-        }
-
-        $parent = $folderId;
-        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
-        // Iterate over pages of elements
-        $pagedResponse = $mainClient->listProjects('folders/' . $parent);
-        foreach ($pagedResponse->iteratePages() as $page) {
-            /** @var Project $element */
-            foreach ($page as $element) {
-                if (str_starts_with($element->getProjectId(), $this->getStackPrefix())) {
-                    $formattedName = $mainClient->projectName($element->getProjectId());
-                    $billingInfo = new ProjectBillingInfo();
-                    $billingInfo->setBillingEnabled(false);
-                    $billingClient->updateProjectBillingInfo($formattedName, ['projectBillingInfo' => $billingInfo]);
-
-                    $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
-                    $policy = $fileStorageBucket->iam()->policy();
-
-                    foreach ($policy['bindings'] as $bindingKey => $binding) {
-                        if ($binding['role'] === 'roles/storage.objectAdmin') {
-                            foreach ($binding['members'] as $key => $member) {
-                                if (strpos($member, 'serviceAccount:' . $element->getProjectId()) === 0) {
-                                    unset($policy['bindings'][$bindingKey]['members'][$key]);
-                                }
-                            }
-                        }
-                    }
-
-                    $fileStorageBucket->iam()->setPolicy($policy);
-
-                    $operationResponse = $mainClient->deleteProject($formattedName);
-                    $operationResponse->pollUntilComplete();
-                    if (!$operationResponse->operationSucceeded()) {
-                        $error = $operationResponse->getError();
-                        assert($error !== null);
-                        throw new Exception($error->getMessage(), $error->getCode());
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * @param array<mixed> $expected
      * @param array<mixed> $actual
@@ -182,54 +325,43 @@ class BaseCase extends TestCase
         return $stackPrefix;
     }
 
-    protected function getProjectId(): string
-    {
-        return 'project-' . date('mdHis') . $this->projectSuffix;
-    }
-
-    /**
-     * @return array{GenericBackendCredentials, CreateProjectResponse}
-     */
-    protected function createTestProject(): array
-    {
-        $handler = new CreateProjectHandler($this->clientManager);
-        $command = new CreateprojectCommand();
-
-        $meta = new Any();
-        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            (string) getenv('BQ_BUCKET_NAME')
-        ));
-        $command->setStackPrefix($this->getStackPrefix());
-        $command->setProjectId($this->getProjectId());
-        $command->setMeta($meta);
-
-        $response = $handler(
-            $this->getCredentials(),
-            $command,
-            [],
-            new RuntimeOptions(),
-        );
-
-        assert($response instanceof CreateProjectResponse);
-
-        return [
-            (new GenericBackendCredentials())
-                ->setPrincipal($response->getProjectUserName())
-                ->setSecret($response->getProjectPassword()),
-            $response,
-        ];
+    private function dropTestBucket(
+        GenericBackendCredentials $projectCredentials,
+        string $bucketId,
+        ?string $branchId
+    ): void {
+        $nameGenerator = new NameGenerator($this->getStackPrefix());
+        $datasetName = $nameGenerator->createObjectNameForBucketInProject($bucketId, $branchId);
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $dataset = $bqClient->dataset($datasetName);
+        try {
+            $dataset->delete(['deleteContents' => true]);
+        } catch (Throwable) {
+            // ignore
+        }
     }
 
     protected function createTestBucket(
-        GenericBackendCredentials $projectCredentials
+        GenericBackendCredentials $projectCredentials,
+        string $projectId,
+        ?string $branchId = null
     ): CreateBucketResponse {
-        $bucket = md5($this->getName()) . 'in.c-Test';
-
+        $bucket = $this->getTestHash() . 'in.c-Test';
+        $this->log->add('Creating bucket:' . $bucket);
+        $this->dropTestBucket(
+            $projectCredentials,
+            $bucket,
+            $branchId
+        );
         $handler = new CreateBucketHandler($this->clientManager);
         $command = (new CreateBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($this->getProjectId())
+            ->setProjectId($projectId)
             ->setBucketId($bucket);
+
+        if ($branchId !== null) {
+            $command->setBranchId($branchId);
+        }
 
         $response = $handler(
             $projectCredentials,
@@ -261,10 +393,26 @@ class BaseCase extends TestCase
     {
         $client = $this->getGCSClient();
         $bucket = $client->bucket($bucket);
+        $this->log->add('DELETE OBJECTS BY PREFIX: ' . $prefix);
         $objects = $bucket->objects(['prefix' => $prefix]);
+        /** @var StorageObject $object */
         foreach ($objects as $object) {
+            $this->log->add('DELETE: ' . $object->name());
             $object->delete();
         }
+    }
+
+    protected function getTestHash(): string
+    {
+        $name = $this->getName();
+        // Create a raw binary sha256 hash and base64 encode it.
+        $hash = base64_encode(hash('sha256', $name, true));
+        // Trim base64 padding characters from the end.
+        $hash = rtrim($hash, '=');
+        // remove rest of chars
+        $hash = preg_replace('/[^A-Za-z0-9 ]/', '', $hash);
+        assert($hash !== null);
+        return $hash;
     }
 
     /**
@@ -297,22 +445,41 @@ class BaseCase extends TestCase
         return $result;
     }
 
-    protected function getWorkspaceId(): string
+    /**
+     * This method will not delete IAM roles and polices but they are deleted with whole project each tests run
+     */
+    private function dropTestWorkspace(GenericBackendCredentials $projectCredentials, string $workspaceId): void
     {
-        return substr(md5($this->getName()), 0, 9) . '_t';
+        $nameGenerator = new NameGenerator($this->getStackPrefix());
+        $datasetName = $nameGenerator->createWorkspaceObjectNameForWorkspaceId($workspaceId);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $dataset = $bqClient->dataset($datasetName);
+        try {
+            $dataset->delete(['deleteContents' => true]);
+        } catch (Throwable) {
+            // ignore
+        }
     }
+
     /**
      * @return array{GenericBackendCredentials, CreateWorkspaceResponse}
      */
     protected function createTestWorkspace(
         GenericBackendCredentials $projectCredentials,
-        CreateProjectResponse $projectResponse
+        CreateProjectResponse $projectResponse,
+        string $projectId,
     ): array {
+        $workspaceId = 'WS' . substr($this->getTestHash(), -7) . self::getRand();
+        $this->dropTestWorkspace(
+            $projectCredentials,
+            $workspaceId
+        );
         $handler = new CreateWorkspaceHandler($this->clientManager);
         $command = (new CreateWorkspaceCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($this->getProjectId())
-            ->setWorkspaceId($this->getWorkspaceId())
+            ->setProjectId($projectId)
+            ->setWorkspaceId($workspaceId)
             ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
         $response = $handler(
             $projectCredentials,
@@ -321,6 +488,7 @@ class BaseCase extends TestCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+        $this->log->add('Workspace created: ' . $response->getWorkspaceObjectName());
 
         $credentials = (new GenericBackendCredentials())
             ->setHost($projectCredentials->getHost())
@@ -410,14 +578,12 @@ class BaseCase extends TestCase
     public function isTableExists(BigQueryClient $projectBqClient, string $datasetName, string $tableName): bool
     {
         $dataset = $projectBqClient->dataset($datasetName);
-        $table = $dataset->table($tableName);
-        return $table->exists();
+        return $dataset->table($tableName)->exists();
     }
 
     public function isDatabaseExists(BigQueryClient $projectBqClient, string $datasetName): bool
     {
-        $dataset = $projectBqClient->dataset($datasetName);
-        return $dataset->exists();
+        return $projectBqClient->dataset($datasetName)->exists();
     }
 
     public function isUserExists(Google_Service_Iam $iamService, string $workspacePublicCredentialsPart): bool
@@ -452,7 +618,7 @@ class BaseCase extends TestCase
         ?string $tableName = null
     ): string {
         if ($tableName === null) {
-            $tableName = md5($this->getName()) . '_Test_table';
+            $tableName = $this->getTestHash() . '_Test_table';
         }
 
         // CREATE TABLE

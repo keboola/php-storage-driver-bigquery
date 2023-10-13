@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
 
-use Google\ApiCore\ApiException;
 use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
@@ -14,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
@@ -22,22 +22,35 @@ use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 class CreateDropProjectTest extends BaseCase
 {
+    private string $rand = '';
+
+    protected function getProjectId(): string
+    {
+        return 'prj-' . $this->rand;
+    }
+
+    private function getCurrentProjectFullId(): string
+    {
+        return (new NameGenerator($this->getStackPrefix()))->createProjectId($this->getProjectId() . $this->rand);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->rand = self::getRand();
+        $this->dropProjects($this->getCurrentProjectFullId());
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->cleanTestProject();
+        $this->dropProjects($this->getCurrentProjectFullId());
     }
 
     public function testCreateProject(): void
     {
         $handler = new CreateProjectHandler($this->clientManager);
-        $command = new CreateprojectCommand();
+        $command = new CreateProjectCommand();
 
         $meta = new Any();
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
@@ -48,6 +61,8 @@ class CreateDropProjectTest extends BaseCase
         $command->setProjectId($this->getProjectId());
         $command->setMeta($meta);
 
+        $this->log->add($command->serializeToJsonString());
+        $this->log->add((new NameGenerator($command->getStackPrefix()))->createProjectId($command->getProjectId()));
         /** @var CreateProjectResponse $response */
         $response = $handler(
             $this->getCredentials(),
@@ -67,7 +82,7 @@ class CreateDropProjectTest extends BaseCase
         $projectId = $publicPart['project_id'];
 
         $billingClient = $this->clientManager->getBillingClient($credentials);
-        $billingInfo = $billingClient->getProjectBillingInfo('projects/'.$projectId);
+        $billingInfo = $billingClient->getProjectBillingInfo('projects/' . $projectId);
         $this->assertNotEmpty($billingInfo->getBillingAccountName());
 
         $pagedResponse = $serviceUsageClient->listServices([

@@ -35,25 +35,16 @@ class AddDropColumnTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->cleanTestProject();
+        $this->projectCredentials = $this->projects[0][0];
 
-        [$projectCredentials, $projectResponse] = $this->createTestProject();
-        $this->projectCredentials = $projectCredentials;
-
-        $this->bucketResponse = $this->createTestBucket($projectCredentials);
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        $this->cleanTestProject();
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
     public function testAddColumn(): void
     {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         $tableDef = new BigqueryTableDefinition(
@@ -101,7 +92,10 @@ class AddDropColumnTest extends BaseCase
         $this->assertSame(ObjectType::TABLE, $response->getObjectType());
         $this->assertNotNull($response->getTableInfo());
 
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->projectCredentials
+        );
 
         $tableRef = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $tableName);
         $this->assertEquals(['col1', 'col2', 'col3', 'newCol'], $tableRef->getColumnsNames());
@@ -113,11 +107,12 @@ class AddDropColumnTest extends BaseCase
             }
         }
     }
+
     public function testDropColumn(): void
     {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         $tableDef = new BigqueryTableDefinition(
@@ -146,8 +141,7 @@ class AddDropColumnTest extends BaseCase
         $command = (new DropColumnCommand())
             ->setPath($path)
             ->setTableName($tableName)
-            ->setColumnName('col2')
-        ;
+            ->setColumnName('col2');
         $handler = new DropColumnHandler($this->clientManager);
 
         $handler(
