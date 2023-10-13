@@ -6,12 +6,12 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
 use Google\Cloud\ResourceManager\V3\Project;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
-use Google\Service\Exception;
 use Google\Service\Iam;
 use Google_Service_Iam_CreateServiceAccountRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\TooManyRequestsException;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception as CommonDriverException;
 
 class ServiceAccountRetryTest extends BaseCase
@@ -56,9 +56,8 @@ class ServiceAccountRetryTest extends BaseCase
         for ($i = 1; $i < 10; $i++) {
             $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($namePrefix . '-' . $i);
             try {
-                $this->createServiceAccount($iamClient, $projectServiceAccountId, $projectName);
-            } catch (Exception $e) {
-                $this->assertEquals(429, $e->getCode());
+                $iamClient->createServiceAccount($projectServiceAccountId,$projectName);
+            } catch (TooManyRequestsException $e) {
                 $tooManyRequestsTested = true;
                 break;
             }
@@ -74,9 +73,8 @@ class ServiceAccountRetryTest extends BaseCase
             $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($namePrefix . '-' . $i);
             try {
                 $this->createServiceAccount($iamClient, $projectServiceAccountId, $projectName);
-            } catch (Exception $e) {
-                $this->assertEquals(429, $e->getCode());
-                $this->fail('This should not happen');
+            } catch (TooManyRequestsException $e) {
+                $this->fail('This should not happen. Too many requests should be handled by retry.');
             }
         }
     }
