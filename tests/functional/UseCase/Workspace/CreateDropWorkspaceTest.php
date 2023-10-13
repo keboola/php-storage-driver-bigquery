@@ -39,6 +39,9 @@ use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
+/**
+ * @group sync
+ */
 class CreateDropWorkspaceTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;
