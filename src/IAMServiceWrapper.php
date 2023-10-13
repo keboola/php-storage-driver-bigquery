@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Keboola\StorageDriver\BigQuery;
 
+use Google\Exception as GoogleClientException;
 use Google\Service\Iam;
 use Google\Service\Iam\ServiceAccount;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
-use Keboola\StorageDriver\Shared\Driver\Exception\Command\TooManyRequestsException;
 use Exception as NativeException;
 
 class IAMServiceWrapper extends Iam
@@ -26,11 +28,8 @@ class IAMServiceWrapper extends Iam
         $createServiceAccountRequest->setAccountId($projectServiceAccountId);
         try {
             return $serviceAccountsService->create($projectName, $createServiceAccountRequest);
-        } catch (\Google\Exception $e) {
-            if ($e->getCode() === 429) {
-                throw new TooManyRequestsException();
-            }
-            throw $e;
+        } catch (GoogleClientException $e) {
+            throw ExceptionHandler::handleRetryException($e);
         }
     }
 
@@ -44,11 +43,8 @@ class IAMServiceWrapper extends Iam
         $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
         try {
             $key = $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);
-        } catch (\Google\Exception $e) {
-            if ($e->getCode() === 429) {
-                throw new TooManyRequestsException();
-            }
-            throw $e;
+        } catch (GoogleClientException $e) {
+            throw ExceptionHandler::handleRetryException($e);
         }
 
         $json = base64_decode($key->getPrivateKeyData());
