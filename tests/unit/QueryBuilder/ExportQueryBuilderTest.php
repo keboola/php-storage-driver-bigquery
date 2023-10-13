@@ -206,10 +206,54 @@ class ExportQueryBuilderTest extends TestCase
             ]),
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
-            WHERE (`_timestamp` >= @changedSince) AND (`_timestamp` < @changedUntil)
+            WHERE (`some_table`.`_timestamp` >= @changedSince) AND (`some_table`.`_timestamp` < @changedUntil)
             SQL,
             [
                 'changedSince' => '2022-11-01 09:00:00',
+                'changedUntil' => '2022-11-30 17:00:00',
+            ],
+        ];
+
+        yield 'changeSince' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => ['id', 'name'],
+                'filters' => new ExportFilters([
+                    'limit' => 0,
+                    'changeSince' => '1667293200',
+                    'fulltextSearch' => '',
+                    'whereFilters' => [],
+                ]),
+                'orderBy' => [],
+            ]),
+            <<<SQL
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`_timestamp` >= @changedSince
+            SQL,
+            [
+                'changedSince' => '2022-11-01 09:00:00',
+            ],
+        ];
+
+        yield 'changeUntil' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => ['id', 'name'],
+                'filters' => new ExportFilters([
+                    'limit' => 0,
+                    'changeUntil' => '1669827600',
+                    'fulltextSearch' => '',
+                    'whereFilters' => [],
+                ]),
+                'orderBy' => [],
+            ]),
+            <<<SQL
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`_timestamp` < @changedUntil
+            SQL,
+            [
                 'changedUntil' => '2022-11-30 17:00:00',
             ],
         ];

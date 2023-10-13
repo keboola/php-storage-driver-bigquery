@@ -147,7 +147,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         ColumnCollection $tableColumnsDefinitions,
         string $tableName
     ): void {
-        $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
+        $this->processChangedConditions($tableName, $filters->getChangeSince(), $filters->getChangeUntil(), $query);
         try {
             if ($filters->getFulltextSearch() !== '') {
                 $tableInfoColumns = [];

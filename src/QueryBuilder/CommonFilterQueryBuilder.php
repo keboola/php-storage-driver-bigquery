@@ -89,10 +89,17 @@ abstract class CommonFilterQueryBuilder
         return $value;
     }
 
-    protected function processChangedConditions(string $changeSince, string $changeUntil, QueryBuilder $query): void
-    {
+    protected function processChangedConditions(
+        string $tableName,
+        string $changeSince,
+        string $changeUntil,
+        QueryBuilder $query
+    ): void {
         if ($changeSince !== '') {
-            $query->andWhere('`_timestamp` >= :changedSince');
+            $query->andWhere(sprintf(
+                '%s.`_timestamp` >= :changedSince',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            ));
             $query->setParameter(
                 'changedSince',
                 $this->getTimestampFormatted($changeSince),
@@ -100,7 +107,10 @@ abstract class CommonFilterQueryBuilder
         }
 
         if ($changeUntil !== '') {
-            $query->andWhere('`_timestamp` < :changedUntil');
+            $query->andWhere(sprintf(
+                '%s.`_timestamp` < :changedUntil',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            ));
             $query->setParameter(
                 'changedUntil',
                 $this->getTimestampFormatted($changeUntil),
