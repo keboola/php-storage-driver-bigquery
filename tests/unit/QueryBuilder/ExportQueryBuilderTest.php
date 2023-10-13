@@ -183,7 +183,7 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE `name` LIKE '%foo%'
+            WHERE `some_table`.`name` LIKE '%foo%'
             SQL,
             // @codingStandardsIgnoreEnd
             [],

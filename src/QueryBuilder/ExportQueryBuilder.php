@@ -48,7 +48,12 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 
         if ($filters !== null) {
             $this->assertFilterCombination($filters);
-            $this->processFilters($filters, $query, $tableColumnsDefinitions);
+            $this->processFilters(
+                $filters,
+                $query,
+                $tableColumnsDefinitions,
+                $tableName
+            );
         }
 
         switch ($mode) {
@@ -114,12 +119,17 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function buildFulltextFilters(
         QueryBuilder $query,
         string $fulltextSearchKey,
-        array $columns
+        array $columns,
+        string $tableName
     ): void {
         foreach ($columns as $column) {
             $query->orWhere(
                 $query->expr()->like(
-                    BigqueryQuote::quoteSingleIdentifier($column),
+                    sprintf(
+                        '%s.%s',
+                        BigqueryQuote::quoteSingleIdentifier($tableName),
+                        BigqueryQuote::quoteSingleIdentifier($column),
+                    ),
                     BigqueryQuote::quote("%{$fulltextSearchKey}%")
                 )
             );
@@ -134,7 +144,8 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function processFilters(
         ExportFilters $filters,
         QueryBuilder $query,
-        ColumnCollection $tableColumnsDefinitions
+        ColumnCollection $tableColumnsDefinitions,
+        string $tableName
     ): void {
         $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
         try {
@@ -152,6 +163,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $query,
                     $filters->getFulltextSearch(),
                     $tableInfoColumns,
+                    $tableName
                 );
             } else {
                 $this->processWhereFilters($filters->getWhereFilters(), $query);
