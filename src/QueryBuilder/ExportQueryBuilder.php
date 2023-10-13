@@ -58,7 +58,8 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     ProtobufHelper::repeatedStringToArray($columns),
                     $query,
                     $tableColumnsDefinitions,
-                    $truncateLargeColumns
+                    $truncateLargeColumns,
+                    $tableName
                 );
                 $query->from(sprintf(
                     '%s.%s',
