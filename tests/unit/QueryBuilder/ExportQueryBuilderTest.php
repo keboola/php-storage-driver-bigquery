@@ -106,8 +106,8 @@ class ExportQueryBuilderTest extends TestCase
             ]),
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
-            WHERE `name` <> @dcValue1 
-            ORDER BY `name` ASC LIMIT 100
+            WHERE `some_table`.`name` <> @dcValue1 
+            ORDER BY `some_table`.`name` ASC LIMIT 100
             SQL,
             [
                 'dcValue1' => 'foo',
@@ -155,9 +155,9 @@ class ExportQueryBuilderTest extends TestCase
             ]),
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
-            WHERE (`name` <> @dcValue1) 
-            AND (`height` >= @dcValue2) 
-            ORDER BY `id` ASC, `name` DESC
+            WHERE (`some_table`.`name` <> @dcValue1) 
+            AND (`some_table`.`height` >= @dcValue2) 
+            ORDER BY `some_table`.`id` ASC, `some_table`.`name` DESC
             SQL,
             [
                 'dcValue1' => 'foo',
@@ -245,8 +245,8 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE SAFE_CAST(`height` AS NUMERIC) <> @dcValue1 
-            ORDER BY SAFE_CAST(`id` AS NUMERIC) ASC
+            WHERE SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue1 
+            ORDER BY SAFE_CAST(`some_table`.`id` AS NUMERIC) ASC
             SQL,
             // @codingStandardsIgnoreEnd
             [
@@ -291,8 +291,8 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE (`id` IN UNNEST(@dcValue1)) AND (SAFE_CAST(`id` AS INTEGER) NOT IN UNNEST(@dcValue2)) 
-            AND (SAFE_CAST(`height` AS NUMERIC) <> @dcValue3)
+            WHERE (`some_table`.`id` IN UNNEST(@dcValue1)) AND (SAFE_CAST(`some_table`.`id` AS INTEGER) NOT IN UNNEST(@dcValue2)) 
+            AND (SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue3)
             SQL,
             // @codingStandardsIgnoreEnd
             [

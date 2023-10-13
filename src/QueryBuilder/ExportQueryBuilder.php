@@ -58,7 +58,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 
         switch ($mode) {
             case self::MODE_SELECT:
-                $this->processOrderStatement($orderBy, $query);
+                $this->processOrderStatement($tableName, $orderBy, $query);
                 $this->processSelectStatement(
                     ProtobufHelper::repeatedStringToArray($columns),
                     $query,
@@ -166,7 +166,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $tableName
                 );
             } else {
-                $this->processWhereFilters($filters->getWhereFilters(), $query);
+                $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName);
             }
         } catch (QueryException $e) {
             throw new QueryBuilderException(
