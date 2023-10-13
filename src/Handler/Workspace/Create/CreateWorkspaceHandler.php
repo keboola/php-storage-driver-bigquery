@@ -9,6 +9,7 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google_Service_CloudResourceManager;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
@@ -17,6 +18,9 @@ use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 
 final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 {
@@ -100,9 +104,50 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         // generate credentials
         [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
+        $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)
             ->setWorkspacePassword($privateKey)
             ->setWorkspaceObjectName($dataset->id());
+    }
+
+    private function waitUntilBindingsPropagate(
+        Google_Service_CloudResourceManager $cloudResourceManager,
+        string $projectName,
+        string $wsServiceAccEmail
+    ): void
+    {
+        $retryPolicy = new SimpleRetryPolicy(5);
+        $backOffPolicy = new ExponentialBackOffPolicy();
+
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail): void {
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
+            $actualPolicy = $actualPolicy->getBindings();
+
+            $serviceAccRoles = [];
+            foreach ($actualPolicy as $policy) {
+                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
+                    $serviceAccRoles[] = $policy->getRole();
+                }
+            }
+
+            $expected = [
+                IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
+                IAmPermissions::ROLES_BIGQUERY_JOB_USER,
+            ];
+
+            sort($expected);
+            sort($serviceAccRoles);
+
+            // ws service acc must have a job user role to be able to run queries
+            assert(
+                $expected === $serviceAccRoles,
+                sprintf(
+                    'SA has incorrect roles assigned: %s',
+                    implode(',', $serviceAccRoles)
+                )
+            );
+        });
     }
 }
