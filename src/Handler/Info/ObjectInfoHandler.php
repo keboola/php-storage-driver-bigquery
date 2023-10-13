@@ -13,6 +13,7 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
+use Keboola\StorageDriver\BigQuery\Handler\Table\ViewReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\DatabaseInfo;
 use Keboola\StorageDriver\Command\Info\ObjectInfo;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
@@ -191,9 +192,15 @@ final class ObjectInfoHandler implements DriverCommandHandlerInterface
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->assertDatasetExist($bqClient, $path[0]);
-        $infoObject = new ViewInfo();
-        // todo: set view props
-        $response->setViewInfo($infoObject);
+
+        $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
+            $path[0],
+            new BigqueryTableReflection(
+                $bqClient,
+                $path[0],
+                $path[1]
+            )
+        ));
         return $response;
     }
 
