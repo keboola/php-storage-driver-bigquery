@@ -115,8 +115,7 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         Google_Service_CloudResourceManager $cloudResourceManager,
         string $projectName,
         string $wsServiceAccEmail
-    ): void
-    {
+    ): void {
         $retryPolicy = new SimpleRetryPolicy(5);
         $backOffPolicy = new ExponentialBackOffPolicy();
 
