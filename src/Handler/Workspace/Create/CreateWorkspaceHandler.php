@@ -140,13 +140,13 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
             sort($serviceAccRoles);
 
             // ws service acc must have a job user role to be able to run queries
-            assert(
-                $expected === $serviceAccRoles,
-                sprintf(
-                    'SA has incorrect roles assigned: %s',
+            if ($expected !== $serviceAccRoles) {
+                throw new RuntimeException(sprintf(
+                    'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
+                    implode(',', $expected),
                     implode(',', $serviceAccRoles)
-                )
-            );
+                ));
+            }
         });
     }
 }
