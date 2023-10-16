@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery;
 
+use Exception as NativeException;
 use Google\Exception as GoogleClientException;
 use Google\Service\Iam;
 use Google\Service\Iam\ServiceAccount;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
-use Exception as NativeException;
 
 class IAMServiceWrapper extends Iam
 {
@@ -20,8 +20,7 @@ class IAMServiceWrapper extends Iam
     public function createServiceAccount(
         string $projectServiceAccountId,
         string $projectName
-    ): ServiceAccount
-    {
+    ): ServiceAccount {
         $serviceAccountsService = $this->projects_serviceAccounts;
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
@@ -33,10 +32,12 @@ class IAMServiceWrapper extends Iam
         }
     }
 
+    /**
+     * @return string[]
+     */
     public function createKeyFileCredentials(
         ServiceAccount $serviceAccount
-    ): array
-    {
+    ): array {
         $serviceAccKeysService = $this->projects_serviceAccounts_keys;
 
         $createServiceAccountKeyRequest = new Google_Service_Iam_CreateServiceAccountKeyRequest();

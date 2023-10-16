@@ -115,7 +115,7 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
         $iamService = $this->clientManager->getIamClient($credentials);
-        $projectServiceAccount = $iamService->createServiceAccount( $projectServiceAccountId, $projectName);
+        $projectServiceAccount = $iamService->createServiceAccount($projectServiceAccountId, $projectName);
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
