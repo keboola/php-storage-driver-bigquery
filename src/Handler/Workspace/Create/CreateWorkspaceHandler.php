@@ -117,8 +117,12 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         string $projectName,
         string $wsServiceAccEmail
     ): void {
-        $retryPolicy = new SimpleRetryPolicy(5);
-        $backOffPolicy = new ExponentialBackOffPolicy();
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialBackOffPolicy(
+            initialInterval: 30_000, // 30s
+            multiplier: 1.2, // 180s
+            maxInterval: 180_000, // 30s
+        );
 
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail): void {
