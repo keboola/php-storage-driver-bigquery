@@ -30,7 +30,7 @@ class ColumnConverter
     /**
      * Only cast STRING type to a given NUMERIC type
      */
-    public function convertColumnByDataType(string $column, int $dataType): string
+    public function convertColumnByDataType(string $tableName, string $column, int $dataType): string
     {
         if (!in_array($dataType, self::DATA_TYPES_OPTIONS, true)) {
             throw new QueryBuilderException(
@@ -45,7 +45,8 @@ class ColumnConverter
             );
         }
         return sprintf(
-            'SAFE_CAST(%s AS %s)',
+            'SAFE_CAST(%s.%s AS %s)',
+            BigqueryQuote::quoteSingleIdentifier($tableName),
             BigqueryQuote::quoteSingleIdentifier($column),
             self::DATA_TYPES_MAP[$dataType]
         );

@@ -105,9 +105,9 @@ class ExportQueryBuilderTest extends TestCase
                 ],
             ]),
             <<<SQL
-            SELECT `id`, `name` FROM `some_schema`.`some_table` 
-            WHERE `name` <> @dcValue1 
-            ORDER BY `name` ASC LIMIT 100
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`name` <> @dcValue1 
+            ORDER BY `some_table`.`name` ASC LIMIT 100
             SQL,
             [
                 'dcValue1' => 'foo',
@@ -154,10 +154,10 @@ class ExportQueryBuilderTest extends TestCase
                 ],
             ]),
             <<<SQL
-            SELECT `id`, `name` FROM `some_schema`.`some_table` 
-            WHERE (`name` <> @dcValue1) 
-            AND (`height` >= @dcValue2) 
-            ORDER BY `id` ASC, `name` DESC
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE (`some_table`.`name` <> @dcValue1) 
+            AND (`some_table`.`height` >= @dcValue2) 
+            ORDER BY `some_table`.`id` ASC, `some_table`.`name` DESC
             SQL,
             [
                 'dcValue1' => 'foo',
@@ -180,10 +180,12 @@ class ExportQueryBuilderTest extends TestCase
                 ]),
                 'orderBy' => [],
             ]),
+            // @codingStandardsIgnoreStart
             <<<SQL
-            SELECT `id`, `name`, `height`, `birth_at` FROM `some_schema`.`some_table` 
-            WHERE `name` LIKE '%foo%'
+            SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`name` LIKE '%foo%'
             SQL,
+            // @codingStandardsIgnoreEnd
             [],
         ];
 
@@ -203,11 +205,55 @@ class ExportQueryBuilderTest extends TestCase
                 'orderBy' => [],
             ]),
             <<<SQL
-            SELECT `id`, `name` FROM `some_schema`.`some_table` 
-            WHERE (`_timestamp` >= @changedSince) AND (`_timestamp` < @changedUntil)
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE (`some_table`.`_timestamp` >= @changedSince) AND (`some_table`.`_timestamp` < @changedUntil)
             SQL,
             [
                 'changedSince' => '2022-11-01 09:00:00',
+                'changedUntil' => '2022-11-30 17:00:00',
+            ],
+        ];
+
+        yield 'changeSince' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => ['id', 'name'],
+                'filters' => new ExportFilters([
+                    'limit' => 0,
+                    'changeSince' => '1667293200',
+                    'fulltextSearch' => '',
+                    'whereFilters' => [],
+                ]),
+                'orderBy' => [],
+            ]),
+            <<<SQL
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`_timestamp` >= @changedSince
+            SQL,
+            [
+                'changedSince' => '2022-11-01 09:00:00',
+            ],
+        ];
+
+        yield 'changeUntil' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => ['id', 'name'],
+                'filters' => new ExportFilters([
+                    'limit' => 0,
+                    'changeUntil' => '1669827600',
+                    'fulltextSearch' => '',
+                    'whereFilters' => [],
+                ]),
+                'orderBy' => [],
+            ]),
+            <<<SQL
+            SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`_timestamp` < @changedUntil
+            SQL,
+            [
                 'changedUntil' => '2022-11-30 17:00:00',
             ],
         ];
@@ -240,11 +286,13 @@ class ExportQueryBuilderTest extends TestCase
                     ]),
                 ],
             ]),
+            // @codingStandardsIgnoreStart
             <<<SQL
-            SELECT `id`, `name`, `height`, `birth_at` FROM `some_schema`.`some_table` 
-            WHERE SAFE_CAST(`height` AS NUMERIC) <> @dcValue1 
-            ORDER BY SAFE_CAST(`id` AS NUMERIC) ASC
+            SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
+            WHERE SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue1 
+            ORDER BY SAFE_CAST(`some_table`.`id` AS NUMERIC) ASC
             SQL,
+            // @codingStandardsIgnoreEnd
             [
                 'dcValue1' => 10.2,
             ],
@@ -284,11 +332,13 @@ class ExportQueryBuilderTest extends TestCase
                 ]),
                 'orderBy' => [],
             ]),
+            // @codingStandardsIgnoreStart
             <<<SQL
-            SELECT `id`, `name`, `height`, `birth_at` FROM `some_schema`.`some_table` 
-            WHERE (`id` IN UNNEST(@dcValue1)) AND (SAFE_CAST(`id` AS INTEGER) NOT IN UNNEST(@dcValue2)) 
-            AND (SAFE_CAST(`height` AS NUMERIC) <> @dcValue3)
+            SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
+            WHERE (`some_table`.`id` IN UNNEST(@dcValue1)) AND (SAFE_CAST(`some_table`.`id` AS INTEGER) NOT IN UNNEST(@dcValue2)) 
+            AND (SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue3)
             SQL,
+            // @codingStandardsIgnoreEnd
             [
                 'dcValue1' => [
                     'foo',

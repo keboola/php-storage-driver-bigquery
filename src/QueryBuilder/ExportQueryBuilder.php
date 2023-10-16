@@ -48,17 +48,23 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 
         if ($filters !== null) {
             $this->assertFilterCombination($filters);
-            $this->processFilters($filters, $query, $tableColumnsDefinitions);
+            $this->processFilters(
+                $filters,
+                $query,
+                $tableColumnsDefinitions,
+                $tableName
+            );
         }
 
         switch ($mode) {
             case self::MODE_SELECT:
-                $this->processOrderStatement($orderBy, $query);
+                $this->processOrderStatement($tableName, $orderBy, $query);
                 $this->processSelectStatement(
                     ProtobufHelper::repeatedStringToArray($columns),
                     $query,
                     $tableColumnsDefinitions,
-                    $truncateLargeColumns
+                    $truncateLargeColumns,
+                    $tableName
                 );
                 $query->from(sprintf(
                     '%s.%s',
@@ -113,12 +119,17 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function buildFulltextFilters(
         QueryBuilder $query,
         string $fulltextSearchKey,
-        array $columns
+        array $columns,
+        string $tableName
     ): void {
         foreach ($columns as $column) {
             $query->orWhere(
                 $query->expr()->like(
-                    BigqueryQuote::quoteSingleIdentifier($column),
+                    sprintf(
+                        '%s.%s',
+                        BigqueryQuote::quoteSingleIdentifier($tableName),
+                        BigqueryQuote::quoteSingleIdentifier($column),
+                    ),
                     BigqueryQuote::quote("%{$fulltextSearchKey}%")
                 )
             );
@@ -133,9 +144,10 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function processFilters(
         ExportFilters $filters,
         QueryBuilder $query,
-        ColumnCollection $tableColumnsDefinitions
+        ColumnCollection $tableColumnsDefinitions,
+        string $tableName
     ): void {
-        $this->processChangedConditions($filters->getChangeSince(), $filters->getChangeUntil(), $query);
+        $this->processChangedConditions($tableName, $filters->getChangeSince(), $filters->getChangeUntil(), $query);
         try {
             if ($filters->getFulltextSearch() !== '') {
                 $tableInfoColumns = [];
@@ -151,9 +163,10 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $query,
                     $filters->getFulltextSearch(),
                     $tableInfoColumns,
+                    $tableName
                 );
             } else {
-                $this->processWhereFilters($filters->getWhereFilters(), $query);
+                $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName);
             }
         } catch (QueryException $e) {
             throw new QueryBuilderException(

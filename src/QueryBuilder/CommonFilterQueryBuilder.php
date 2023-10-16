@@ -51,13 +51,13 @@ abstract class CommonFilterQueryBuilder
         $this->columnConverter = $columnConverter;
     }
 
-    private function addSelectLargeString(QueryBuilder $query, string $selectColumnExpresion, string $column): void
+    private function addSelectLargeString(QueryBuilder $query, string $selectColumn, string $column): void
     {
         //casted value
         $query->addSelect(
             sprintf(
                 'SUBSTRING(CAST(%s as STRING), 0, %d) AS %s',
-                $selectColumnExpresion,
+                $selectColumn,
                 self::DEFAULT_CAST_SIZE,
                 BigqueryQuote::quoteSingleIdentifier($column)
             )
@@ -66,7 +66,7 @@ abstract class CommonFilterQueryBuilder
         $query->addSelect(
             sprintf(
                 '(CASE WHEN LENGTH(CAST(%s as STRING)) > %s THEN 1 ELSE 0 END) AS %s',
-                BigqueryQuote::quoteSingleIdentifier($column),
+                $selectColumn,
                 self::DEFAULT_CAST_SIZE,
                 BigqueryQuote::quoteSingleIdentifier(uniqid($column))
             )
@@ -89,10 +89,17 @@ abstract class CommonFilterQueryBuilder
         return $value;
     }
 
-    protected function processChangedConditions(string $changeSince, string $changeUntil, QueryBuilder $query): void
-    {
+    protected function processChangedConditions(
+        string $tableName,
+        string $changeSince,
+        string $changeUntil,
+        QueryBuilder $query
+    ): void {
         if ($changeSince !== '') {
-            $query->andWhere('`_timestamp` >= :changedSince');
+            $query->andWhere(sprintf(
+                '%s.`_timestamp` >= :changedSince',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            ));
             $query->setParameter(
                 'changedSince',
                 $this->getTimestampFormatted($changeSince),
@@ -100,7 +107,10 @@ abstract class CommonFilterQueryBuilder
         }
 
         if ($changeUntil !== '') {
-            $query->andWhere('`_timestamp` < :changedUntil');
+            $query->andWhere(sprintf(
+                '%s.`_timestamp` < :changedUntil',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            ));
             $query->setParameter(
                 'changedUntil',
                 $this->getTimestampFormatted($changeUntil),
@@ -117,28 +127,37 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|TableWhereFilter[] $filters
      */
-    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query): void
+    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query, string $tableName): void
     {
         foreach ($filters as $whereFilter) {
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
-                $this->processSimpleValue($whereFilter, reset($values), $query);
+                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
             } else {
-                $this->processMultipleValue($whereFilter, $values, $query);
+                $this->processMultipleValue($tableName, $whereFilter, $values, $query);
             }
         }
     }
 
-    private function processSimpleValue(TableWhereFilter $filter, string $value, QueryBuilder $query): void
-    {
+    private function processSimpleValue(
+        TableWhereFilter $filter,
+        string $value,
+        QueryBuilder $query,
+        string $tableName
+    ): void {
         if ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
+                $tableName,
                 $filter->getColumnsName(),
                 $filter->getDataType()
             );
             $value = $this->convertNonStringValue($filter, $value);
         } else {
-            $columnSql = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
         }
 
         $query->andWhere(
@@ -154,8 +173,12 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $values
      */
-    private function processMultipleValue(TableWhereFilter $filter, array $values, QueryBuilder $query): void
-    {
+    private function processMultipleValue(
+        string $tableName,
+        TableWhereFilter $filter,
+        array $values,
+        QueryBuilder $query
+    ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
                 'whereFilter with multiple values can be used only with "eq", "ne" operators',
@@ -164,13 +187,18 @@ abstract class CommonFilterQueryBuilder
 
         if ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
+                $tableName,
                 $filter->getColumnsName(),
                 $filter->getDataType()
             );
             $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
             $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
         } else {
-            $columnSql = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
             $param = $query->createNamedParameter($values, Connection::PARAM_STR_ARRAY);
         }
 
@@ -187,13 +215,14 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|ExportOrderBy[] $sort
      */
-    protected function processOrderStatement(RepeatedField $sort, QueryBuilder $query): void
+    protected function processOrderStatement(string $tableName, RepeatedField $sort, QueryBuilder $query): void
     {
         try {
             foreach ($sort as $orderBy) {
                 if ($orderBy->getDataType() !== DataType::STRING) {
                     $query->addOrderBy(
                         $this->columnConverter->convertColumnByDataType(
+                            $tableName,
                             $orderBy->getColumnName(),
                             $orderBy->getDataType()
                         ),
@@ -202,7 +231,11 @@ abstract class CommonFilterQueryBuilder
                     return;
                 }
                 $query->addOrderBy(
-                    BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
+                    sprintf(
+                        '%s.%s',
+                        BigqueryQuote::quoteSingleIdentifier($tableName),
+                        BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
+                    ),
                     ExportOrderBy\Order::name($orderBy->getOrder())
                 );
             }
@@ -221,7 +254,8 @@ abstract class CommonFilterQueryBuilder
         array $columns,
         QueryBuilder $query,
         ColumnCollection $tableColumnsDefinitions,
-        bool $truncateLargeColumns
+        bool $truncateLargeColumns,
+        string $tableName,
     ): void {
         if (count($columns) === 0) {
             $query->addSelect('*');
@@ -229,7 +263,11 @@ abstract class CommonFilterQueryBuilder
         }
 
         foreach ($columns as $column) {
-            $selectColumnExpression = BigqueryQuote::quoteSingleIdentifier($column);
+            $selectColumn = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($column)
+            );
 
             if ($truncateLargeColumns) {
                 /** @var BigqueryColumn[] $def */
@@ -242,19 +280,20 @@ abstract class CommonFilterQueryBuilder
                 }
                 $this->processSelectWithLargeColumnTruncation(
                     $query,
-                    $selectColumnExpression,
+                    $selectColumn,
                     $column,
                     $def[0]->getColumnDefinition()
                 );
                 continue;
             }
-            $query->addSelect($selectColumnExpression);
+
+            $query->addSelect($selectColumn);
         }
     }
 
     private function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
-        string $selectColumnExpression,
+        string $selectColumn,
         string $column,
         Bigquery $def
     ): void {
@@ -262,8 +301,8 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'IF(ARRAY_LENGTH(%s) = 0, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
-                    $selectColumnExpression,
-                    $selectColumnExpression,
+                    $selectColumn,
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
@@ -273,7 +312,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
-                    BigqueryQuote::quoteSingleIdentifier($column),
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
@@ -285,8 +324,8 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'IF(%s IS NULL, NULL, SUBSTRING(ST_ASGEOJSON(%s), 0, %d)) AS %s',
-                    $selectColumnExpression,
-                    $selectColumnExpression,
+                    $selectColumn,
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
@@ -296,7 +335,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '(CASE WHEN LENGTH(ST_ASGEOJSON(%s)) > %s THEN 1 ELSE 0 END) AS %s',
-                    BigqueryQuote::quoteSingleIdentifier($column),
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
@@ -308,8 +347,8 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'IF(%s IS NULL, NULL, SUBSTRING(TO_JSON_STRING(%s), 0, %d)) AS %s',
-                    $selectColumnExpression,
-                    $selectColumnExpression,
+                    $selectColumn,
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
@@ -319,7 +358,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
-                    BigqueryQuote::quoteSingleIdentifier($column),
+                    $selectColumn,
                     self::DEFAULT_CAST_SIZE,
                     BigqueryQuote::quoteSingleIdentifier(uniqid($column))
                 )
@@ -329,7 +368,7 @@ abstract class CommonFilterQueryBuilder
         }
 
         if ($def->getBasetype() === BaseType::STRING) {
-            $this->addSelectLargeString($query, $selectColumnExpression, $column);
+            $this->addSelectLargeString($query, $selectColumn, $column);
             return;
         }
         if (in_array($def->getType(), [Bigquery::TYPE_TIME, Bigquery::TYPE_TIMESTAMP, Bigquery::TYPE_DATETIME], true)) {
@@ -338,7 +377,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     '%s AS %s',
-                    $selectColumnExpression,
+                    $selectColumn,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
@@ -347,7 +386,7 @@ abstract class CommonFilterQueryBuilder
             $query->addSelect(
                 sprintf(
                     'CAST(%s as STRING) AS %s',
-                    $selectColumnExpression,
+                    $selectColumn,
                     BigqueryQuote::quoteSingleIdentifier($column)
                 )
             );
