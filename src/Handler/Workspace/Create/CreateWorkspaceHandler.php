@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
+use RuntimeException;
 
 final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 {
