@@ -31,6 +31,7 @@ use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
+use Throwable;
 
 final class CreateProjectHandler implements DriverCommandHandlerInterface
 {
@@ -42,7 +43,6 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
         GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
     ];
-
 
     public GCPClientManager $clientManager;
 
@@ -115,7 +115,14 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
 
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
         $iamService = $this->clientManager->getIamClient($credentials);
-        $projectServiceAccount = $iamService->createServiceAccount($projectServiceAccountId, $projectName);
+
+        try {
+            $projectServiceAccount = $iamService->createServiceAccount($projectServiceAccountId, $projectName);
+        } catch (Throwable $e) {
+            // project has been creates so it should be deleted
+            $projectsClient->deleteProject($projectName);
+            throw $e;
+        }
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
