@@ -100,7 +100,13 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $policy->setBindings($finalBinding);
         $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
-        $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialBackOffPolicy();
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest): void {
+            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+        });
 
         // generate credentials
         [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
