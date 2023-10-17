@@ -110,6 +110,10 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
                 );
             }
 
+            if ($e->getCode() === Code::INVALID_ARGUMENT) {
+                throw InvalidArgumentException::handleException($e);
+            }
+
             throw $e;
         }
 
