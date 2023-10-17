@@ -5,13 +5,9 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
-use LogicException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\BackOff\FixedBackOffPolicy;
-use Retry\Policy\CallableRetryPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 
@@ -26,7 +22,7 @@ class BigQueryClientHandler
 
     public function __invoke(RequestInterface $request): ResponseInterface
     {
-        $retryPolicy = new SimpleRetryPolicy(5);
+        $retryPolicy = new SimpleRetryPolicy(10);
         $proxy = new RetryProxy($retryPolicy, new FixedBackOffPolicy());
 
         /** @var ResponseInterface $result */

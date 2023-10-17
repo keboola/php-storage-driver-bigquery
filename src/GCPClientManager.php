@@ -94,6 +94,7 @@ class GCPClientManager
                 '500' => Runner::TASK_RETRY_ALWAYS,
                 '503' => Runner::TASK_RETRY_ALWAYS,
                 '409' => Runner::TASK_RETRY_ALWAYS,
+                '400' => Runner::TASK_RETRY_ALWAYS,
                 'rateLimitExceeded' => Runner::TASK_RETRY_ALWAYS,
                 'accessDenied' => Runner::TASK_RETRY_ONCE,
                 'userRateLimitExceeded' => Runner::TASK_RETRY_ALWAYS,

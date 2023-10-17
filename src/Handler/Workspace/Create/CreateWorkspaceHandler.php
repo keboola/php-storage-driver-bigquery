@@ -9,6 +9,7 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google_Service_CloudResourceManager;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
@@ -17,9 +18,17 @@ use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
+use RuntimeException;
 
 final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 {
+    private const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
+        IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
+        IAmPermissions::ROLES_BIGQUERY_JOB_USER,
+    ];
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
     public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
 
@@ -65,6 +74,8 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
         $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+        // generate credentials
+        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -80,29 +91,66 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
         $finalBinding[] = $actualPolicy->getBindings();
 
-        $bigQueryJobUserBinding = new Binding();
-        $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-        $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
-        $finalBinding[] = $bigQueryJobUserBinding;
-
-        // set read only access to the datasets in project
-        $bigQueryDataViewerBinding = new Binding();
-        $bigQueryDataViewerBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-        $bigQueryDataViewerBinding->setRole(IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER);
-        $finalBinding[] = $bigQueryDataViewerBinding;
+        foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
+            $bigQueryJobUserBinding = new Binding();
+            $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
+            $bigQueryJobUserBinding->setRole($role);
+            $finalBinding[] = $bigQueryJobUserBinding;
+        }
 
         $policy = new Policy();
         $policy->setBindings($finalBinding);
         $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
-        $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
 
-        // generate credentials
-        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialBackOffPolicy();
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
+            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
+        });
 
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)
             ->setWorkspacePassword($privateKey)
             ->setWorkspaceObjectName($dataset->id());
+    }
+
+    private function waitUntilBindingsPropagate(
+        Google_Service_CloudResourceManager $cloudResourceManager,
+        string $projectName,
+        string $wsServiceAccEmail
+    ): void {
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialBackOffPolicy(
+            initialInterval: 30_000, // 30s
+            multiplier: 1.2, // 180s
+            maxInterval: 180_000, // 30s
+        );
+
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail): void {
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
+            $actualPolicy = $actualPolicy->getBindings();
+
+            $serviceAccRoles = [];
+            foreach ($actualPolicy as $policy) {
+                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
+                    $serviceAccRoles[] = $policy->getRole();
+                }
+            }
+
+            sort($serviceAccRoles);
+
+            // ws service acc must have a job user role to be able to run queries
+            if ($serviceAccRoles !== self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES) {
+                throw new RuntimeException(sprintf(
+                    'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
+                    implode(',', self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
+                    implode(',', $serviceAccRoles)
+                ));
+            }
+        });
     }
 }
