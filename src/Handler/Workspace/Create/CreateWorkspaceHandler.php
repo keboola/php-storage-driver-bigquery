@@ -4,20 +4,11 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
-use Exception;
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google\Service\Iam\CreateServiceAccountKeyRequest;
-use Google\Service\Iam\CreateServiceAccountRequest;
-use Google_Service_CloudResourceManager_Binding;
-use Google_Service_CloudResourceManager_GetIamPolicyRequest;
-use Google_Service_CloudResourceManager_Policy;
-use Google_Service_CloudResourceManager_SetIamPolicyRequest;
-use Google_Service_Iam_CreateServiceAccountKeyRequest;
-use Google_Service_Iam_CreateServiceAccountRequest;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
@@ -68,15 +59,12 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());
         $newWsDatasetName = $nameGenerator->createWorkspaceObjectNameForWorkspaceId($command->getWorkspaceId());
-        $newWsServiceAccName = $nameGenerator->createWorkspaceUserNameForWorkspaceId($command->getWorkspaceId());
+        $newWsServiceAccId = $nameGenerator->createWorkspaceUserNameForWorkspaceId($command->getWorkspaceId());
 
         // create WS service acc
         $iamService = $this->clientManager->getIamClient($credentials);
-        $serviceAccountsService = $iamService->projects_serviceAccounts;
-        $createServiceAccountRequest = new CreateServiceAccountRequest();
-        $createServiceAccountRequest->setAccountId($newWsServiceAccName);
         $projectName = 'projects/' . $projectCredentials['project_id'];
-        $wsServiceAcc = $serviceAccountsService->create($projectName, $createServiceAccountRequest);
+        $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -110,22 +98,7 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
 
         // generate credentials
-        $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
-        $createServiceAccountKeyRequest = new CreateServiceAccountKeyRequest();
-        $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
-        $key = $serviceAccKeysService->create($wsServiceAcc->getName(), $createServiceAccountKeyRequest);
-        $json = base64_decode($key->getPrivateKeyData());
-        $keyData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-
-        if (!is_array($keyData)) {
-            throw new Exception('Project key credentials missing.');
-        }
-
-        // separate private and public part
-        $privateKey = $keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY];
-        unset($keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY]);
-        $publicPart = json_encode($keyData);
-        assert($publicPart !== false);
+        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)

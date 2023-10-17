@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Project\Create;
 
-use Exception as NativeException;
 use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
@@ -19,12 +18,10 @@ use Google_Service_CloudResourceManager_Binding;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Google_Service_CloudResourceManager_Policy;
 use Google_Service_CloudResourceManager_SetIamPolicyRequest;
-use Google_Service_Iam;
-use Google_Service_Iam_CreateServiceAccountKeyRequest;
-use Google_Service_Iam_CreateServiceAccountRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
@@ -32,9 +29,9 @@ use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Retry\BackOff\ExponentialBackOffPolicy;
-use Retry\Policy\CallableRetryPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
+use Throwable;
 
 final class CreateProjectHandler implements DriverCommandHandlerInterface
 {
@@ -46,9 +43,6 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
         GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
     ];
-
-    public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
-    public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
 
     public GCPClientManager $clientManager;
 
@@ -120,8 +114,15 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $billingClient->updateProjectBillingInfo($projectName, ['projectBillingInfo' => $billingInfo]);
 
         $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($command->getProjectId());
-        $iAmClient = $this->clientManager->getIamClient($credentials);
-        $projectServiceAccount = $this->createServiceAccount($iAmClient, $projectServiceAccountId, $projectName);
+        $iamService = $this->clientManager->getIamClient($credentials);
+
+        try {
+            $projectServiceAccount = $iamService->createServiceAccount($projectServiceAccountId, $projectName);
+        } catch (Throwable $e) {
+            // project has been creates so it should be deleted
+            $projectsClient->deleteProject($projectName);
+            throw $e;
+        }
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
@@ -136,16 +137,12 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         ];
         $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
 
-        $this->waitUntilServiceAccPropagate($iAmClient, $projectServiceAccount);
+        $this->waitUntilServiceAccPropagate($iamService, $projectServiceAccount);
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $this->setPermissionsToServiceAccount($cloudResourceManager, $projectName, $projectServiceAccount->getEmail());
-        $keyData = $this->createKeyFileCredentials($iAmClient, $projectServiceAccount);
 
-        $privateKey = $keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY];
-        unset($keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY]);
-        $publicPart = json_encode($keyData);
-        assert($publicPart !== false);
+        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($projectServiceAccount);
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $location = GCPClientManager::DEFAULT_LOCATION;
@@ -208,18 +205,6 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         }
     }
 
-    private function createServiceAccount(
-        Google_Service_Iam $iamService,
-        string $projectServiceAccountId,
-        string $projectName
-    ): ServiceAccount {
-        $serviceAccountsService = $iamService->projects_serviceAccounts;
-        $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
-
-        $createServiceAccountRequest->setAccountId($projectServiceAccountId);
-        return $serviceAccountsService->create($projectName, $createServiceAccountRequest);
-    }
-
     private function setPermissionsToServiceAccount(
         Google_Service_CloudResourceManager $cloudResourceManagerClient,
         string $projectName,
@@ -259,26 +244,8 @@ final class CreateProjectHandler implements DriverCommandHandlerInterface
         $cloudResourceManagerClient->projects->setIamPolicy($projectName, $setIamPolicyRequest);
     }
 
-    /** @return array<string, string> */
-    private function createKeyFileCredentials(Google_Service_Iam $iamService, ServiceAccount $serviceAccount): array
-    {
-        $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
-        $createServiceAccountKeyRequest = new Google_Service_Iam_CreateServiceAccountKeyRequest();
-        $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
-        $key = $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);
-
-        $json = base64_decode($key->getPrivateKeyData());
-        $keyData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-
-        if (!is_array($keyData)) {
-            throw new NativeException('Project key credentials missing.');
-        }
-
-        return $keyData;
-    }
-
     private function waitUntilServiceAccPropagate(
-        Google_Service_Iam $iAmClient,
+        IAMServiceWrapper $iAmClient,
         ServiceAccount $projectServiceAccount
     ): void {
         $retryPolicy = new SimpleRetryPolicy(5);

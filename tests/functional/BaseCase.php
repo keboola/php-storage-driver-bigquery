@@ -15,7 +15,6 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\CloudResourceManager\Project;
 use Google\Service\Exception as GoogleServiceException;
-use Google_Service_Iam;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -23,6 +22,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -586,7 +586,7 @@ class BaseCase extends TestCase
         return $projectBqClient->dataset($datasetName)->exists();
     }
 
-    public function isUserExists(Google_Service_Iam $iamService, string $workspacePublicCredentialsPart): bool
+    public function isUserExists(IAMServiceWrapper $iamService, string $workspacePublicCredentialsPart): bool
     {
         /** @var array<string, string> $credentialsArr */
         $credentialsArr = (array) json_decode($workspacePublicCredentialsPart, true, 512, JSON_THROW_ON_ERROR);
