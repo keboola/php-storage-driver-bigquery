@@ -25,6 +25,10 @@ use RuntimeException;
 
 final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
 {
+    private const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
+        IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
+        IAmPermissions::ROLES_BIGQUERY_JOB_USER,
+    ];
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
     public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
 
@@ -70,6 +74,8 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
         $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+        // generate credentials
+        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -85,16 +91,12 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
         $finalBinding[] = $actualPolicy->getBindings();
 
-        $bigQueryJobUserBinding = new Binding();
-        $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-        $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
-        $finalBinding[] = $bigQueryJobUserBinding;
-
-        // set read only access to the datasets in project
-        $bigQueryDataViewerBinding = new Binding();
-        $bigQueryDataViewerBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-        $bigQueryDataViewerBinding->setRole(IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER);
-        $finalBinding[] = $bigQueryDataViewerBinding;
+        foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
+            $bigQueryJobUserBinding = new Binding();
+            $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
+            $bigQueryJobUserBinding->setRole($role);
+            $finalBinding[] = $bigQueryJobUserBinding;
+        }
 
         $policy = new Policy();
         $policy->setBindings($finalBinding);
@@ -104,14 +106,11 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $retryPolicy = new SimpleRetryPolicy(10);
         $backOffPolicy = new ExponentialBackOffPolicy();
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest): void {
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
         });
 
-        // generate credentials
-        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
-
-        $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)
             ->setWorkspacePassword($privateKey)
@@ -142,19 +141,13 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
                 }
             }
 
-            $expected = [
-                IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
-                IAmPermissions::ROLES_BIGQUERY_JOB_USER,
-            ];
-
-            sort($expected);
             sort($serviceAccRoles);
 
             // ws service acc must have a job user role to be able to run queries
-            if ($expected !== $serviceAccRoles) {
+            if ($serviceAccRoles !== self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES) {
                 throw new RuntimeException(sprintf(
                     'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
-                    implode(',', $expected),
+                    implode(',', self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
                     implode(',', $serviceAccRoles)
                 ));
             }
