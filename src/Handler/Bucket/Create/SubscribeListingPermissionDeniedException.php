@@ -28,17 +28,13 @@ class SubscribeListingPermissionDeniedException extends Exception implements Non
         string $externalBucketName,
         string $listingName
     ): ApiException|self {
-        if ($e->getStatus() === 'PERMISSION_DENIED') {
-            throw new self(
-                message: sprintf(
-                    'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
-                    $externalBucketName,
-                    $listingName
-                ),
-                previous: $e
-            );
-        }
-
-        throw $e;
+        throw new self(
+            message: sprintf(
+                'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
+                $externalBucketName,
+                $listingName
+            ),
+            previous: $e
+        );
     }
 }
