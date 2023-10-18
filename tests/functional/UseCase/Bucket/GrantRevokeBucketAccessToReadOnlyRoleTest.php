@@ -219,6 +219,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $bucketId = $this->getTestHash() . 'bucket_in_eu';
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->externalProjectCredentials);
 
+        // manually create dataset with table in EU
         $dataset = $bqClient->dataset($bucketId);
         try {
             $dataset->delete(['deleteContents' => true]);
@@ -228,6 +229,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $bucket = $bqClient->createDataset($bucketId, ['location' => 'EU']);
         $bucket->createTable($externalTableName);
 
+        // create exchange and listing for external bucket in EU
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
             $externalAnalyticHubClient,
