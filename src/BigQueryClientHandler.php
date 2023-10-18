@@ -16,6 +16,8 @@ use Throwable;
 
 class BigQueryClientHandler
 {
+    private const RETRY_MISSING_CREATE_JOB = 'bigquery.jobs.create';
+
     private Client $client;
 
     public function __construct(Client $client)
@@ -31,10 +33,12 @@ class BigQueryClientHandler
             if ($e instanceof GoogleServiceException) {
                 $retryStrategy = GCPClientManager::RETRY_MAP[$e->getCode()] ?? Runner::TASK_RETRY_NEVER;
 
-                if (!empty($e->getErrors()) &&
-                    isset($e->getErrors()[0]['reason'], GCPClientManager::RETRY_MAP[$e->getErrors()[0]['reason']])
-                ) {
-                    $retryStrategy = GCPClientManager::RETRY_MAP[$e->getErrors()[0]['reason']];
+                if (!empty($e->getErrors())) {
+                    if (array_key_exists($e->getErrors()[0]['reason'], GCPClientManager::RETRY_MAP)) {
+                        $retryStrategy = GCPClientManager::RETRY_MAP[$e->getErrors()[0]['reason']];
+                    } elseif (str_contains($e->getErrors()[0]['message'], self::RETRY_MISSING_CREATE_JOB)) {
+                        $retryStrategy = Runner::TASK_RETRY_ALWAYS;
+                    }
                 }
                 return match ($retryStrategy) {
                     Runner::TASK_RETRY_ALWAYS => true,
