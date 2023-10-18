@@ -74,8 +74,6 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
         $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
-        // generate credentials
-        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -110,6 +108,9 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
             $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
         });
+
+        // generate credentials
+        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)
