@@ -222,6 +222,39 @@ class CreateDropTableTest extends BaseCase
         );
     }
 
+    public function testCreateTableFailOnInvalidLength(): void
+    {
+        $tableName = md5($this->getName());
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setNullable(false)
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = (new TableColumnShared)
+            ->setName('time')
+            ->setType(Bigquery::TYPE_STRUCT)
+            ->setLength('x x x');
+
+        $this->expectException(BadTableDefinitionException::class);
+        $this->expectExceptionMessage('Failed to create table');
+        $handler(
+            $this->projectCredentials,
+            (new CreateTableCommand())
+                ->setPath($path)
+                ->setTableName($tableName)
+                ->setColumns($columns),
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+    }
+
     private function createTableForPartitioning(
         CreateTableCommand\BigQueryTableMeta $meta,
         string $nameSuffix

@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\Datatype\Definition\Exception\InvalidLengthException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\Helper\CreateTableMetaHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
@@ -48,6 +49,9 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
         assert($command->getTableName() !== '', 'CreateTableCommand.tableName is required');
         assert($command->getColumns()->count() > 0, 'CreateTableCommand.columns is required');
 
+        /** @var string $datasetName */
+        $datasetName = $command->getPath()[0];
+
         // define columns
         $createTableOptions = [
             'schema' => [
@@ -65,9 +69,17 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
                 'nullable' => $column->getNullable(),
                 'default' => $column->getDefault() === '' ? null : $column->getDefault(),
             ]);
-            $createTableOptions['schema']['fields'][] = SQLtoRestDatatypeConverter::convertColumnToRestFormat(
-                new BigqueryColumn($column->getName(), $columnDefinition)
-            );
+            try {
+                $createTableOptions['schema']['fields'][] = SQLtoRestDatatypeConverter::convertColumnToRestFormat(
+                    new BigqueryColumn($column->getName(), $columnDefinition)
+                );
+            } catch (InvalidLengthException $e) {
+                BadTableDefinitionException::handleInvalidLengthException(
+                    $e,
+                    $datasetName,
+                    $command->getTableName(),
+                );
+            }
         }
 
         $createTableOptions = array_merge(
@@ -75,8 +87,6 @@ final class CreateTableHandler implements DriverCommandHandlerInterface
             CreateTableMetaHelper::convertTableMetaToRest($command)
         );
 
-        /** @var string $datasetName */
-        $datasetName = $command->getPath()[0];
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         if ($runtimeOptions->getRunId() !== '') {
             $createTableOptions['labels'] = ['run_id' => $runtimeOptions->getRunId(),];
