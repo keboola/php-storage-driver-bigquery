@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 
 use Google\Cloud\Core\Exception\BadRequestException;
 use JsonException;
+use Keboola\Datatype\Definition\Exception\InvalidLengthException;
 use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
@@ -22,6 +23,22 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
             $message,
             $code,
             $previous
+        );
+    }
+
+    public static function handleInvalidLengthException(
+        InvalidLengthException $e,
+        string $datasetName,
+        string $tableName,
+    ): self {
+        throw new self(
+            message: sprintf(
+                'Failed to create table "%s" in dataset "%s". Exception: %s.',
+                $tableName,
+                $datasetName,
+                $e->getMessage(),
+            ),
+            previous: $e
         );
     }
 
