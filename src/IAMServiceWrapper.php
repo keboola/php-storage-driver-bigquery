@@ -10,10 +10,12 @@ use Google\Service\Iam;
 use Google\Service\Iam\ServiceAccount;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 
 class IAMServiceWrapper extends Iam
 {
-
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
     public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
 
@@ -33,7 +35,7 @@ class IAMServiceWrapper extends Iam
     }
 
     /**
-     * @return string[]
+     * @return array{0:string, 1:string}
      */
     public function createKeyFileCredentials(
         ServiceAccount $serviceAccount
@@ -42,11 +44,21 @@ class IAMServiceWrapper extends Iam
 
         $createServiceAccountKeyRequest = new Google_Service_Iam_CreateServiceAccountKeyRequest();
         $createServiceAccountKeyRequest->setPrivateKeyType(self::PRIVATE_KEY_TYPE);
-        try {
-            $key = $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);
-        } catch (GoogleClientException $e) {
-            throw ExceptionHandler::handleRetryException($e);
-        }
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialBackOffPolicy();
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $key = $proxy->call(function () use (
+            $serviceAccKeysService,
+            $serviceAccount,
+            $createServiceAccountKeyRequest
+        ) {
+            try {
+                return $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);
+            } catch (GoogleClientException $e) {
+                throw ExceptionHandler::handleRetryException($e);
+            }
+        });
+        assert($key instanceof Iam\ServiceAccountKey);
 
         $json = base64_decode($key->getPrivateKeyData());
         $keyData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
