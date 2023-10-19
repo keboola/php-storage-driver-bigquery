@@ -26,15 +26,6 @@ jobs:
           BQ_KEY_FILE: ${{ secrets.BQ_KEY_FILE }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
         run: docker-compose run --rm production composer loadGcs
-      - name: Run Tests functional sync
-        env:
-          BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
-          BQ_SECRET: ${{ secrets.BQ_SECRET }}
-          BQ_FOLDER_ID: ${{ secrets.BQ_FOLDER_ID }}
-          BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
-          BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
-          BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm production composer tests-sync
       - name: Run Tests functional parallel
         env:
           BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
@@ -43,4 +34,4 @@ jobs:
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
           BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm production composer paratest-all
+        run: docker-compose run --rm production composer paratest

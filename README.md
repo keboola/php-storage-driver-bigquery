@@ -60,7 +60,16 @@ To run with xdebug use `dev-xdebug` container instead of `dev`
 Run tests with following command.
 
 ```bash
+# This will run all tests
 docker-compose run --rm dev composer tests
+# This will run all tests in parallel
+docker-compose run --rm dev composer paratest
+# This will run import tests in parallel
+docker-compose run --rm dev composer paratest-import
+# This will run export tests in parallel
+docker-compose run --rm dev composer paratest-export
+# This will run all tests in parallel excluding import and export
+docker-compose run --rm dev composer paratest-other
 ```
 
 To disable retry copy `phpunit-retry.xml.dist`
