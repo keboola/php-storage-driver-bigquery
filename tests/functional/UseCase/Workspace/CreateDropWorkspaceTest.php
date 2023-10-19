@@ -15,6 +15,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\Helper;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -97,27 +98,12 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertSame('OWNER', $workspaceDataset['access'][0]['role']);
         $this->assertSame($wsServiceAccEmail, $workspaceDataset['access'][0]['userByEmail']);
 
-        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
-            'projects/' . $projectId,
-            (new GetIamPolicyRequest()),
-            []
+        Helper::assertServiceAccountBindings(
+            $this->clientManager->getCloudResourceManager($this->projectCredentials),
+            $projectId,
+            $wsServiceAccEmail,
+            $this->log
         );
-        $actualPolicy = $actualPolicy->getBindings();
-
-        $serviceAccRoles = [];
-        foreach ($actualPolicy as $policy) {
-            if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
-                $serviceAccRoles[] = $policy->getRole();
-            }
-        }
-
-        // ws service acc must have a job user role to be able to run queries
-        $expected = [
-            IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
-            IAmPermissions::ROLES_BIGQUERY_JOB_USER,
-        ];
-        $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         try {
             $this->createTestBucket($credentials, $this->projects[0][2]);

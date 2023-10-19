@@ -104,8 +104,14 @@ final class CreateWorkspaceHandler extends BaseHandler
         $backOffPolicy = new ExponentialBackOffPolicy();
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
+            $this->logger->log(LogLevel::DEBUG, 'Try set iam policy');
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
-            $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
+            Helper::assertServiceAccountBindings(
+                $cloudResourceManager,
+                $projectName,
+                $wsServiceAcc->getEmail(),
+                $this->logger
+            );
         });
 
         // generate credentials
@@ -115,42 +121,5 @@ final class CreateWorkspaceHandler extends BaseHandler
             ->setWorkspaceUserName($publicPart)
             ->setWorkspacePassword($privateKey)
             ->setWorkspaceObjectName($dataset->id());
-    }
-
-    private function waitUntilBindingsPropagate(
-        Google_Service_CloudResourceManager $cloudResourceManager,
-        string $projectName,
-        string $wsServiceAccEmail
-    ): void {
-        $retryPolicy = new SimpleRetryPolicy(10);
-        $backOffPolicy = new ExponentialBackOffPolicy(
-            initialInterval: 30_000, // 30s
-            multiplier: 1.2, // 180s
-            maxInterval: 180_000, // 30s
-        );
-
-        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail): void {
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
-            $actualPolicy = $actualPolicy->getBindings();
-
-            $serviceAccRoles = [];
-            foreach ($actualPolicy as $policy) {
-                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
-                    $serviceAccRoles[] = $policy->getRole();
-                }
-            }
-
-            sort($serviceAccRoles);
-
-            // ws service acc must have a job user role to be able to run queries
-            if ($serviceAccRoles !== self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES) {
-                throw new RuntimeException(sprintf(
-                    'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
-                    implode(',', self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
-                    implode(',', $serviceAccRoles)
-                ));
-            }
-        });
     }
 }
