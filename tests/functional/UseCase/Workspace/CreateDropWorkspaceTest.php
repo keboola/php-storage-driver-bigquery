@@ -242,6 +242,46 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertEmpty($serviceAccRoles);
     }
 
+    public function testDropWorkspaceWhenDatasetIsDeleted(): void
+    {
+        // CREATE
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $wsKeyData = CredentialsHelper::getCredentialsArray($credentials);
+
+        Helper::assertServiceAccountBindings(
+            $this->clientManager->getCloudResourceManager($this->projectCredentials),
+            $wsKeyData['project_id'],
+            $wsKeyData['client_email'],
+            $this->log
+        );
+
+        // drop workspace dataset and call drop workspace which must pass
+        $bqClient->dataset($response->getWorkspaceObjectName())->delete(['deleteContents' => true]);
+
+        // DROP
+        $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
+        $command = (new DropWorkspaceCommand())
+            ->setWorkspaceUserName($response->getWorkspaceUserName())
+            ->setWorkspaceRoleName($response->getWorkspaceRoleName())
+            ->setWorkspaceObjectName($response->getWorkspaceObjectName());
+
+        $dropResponse = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertNull($dropResponse);
+    }
+
     public function testCreateDropCascadeWorkspace(): void
     {
         // CREATE

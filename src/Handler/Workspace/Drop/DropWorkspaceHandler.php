@@ -62,9 +62,16 @@ final class DropWorkspaceHandler extends BaseHandler
         });
 
         $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialBackOffPolicy());
-        $proxy->call(function () use ($dataset, $command): void {
-            $dataset->delete(['deleteContents' => $command->getIsCascade()]);
-        });
+        try {
+            $proxy->call(function () use ($dataset, $command): void {
+                $dataset->delete(['deleteContents' => $command->getIsCascade()]);
+            });
+        } catch (Throwable $e) {
+            if ($e->getCode() !== 404) {
+                throw $e;
+            }
+            // ignore 404 exception as dataset is probably deleted in retry
+        }
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
@@ -98,7 +105,7 @@ final class DropWorkspaceHandler extends BaseHandler
                 }
                 $newMembers = [];
                 foreach ($binding->getMembers() as $member) {
-                    if ($member !== 'serviceAccount:'.$keyData['client_email']) {
+                    if ($member !== 'serviceAccount:' . $keyData['client_email']) {
                         $newMembers[] = $member;
                     }
                 }
