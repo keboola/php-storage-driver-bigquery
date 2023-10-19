@@ -9,19 +9,19 @@ use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Exception\InvalidLengthException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\Helper\CreateTableMetaHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
-final class CreateTableHandler implements DriverCommandHandlerInterface
+final class CreateTableHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

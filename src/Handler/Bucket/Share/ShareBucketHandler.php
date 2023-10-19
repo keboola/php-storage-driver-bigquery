@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Share;
 
-use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class ShareBucketHandler implements DriverCommandHandlerInterface
+final class ShareBucketHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

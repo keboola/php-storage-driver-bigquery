@@ -17,6 +17,7 @@ use Throwable;
 class BigQueryClientHandler
 {
     private const RETRY_MISSING_CREATE_JOB = 'bigquery.jobs.create';
+    private const RETRY_SERVICE_ACCOUNT_NOT_EXIST = 'IAM setPolicy failed for Dataset';
 
     private Client $client;
 
@@ -37,6 +38,8 @@ class BigQueryClientHandler
                     if (array_key_exists($e->getErrors()[0]['reason'], GCPClientManager::RETRY_MAP)) {
                         $retryStrategy = GCPClientManager::RETRY_MAP[$e->getErrors()[0]['reason']];
                     } elseif (str_contains($e->getErrors()[0]['message'], self::RETRY_MISSING_CREATE_JOB)) {
+                        $retryStrategy = Runner::TASK_RETRY_ALWAYS;
+                    } elseif (str_contains($e->getErrors()[0]['message'], self::RETRY_SERVICE_ACCOUNT_NOT_EXIST)) {
                         $retryStrategy = Runner::TASK_RETRY_ALWAYS;
                     }
                 }

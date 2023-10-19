@@ -6,13 +6,14 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
+
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class CreateBucketHandler implements DriverCommandHandlerInterface
+final class CreateBucketHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

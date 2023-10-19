@@ -7,18 +7,18 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
-class CreateTableFromTimeTravelHandler implements DriverCommandHandlerInterface
+final class CreateTableFromTimeTravelHandler extends BaseHandler
 {
     public const TIME_TRAVEL_TIMESTAMP_FORMAT = 'Y-m-d H:i:s.u e';
     public GCPClientManager $clientManager;

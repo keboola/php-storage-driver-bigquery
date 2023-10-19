@@ -12,6 +12,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ViewReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\DatabaseInfo;
@@ -20,18 +21,15 @@ use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\SchemaInfo;
-use Keboola\StorageDriver\Command\Info\ViewInfo;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\UnknownObjectException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Schema\Bigquery\BigquerySchemaReflection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Keboola\TableBackendUtils\TableNotExistsReflectionException;
 
-final class ObjectInfoHandler implements DriverCommandHandlerInterface
+final class ObjectInfoHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

@@ -6,13 +6,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\NameGenerator;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Throwable;
 
-final class RevokeBucketAccessFromReadOnlyRoleHandler implements DriverCommandHandlerInterface
+final class RevokeBucketAccessFromReadOnlyRoleHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

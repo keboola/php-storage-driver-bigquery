@@ -9,23 +9,22 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google_Service_CloudResourceManager;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Psr\Log\LogLevel;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
-use RuntimeException;
 
-final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
+final class CreateWorkspaceHandler extends BaseHandler
 {
-    private const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
+    public const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
         IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
         IAmPermissions::ROLES_BIGQUERY_JOB_USER,
     ];

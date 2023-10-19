@@ -9,13 +9,13 @@ use Google\Protobuf\Internal\Message;
 use Google\Service\Iam\ServiceAccountKey;
 use Google_Service_Iam_CreateServiceAccountKeyRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
 use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordCommand;
 use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class ResetWorkspacePasswordHandler implements DriverCommandHandlerInterface
+final class ResetWorkspacePasswordHandler extends BaseHandler
 {
     public const KEY_TYPE_USER_MANAGED = 'USER_MANAGED';
     public GCPClientManager $clientManager;

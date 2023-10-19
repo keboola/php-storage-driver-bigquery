@@ -20,12 +20,12 @@ use Google_Service_CloudResourceManager_Policy;
 use Google_Service_CloudResourceManager_SetIamPolicyRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Retry\BackOff\ExponentialBackOffPolicy;
@@ -33,7 +33,7 @@ use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
-final class CreateProjectHandler implements DriverCommandHandlerInterface
+final class CreateProjectHandler extends BaseHandler
 {
     public const ENABLED_SERVICES_FOR_PROJECT = [
         GCPServiceIds::SERVICE_USAGE_SERVICE,

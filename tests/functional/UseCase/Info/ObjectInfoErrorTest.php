@@ -30,6 +30,7 @@ class ObjectInfoErrorTest extends BaseCase
     public function testInfoSchemaNotExists(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         // expect database
         $command->setExpectedObjectType(ObjectType::SCHEMA);
@@ -47,6 +48,7 @@ class ObjectInfoErrorTest extends BaseCase
     public function testInfoTableSchemaNotExists(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         // expect database
         $command->setExpectedObjectType(ObjectType::TABLE);
@@ -64,6 +66,7 @@ class ObjectInfoErrorTest extends BaseCase
     public function testInfoTableNotExists(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         // expect database
         $command->setExpectedObjectType(ObjectType::TABLE);

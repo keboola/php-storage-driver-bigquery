@@ -61,7 +61,7 @@ class BaseCase extends TestCase
 
     protected GCPClientManager $clientManager;
 
-    protected Log $log;
+    protected ParatestFileLogger $log;
 
     protected static function getRand(): string
     {
@@ -112,7 +112,7 @@ class BaseCase extends TestCase
 
     protected function setUp(): void
     {
-        $this->log = new Log($this->getName(false));
+        $this->log = new ParatestFileLogger($this->getName(false));
         $this->log->setPrefix($this->getTestHash());
         $this->log->add($this->getName());
         $GLOBALS['log'] = $this->log;
@@ -178,6 +178,7 @@ class BaseCase extends TestCase
         $this->log->add('CREATING: ' . $id);
 
         $handler = new CreateProjectHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new CreateprojectCommand();
 
         $meta = new Any();
@@ -354,6 +355,7 @@ class BaseCase extends TestCase
             $branchId
         );
         $handler = new CreateBucketHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new CreateBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -476,6 +478,7 @@ class BaseCase extends TestCase
             $workspaceId
         );
         $handler = new CreateWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new CreateWorkspaceCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -508,6 +511,7 @@ class BaseCase extends TestCase
         array $structure
     ): void {
         $createTableHandler = new CreateTableHandler($this->clientManager);
+        $createTableHandler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -623,6 +627,7 @@ class BaseCase extends TestCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $database;

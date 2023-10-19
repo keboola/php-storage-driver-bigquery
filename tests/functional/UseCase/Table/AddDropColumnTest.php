@@ -79,6 +79,7 @@ class AddDropColumnTest extends BaseCase
                     ->setType(Bigquery::TYPE_BIGINT)
             );
         $handler = new AddColumnHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         /** @var ObjectInfoResponse $response */
         $response = $handler(
@@ -143,6 +144,7 @@ class AddDropColumnTest extends BaseCase
             ->setTableName($tableName)
             ->setColumnName('col2');
         $handler = new DropColumnHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $handler(
             $this->projectCredentials,

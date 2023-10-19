@@ -7,13 +7,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 use Exception;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
-use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class DropProjectHandler implements DriverCommandHandlerInterface
+final class DropProjectHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

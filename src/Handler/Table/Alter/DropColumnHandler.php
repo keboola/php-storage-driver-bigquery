@@ -6,13 +6,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\Command\Table\AddColumnCommand;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Table\DropColumnCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 
-final class DropColumnHandler implements DriverCommandHandlerInterface
+final class DropColumnHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

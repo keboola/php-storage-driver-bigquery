@@ -9,19 +9,17 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google\Service\Iam\Resource\ProjectsServiceAccounts;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
-final class DropWorkspaceHandler implements DriverCommandHandlerInterface
+final class DropWorkspaceHandler extends BaseHandler
 {
     private const ERROR_CODES_FOR_RETRY = [401, 403, 429];
     private const ERROR_CODES_FOR_RETRY_IAM = [409, ...self::ERROR_CODES_FOR_RETRY];

@@ -8,6 +8,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderResponse;
@@ -15,12 +16,11 @@ use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
-final class DeleteTableRowsHandler implements DriverCommandHandlerInterface
+final class DeleteTableRowsHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

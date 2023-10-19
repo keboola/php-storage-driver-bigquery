@@ -194,6 +194,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new DropWorkspaceCommand())
             ->setWorkspaceUserName($response->getWorkspaceUserName())
             ->setWorkspaceRoleName($response->getWorkspaceRoleName())
@@ -277,6 +278,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // try to DROP - should fail, there is a table
         $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new DropWorkspaceCommand())
             ->setWorkspaceUserName($response->getWorkspaceUserName())
             ->setWorkspaceRoleName($response->getWorkspaceRoleName())
@@ -425,6 +427,7 @@ class CreateDropWorkspaceTest extends BaseCase
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $handler(
             $this->projectCredentials,
             $cmd,

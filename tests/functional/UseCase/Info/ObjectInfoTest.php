@@ -65,6 +65,7 @@ class ObjectInfoTest extends BaseCase
         );
 
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         // expect database
         $command->setExpectedObjectType(ObjectType::DATABASE);
@@ -103,6 +104,7 @@ class ObjectInfoTest extends BaseCase
     public function testInfoSchema(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::SCHEMA);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([$this->bucketResponse->getCreateBucketObjectName()]));
@@ -140,6 +142,7 @@ class ObjectInfoTest extends BaseCase
     public function testInfoTable(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::TABLE);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([
@@ -189,6 +192,7 @@ class ObjectInfoTest extends BaseCase
     public function testInfoView(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::VIEW);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([
