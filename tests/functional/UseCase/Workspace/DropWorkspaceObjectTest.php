@@ -27,7 +27,7 @@ class DropWorkspaceObjectTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
     }
 
-    public function testCreateDropWorkspace(): void
+    public function testDropWorkspaceObject(): void
     {
         // CREATE
         [
