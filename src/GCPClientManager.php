@@ -11,12 +11,12 @@ use Google\Cloud\ResourceManager\V3\FoldersClient;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
 use Google\Cloud\Storage\StorageClient;
-use Google\Service\Iam;
 use Google\Task\Runner;
 use Google_Client;
 use Google_Service_CloudResourceManager;
-use GuzzleHttp\Client;
+use Keboola\StorageDriver\BigQuery\Client\BigQuery\Retry;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Psr\Log\LoggerInterface;
 
 class GCPClientManager
 {
@@ -52,6 +52,10 @@ class GCPClientManager
             // randomize backoff time +/- 10%
             'jitter' => 0.1,
         ];
+
+    public function __construct(private readonly LoggerInterface $logger)
+    {
+    }
 
     /**
      * @throws \Google\ApiCore\ValidationException
@@ -115,11 +119,11 @@ class GCPClientManager
 
     public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
     {
-        $handler = new BigQueryClientHandler(new Client());
         // note: the close method is not used in this client
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
-            'httpHandler' => $handler,
+            'restRetryFunction' => Retry::getRetryDecider($this->logger),
+            'retries' => 20,
         ]);
     }
 
