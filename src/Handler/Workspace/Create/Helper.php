@@ -8,10 +8,11 @@ use Google\Service\CloudResourceManager;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
-use Retry\BackOff\ExponentialBackOffPolicy;
-use Retry\Policy\SimpleRetryPolicy;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
 use RuntimeException;
+use Throwable;
 
 class Helper
 {
@@ -21,11 +22,14 @@ class Helper
         string $wsServiceAccEmail,
         LoggerInterface $logger,
     ): void {
-        $retryPolicy = new SimpleRetryPolicy(10);
-        $backOffPolicy = new ExponentialBackOffPolicy(
-            initialInterval: 30_000, // 30s
-            multiplier: 1.2, // 180s
-            maxInterval: 180_000, // 30s
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($logger) {
+            $logger->debug('Try check iam policy Err:' . $e->getMessage());
+            return true;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            10_000, // 10s
+            1.5,
+            120_000 // 2m
         );
         if (!str_starts_with($projectName, 'projects')) {
             $projectName = 'projects/' . $projectName;
@@ -33,7 +37,7 @@ class Helper
 
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail, $logger): void {
-            $logger->log(LogLevel::DEBUG, 'Try check iam policy');
+            $logger->log(LogLevel::DEBUG, 'Try check iam policy for ' . $wsServiceAccEmail . ' in ' . $projectName);
             $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
             $actualPolicy = $actualPolicy->getBindings();
 

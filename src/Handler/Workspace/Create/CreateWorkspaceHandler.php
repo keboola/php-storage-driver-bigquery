@@ -9,6 +9,7 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -18,9 +19,10 @@ use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Psr\Log\LogLevel;
-use Retry\BackOff\ExponentialBackOffPolicy;
-use Retry\Policy\SimpleRetryPolicy;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
+use Throwable;
 
 final class CreateWorkspaceHandler extends BaseHandler
 {
@@ -72,7 +74,37 @@ final class CreateWorkspaceHandler extends BaseHandler
         // create WS service acc
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
-        $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+        $newServiceAccountName = sprintf(
+            '%s/serviceAccounts/%s@%s.iam.gserviceaccount.com',
+            $projectName,
+            $newWsServiceAccId,
+            $projectCredentials['project_id']
+        );
+
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            $this->logger->debug('Try create SA Err:' . $e->getMessage());
+            return true;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            5_000, // 5s
+            1.8,
+            60_000 // 1m
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $wsServiceAcc = $proxy->call(function () use (
+            $iamService,
+            $newServiceAccountName,
+            $newWsServiceAccId,
+            $projectName
+        ): ServiceAccount {
+            try {
+                return $iamService->projects_serviceAccounts->get($newServiceAccountName);
+            } catch (Throwable) {
+                $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+            }
+            return $iamService->projects_serviceAccounts->get($newServiceAccountName);
+        });
+        assert($wsServiceAcc instanceof ServiceAccount);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -100,11 +132,21 @@ final class CreateWorkspaceHandler extends BaseHandler
         $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
 
-        $retryPolicy = new SimpleRetryPolicy(10);
-        $backOffPolicy = new ExponentialBackOffPolicy();
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            $this->logger->debug('Try set iam policy Err:' . $e->getMessage());
+            return true;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            5_000, // 5s
+            1.8,
+            60_000 // 1m
+        );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
-            $this->logger->log(LogLevel::DEBUG, 'Try set iam policy');
+            $this->logger->log(
+                LogLevel::DEBUG,
+                'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName
+            );
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
             Helper::assertServiceAccountBindings(
                 $cloudResourceManager,
