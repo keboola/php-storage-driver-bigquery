@@ -59,7 +59,7 @@ final class ShareBucketHandler extends BaseHandler
 
         $dataExchangeId = $command->getSourceProjectReadOnlyRoleName();
 
-        $formattedParent = $analyticHubClient->dataExchangeName(
+        $formattedParent = $analyticHubClient::dataExchangeName(
             $projectStringId,
             GCPClientManager::DEFAULT_LOCATION,
             $dataExchangeId

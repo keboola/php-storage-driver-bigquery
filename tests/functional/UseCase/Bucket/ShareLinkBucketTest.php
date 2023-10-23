@@ -381,11 +381,6 @@ class ShareLinkBucketTest extends BaseCase
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
         $testTableBefore = $targetDataset->table(self::TESTTABLE_AFTER_NAME);
-
-        // after unshare the table is not available
-        // in connection you can't just unshare a bucket that is lined up first so this is an edge case
-        // handled in connection
-        $this->expectException(BadRequestException::class);
-        $testTableBefore->exists();
+        $this->assertTrue($testTableBefore->exists());
     }
 }
