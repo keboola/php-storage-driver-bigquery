@@ -410,8 +410,6 @@ class ImportViewCloneTest extends BaseCase
      */
     private function createLinkedBucketWithTable(): array
     {
-        parent::setUp();
-
         $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
