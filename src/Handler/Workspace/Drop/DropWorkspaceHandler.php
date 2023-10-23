@@ -14,7 +14,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
@@ -59,9 +59,9 @@ final class DropWorkspaceHandler extends BaseHandler
                 return true;
             }
             return false;
-        });
+        }, 20);
 
-        $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialRandomBackOffPolicy());
         try {
             $proxy->call(function () use ($dataset, $command): void {
                 $dataset->delete(['deleteContents' => $command->getIsCascade()]);
@@ -86,8 +86,8 @@ final class DropWorkspaceHandler extends BaseHandler
                 return true;
             }
             return false;
-        });
-        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialBackOffPolicy());
+        }, 10);
+        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($cloudResourceManager, $credentials, $keyData): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
@@ -124,9 +124,9 @@ final class DropWorkspaceHandler extends BaseHandler
                 return true;
             }
             return false;
-        });
+        }, 10);
 
-        $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($serviceAccountsService, $keyData): void {
             $serviceAccountsService->delete(
                 sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email'])
