@@ -113,8 +113,9 @@ class BaseCase extends TestCase
     protected function setUp(): void
     {
         $this->log = new ParatestFileLogger($this->getName(false));
+        $this->clientManager = new GCPClientManager($this->log);
         $this->log->setPrefix($this->getTestHash());
-        $this->log->add($this->getName());
+        $this->log->add('Starting test: ' . $this->getName());
         $GLOBALS['log'] = $this->log;
         if (!file_exists('/tmp/initialized')) {
             $store = new FlockStore('/tmp/test-lock');
@@ -165,6 +166,13 @@ class BaseCase extends TestCase
                 (string) file_get_contents('/tmp/prj1-id'),
             ],
         ];
+    }
+
+    protected function tearDown(): void
+    {
+        $this->log->add('END of test' . $this->getName());
+        $this->log->add($this->getStatusMessage());
+        parent::tearDown();
     }
 
     /**
@@ -263,15 +271,6 @@ class BaseCase extends TestCase
                 }
             }
         }
-    }
-
-    /**
-     * @param array<mixed> $data
-     */
-    public function __construct(?string $name = null, array $data = [], int|string $dataName = '')
-    {
-        parent::__construct($name, $data, $dataName);
-        $this->clientManager = new GCPClientManager();
     }
 
     /**
@@ -498,6 +497,8 @@ class BaseCase extends TestCase
             ->setPrincipal($response->getWorkspaceUserName())
             ->setSecret($response->getWorkspacePassword())
             ->setPort($projectCredentials->getPort());
+
+        $this->log->add('New workspace SA is: ' . $response->getWorkspaceUserName());
         return [$credentials, $response];
     }
 
