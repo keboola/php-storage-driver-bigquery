@@ -319,7 +319,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->getCredentials());
 
-        $formattedName = $analyticHubClient->listingName(
+        $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
             GCPClientManager::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
