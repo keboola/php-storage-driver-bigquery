@@ -8,13 +8,13 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDataset;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDatasetReference;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class LinkBucketHandler implements DriverCommandHandlerInterface
+final class LinkBucketHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

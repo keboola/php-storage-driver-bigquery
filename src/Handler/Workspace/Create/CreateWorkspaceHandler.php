@@ -9,23 +9,24 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google_Service_CloudResourceManager;
+use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Retry\BackOff\ExponentialBackOffPolicy;
-use Retry\Policy\SimpleRetryPolicy;
+use Psr\Log\LogLevel;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
-use RuntimeException;
+use Throwable;
 
-final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
+final class CreateWorkspaceHandler extends BaseHandler
 {
-    private const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
+    public const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
         IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
         IAmPermissions::ROLES_BIGQUERY_JOB_USER,
     ];
@@ -73,7 +74,37 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         // create WS service acc
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
-        $wsServiceAcc = $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+        $newServiceAccountName = sprintf(
+            '%s/serviceAccounts/%s@%s.iam.gserviceaccount.com',
+            $projectName,
+            $newWsServiceAccId,
+            $projectCredentials['project_id']
+        );
+
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            $this->logger->debug('Try create SA Err:' . $e->getMessage());
+            return true;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            5_000, // 5s
+            1.8,
+            60_000 // 1m
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $wsServiceAcc = $proxy->call(function () use (
+            $iamService,
+            $newServiceAccountName,
+            $newWsServiceAccId,
+            $projectName
+        ): ServiceAccount {
+            try {
+                return $iamService->projects_serviceAccounts->get($newServiceAccountName);
+            } catch (Throwable) {
+                $iamService->createServiceAccount($newWsServiceAccId, $projectName);
+            }
+            return $iamService->projects_serviceAccounts->get($newServiceAccountName);
+        });
+        assert($wsServiceAcc instanceof ServiceAccount);
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -101,12 +132,28 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
         $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
 
-        $retryPolicy = new SimpleRetryPolicy(10);
-        $backOffPolicy = new ExponentialBackOffPolicy();
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            $this->logger->debug('Try set iam policy Err:' . $e->getMessage());
+            return true;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            5_000, // 5s
+            1.8,
+            60_000 // 1m
+        );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
+            $this->logger->log(
+                LogLevel::DEBUG,
+                'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName
+            );
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
-            $this->waitUntilBindingsPropagate($cloudResourceManager, $projectName, $wsServiceAcc->getEmail());
+            Helper::assertServiceAccountBindings(
+                $cloudResourceManager,
+                $projectName,
+                $wsServiceAcc->getEmail(),
+                $this->logger
+            );
         });
 
         // generate credentials
@@ -116,42 +163,5 @@ final class CreateWorkspaceHandler implements DriverCommandHandlerInterface
             ->setWorkspaceUserName($publicPart)
             ->setWorkspacePassword($privateKey)
             ->setWorkspaceObjectName($dataset->id());
-    }
-
-    private function waitUntilBindingsPropagate(
-        Google_Service_CloudResourceManager $cloudResourceManager,
-        string $projectName,
-        string $wsServiceAccEmail
-    ): void {
-        $retryPolicy = new SimpleRetryPolicy(10);
-        $backOffPolicy = new ExponentialBackOffPolicy(
-            initialInterval: 30_000, // 30s
-            multiplier: 1.2, // 180s
-            maxInterval: 180_000, // 30s
-        );
-
-        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail): void {
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
-            $actualPolicy = $actualPolicy->getBindings();
-
-            $serviceAccRoles = [];
-            foreach ($actualPolicy as $policy) {
-                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
-                    $serviceAccRoles[] = $policy->getRole();
-                }
-            }
-
-            sort($serviceAccRoles);
-
-            // ws service acc must have a job user role to be able to run queries
-            if ($serviceAccRoles !== self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES) {
-                throw new RuntimeException(sprintf(
-                    'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
-                    implode(',', self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
-                    implode(',', $serviceAccRoles)
-                ));
-            }
-        });
     }
 }

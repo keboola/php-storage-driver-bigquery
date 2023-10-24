@@ -52,6 +52,7 @@ class ClearWorkspaceTest extends BaseCase
 
         // CLEAR with BAD OBJECT NAME
         $handler = new ClearWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new ClearWorkspaceCommand())
             ->setWorkspaceObjectName('objectNotExists');
 
@@ -73,6 +74,7 @@ class ClearWorkspaceTest extends BaseCase
 
         // CLEAR with BAD OBJECT NAME and IGNORE ERRORS
         $handler = new ClearWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new ClearWorkspaceCommand())
             ->setWorkspaceObjectName('objectNotExists')
             ->setIgnoreErrors(true);
@@ -95,6 +97,7 @@ class ClearWorkspaceTest extends BaseCase
 
         // CLEAR but preserve testTable2
         $handler = new ClearWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new ClearWorkspaceCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName())
             ->setObjectsToPreserve(ProtobufHelper::arrayToRepeatedString(['testTable2']));
@@ -112,6 +115,7 @@ class ClearWorkspaceTest extends BaseCase
 
         // CLEAR
         $handler = new ClearWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new ClearWorkspaceCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName());
 

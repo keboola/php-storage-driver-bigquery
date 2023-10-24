@@ -7,13 +7,13 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Clear;
 use Google\Cloud\BigQuery\Table;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\ClearWorkspaceCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Throwable;
 
-final class ClearWorkspaceHandler implements DriverCommandHandlerInterface
+final class ClearWorkspaceHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

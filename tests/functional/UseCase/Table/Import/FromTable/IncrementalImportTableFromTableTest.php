@@ -131,6 +131,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $handler(
             $this->projectCredentials,

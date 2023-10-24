@@ -47,6 +47,7 @@ class CreateDropTableTest extends BaseCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;
@@ -136,6 +137,7 @@ class CreateDropTableTest extends BaseCase
 
         // DROP TABLE
         $handler = new DropTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new DropTableCommand())
             ->setPath($path)
             ->setTableName($tableName);
@@ -229,6 +231,7 @@ class CreateDropTableTest extends BaseCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;
@@ -264,6 +267,7 @@ class CreateDropTableTest extends BaseCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;

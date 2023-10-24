@@ -17,17 +17,15 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
-use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
@@ -36,7 +34,7 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use LogicException;
 use Throwable;
 
-class ImportTableFromTableHandler implements DriverCommandHandlerInterface
+final class ImportTableFromTableHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

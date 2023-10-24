@@ -1530,6 +1530,7 @@ class PreviewTableTest extends BaseCase
     private function dropTable(string $databaseName, string $tableName): void
     {
         $handler = new DropTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -1556,6 +1557,7 @@ class PreviewTableTest extends BaseCase
     private function previewTable(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
     {
         $handler = new PreviewTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $command = new PreviewTableCommand();
 

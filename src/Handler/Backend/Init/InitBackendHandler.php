@@ -6,14 +6,14 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Backend\Init;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\InitBackendResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 
-final class InitBackendHandler implements DriverCommandHandlerInterface
+final class InitBackendHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

@@ -67,6 +67,7 @@ use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
+use Psr\Log\NullLogger;
 
 class BigQueryDriverClient implements ClientInterface
 {
@@ -80,7 +81,7 @@ class BigQueryDriverClient implements ClientInterface
         Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
-        $manager = new GCPClientManager();
+        $manager = new GCPClientManager(new NullLogger());
         $handler = $this->getHandler($command, $manager);
 
         return $handler(

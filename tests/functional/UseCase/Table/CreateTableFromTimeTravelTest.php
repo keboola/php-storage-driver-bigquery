@@ -84,6 +84,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setTimestamp($dateTimeAfterImportTimestamp);
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         /** @var ObjectInfoResponse $response */
         $response = $handler(
@@ -164,6 +165,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setTimestamp($dateTimeBeforeAlterTimestamp);
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         /** @var ObjectInfoResponse $response */
         $response = $handler(
@@ -231,6 +233,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setTimestamp($timestamp);
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         try {
             $handler(
@@ -267,6 +270,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setTimestamp($datetime->getTimestamp());
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         try {
             $handler(
@@ -309,6 +313,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setTimestamp($timestamp);
 
         $handler = new CreateTableFromTimeTravelHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $this->expectException(ObjectNotFoundException::class);
         $handler(

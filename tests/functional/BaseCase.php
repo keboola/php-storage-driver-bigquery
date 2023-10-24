@@ -61,7 +61,7 @@ class BaseCase extends TestCase
 
     protected GCPClientManager $clientManager;
 
-    protected Log $log;
+    protected ParatestFileLogger $log;
 
     protected static function getRand(): string
     {
@@ -112,9 +112,10 @@ class BaseCase extends TestCase
 
     protected function setUp(): void
     {
-        $this->log = new Log($this->getName(false));
+        $this->log = new ParatestFileLogger($this->getName(false));
+        $this->clientManager = new GCPClientManager($this->log);
         $this->log->setPrefix($this->getTestHash());
-        $this->log->add($this->getName());
+        $this->log->add('Starting test: ' . $this->getName());
         $GLOBALS['log'] = $this->log;
         if (!file_exists('/tmp/initialized')) {
             $store = new FlockStore('/tmp/test-lock');
@@ -167,6 +168,13 @@ class BaseCase extends TestCase
         ];
     }
 
+    protected function tearDown(): void
+    {
+        $this->log->add('END of test' . $this->getName());
+        $this->log->add($this->getStatusMessage());
+        parent::tearDown();
+    }
+
     /**
      * @return array{GenericBackendCredentials, CreateProjectResponse}
      * @throws \Google\ApiCore\ApiException
@@ -178,6 +186,7 @@ class BaseCase extends TestCase
         $this->log->add('CREATING: ' . $id);
 
         $handler = new CreateProjectHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = new CreateprojectCommand();
 
         $meta = new Any();
@@ -265,15 +274,6 @@ class BaseCase extends TestCase
     }
 
     /**
-     * @param array<mixed> $data
-     */
-    public function __construct(?string $name = null, array $data = [], int|string $dataName = '')
-    {
-        parent::__construct($name, $data, $dataName);
-        $this->clientManager = new GCPClientManager();
-    }
-
-    /**
      * Get credentials from envs
      */
     protected function getCredentials(): GenericBackendCredentials
@@ -354,6 +354,7 @@ class BaseCase extends TestCase
             $branchId
         );
         $handler = new CreateBucketHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new CreateBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -476,6 +477,7 @@ class BaseCase extends TestCase
             $workspaceId
         );
         $handler = new CreateWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new CreateWorkspaceCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -495,6 +497,8 @@ class BaseCase extends TestCase
             ->setPrincipal($response->getWorkspaceUserName())
             ->setSecret($response->getWorkspacePassword())
             ->setPort($projectCredentials->getPort());
+
+        $this->log->add('New workspace SA is: ' . $response->getWorkspaceUserName());
         return [$credentials, $response];
     }
 
@@ -508,6 +512,7 @@ class BaseCase extends TestCase
         array $structure
     ): void {
         $createTableHandler = new CreateTableHandler($this->clientManager);
+        $createTableHandler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -623,6 +628,7 @@ class BaseCase extends TestCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $database;

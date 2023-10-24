@@ -6,11 +6,11 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
-final class UnLinkBucketHandler implements DriverCommandHandlerInterface
+final class UnLinkBucketHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

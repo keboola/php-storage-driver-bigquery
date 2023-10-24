@@ -6,12 +6,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Drop;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Throwable;
 
-class DropTableHandler implements DriverCommandHandlerInterface
+final class DropTableHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 

@@ -193,6 +193,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $response = $handler(
             $this->projectCredentials,
             $cmd,
@@ -263,6 +264,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $response = $handler(
             $this->projectCredentials,
             $cmd,
@@ -878,6 +880,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $handler(
             $this->projectCredentials,
             $cmd,

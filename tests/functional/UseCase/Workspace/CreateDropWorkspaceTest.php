@@ -15,6 +15,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\Helper;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -97,27 +98,12 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertSame('OWNER', $workspaceDataset['access'][0]['role']);
         $this->assertSame($wsServiceAccEmail, $workspaceDataset['access'][0]['userByEmail']);
 
-        $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
-            'projects/' . $projectId,
-            (new GetIamPolicyRequest()),
-            []
+        Helper::assertServiceAccountBindings(
+            $this->clientManager->getCloudResourceManager($this->projectCredentials),
+            $projectId,
+            $wsServiceAccEmail,
+            $this->log
         );
-        $actualPolicy = $actualPolicy->getBindings();
-
-        $serviceAccRoles = [];
-        foreach ($actualPolicy as $policy) {
-            if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
-                $serviceAccRoles[] = $policy->getRole();
-            }
-        }
-
-        // ws service acc must have a job user role to be able to run queries
-        $expected = [
-            IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
-            IAmPermissions::ROLES_BIGQUERY_JOB_USER,
-        ];
-        $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         try {
             $this->createTestBucket($credentials, $this->projects[0][2]);
@@ -194,6 +180,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new DropWorkspaceCommand())
             ->setWorkspaceUserName($response->getWorkspaceUserName())
             ->setWorkspaceRoleName($response->getWorkspaceRoleName())
@@ -255,6 +242,46 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertEmpty($serviceAccRoles);
     }
 
+    public function testDropWorkspaceWhenDatasetIsDeleted(): void
+    {
+        // CREATE
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $wsKeyData = CredentialsHelper::getCredentialsArray($credentials);
+
+        Helper::assertServiceAccountBindings(
+            $this->clientManager->getCloudResourceManager($this->projectCredentials),
+            $wsKeyData['project_id'],
+            $wsKeyData['client_email'],
+            $this->log
+        );
+
+        // drop workspace dataset and call drop workspace which must pass
+        $bqClient->dataset($response->getWorkspaceObjectName())->delete(['deleteContents' => true]);
+
+        // DROP
+        $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
+        $command = (new DropWorkspaceCommand())
+            ->setWorkspaceUserName($response->getWorkspaceUserName())
+            ->setWorkspaceRoleName($response->getWorkspaceRoleName())
+            ->setWorkspaceObjectName($response->getWorkspaceObjectName());
+
+        $dropResponse = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertNull($dropResponse);
+    }
+
     public function testCreateDropCascadeWorkspace(): void
     {
         // CREATE
@@ -277,6 +304,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // try to DROP - should fail, there is a table
         $handler = new DropWorkspaceHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $command = (new DropWorkspaceCommand())
             ->setWorkspaceUserName($response->getWorkspaceUserName())
             ->setWorkspaceRoleName($response->getWorkspaceRoleName())
@@ -425,6 +453,7 @@ class CreateDropWorkspaceTest extends BaseCase
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
         $handler(
             $this->projectCredentials,
             $cmd,

@@ -121,6 +121,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,
@@ -243,6 +244,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,
@@ -375,6 +377,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,

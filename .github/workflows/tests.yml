@@ -27,6 +27,7 @@ jobs:
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
         run: docker-compose run --rm production composer loadGcs
       - name: Run Tests functional parallel
+        id: test
         env:
           BQ_PRINCIPAL: ${{ secrets.BQ_PRINCIPAL }}
           BQ_SECRET: ${{ secrets.BQ_SECRET }}
@@ -34,4 +35,11 @@ jobs:
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
           BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm production composer paratest
+        run: docker-compose run --rm  --volume /tmp/parestest-logs:/code/logs production composer paratest
+      - name: Upload test logs
+        if: success() || steps.test.conclusion == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: paratest-logs
+          path: /tmp/parestest-logs/*
+          retention-days: 5

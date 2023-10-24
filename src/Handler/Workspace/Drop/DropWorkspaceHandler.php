@@ -9,19 +9,17 @@ use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google\Service\Iam\Resource\ProjectsServiceAccounts;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\IAmPermissions;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
-final class DropWorkspaceHandler implements DriverCommandHandlerInterface
+final class DropWorkspaceHandler extends BaseHandler
 {
     private const ERROR_CODES_FOR_RETRY = [401, 403, 429];
     private const ERROR_CODES_FOR_RETRY_IAM = [409, ...self::ERROR_CODES_FOR_RETRY];
@@ -61,12 +59,19 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
                 return true;
             }
             return false;
-        });
+        }, 20);
 
-        $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialBackOffPolicy());
-        $proxy->call(function () use ($dataset, $command): void {
-            $dataset->delete(['deleteContents' => $command->getIsCascade()]);
-        });
+        $proxy = new RetryProxy($deleteWsDatasetRetryPolicy, new ExponentialRandomBackOffPolicy());
+        try {
+            $proxy->call(function () use ($dataset, $command): void {
+                $dataset->delete(['deleteContents' => $command->getIsCascade()]);
+            });
+        } catch (Throwable $e) {
+            if ($e->getCode() !== 404) {
+                throw $e;
+            }
+            // ignore 404 exception as dataset is probably deleted in retry
+        }
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
@@ -81,8 +86,8 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
                 return true;
             }
             return false;
-        });
-        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialBackOffPolicy());
+        }, 10);
+        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($cloudResourceManager, $credentials, $keyData): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
@@ -100,7 +105,7 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
                 }
                 $newMembers = [];
                 foreach ($binding->getMembers() as $member) {
-                    if ($member !== 'serviceAccount:'.$keyData['client_email']) {
+                    if ($member !== 'serviceAccount:' . $keyData['client_email']) {
                         $newMembers[] = $member;
                     }
                 }
@@ -119,9 +124,9 @@ final class DropWorkspaceHandler implements DriverCommandHandlerInterface
                 return true;
             }
             return false;
-        });
+        }, 10);
 
-        $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialBackOffPolicy());
+        $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($serviceAccountsService, $keyData): void {
             $serviceAccountsService->delete(
                 sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email'])
