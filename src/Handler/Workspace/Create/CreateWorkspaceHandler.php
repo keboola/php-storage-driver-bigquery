@@ -29,6 +29,7 @@ final class CreateWorkspaceHandler extends BaseHandler
     public const IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES = [
         IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER, // readOnly access
         IAmPermissions::ROLES_BIGQUERY_JOB_USER,
+        IAmPermissions::ROLES_BIGQUERY_READ_SESSION_USER,
     ];
     public const PRIVATE_KEY_TYPE = 'TYPE_GOOGLE_CREDENTIALS_FILE';
     public const KEY_DATA_PROPERTY_PRIVATE_KEY = 'private_key';
