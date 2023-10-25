@@ -28,6 +28,7 @@ final class DropWorkspaceHandler extends BaseHandler
 
     public function __construct(GCPClientManager $clientManager)
     {
+        parent::__construct();
         $this->clientManager = $clientManager;
     }
 

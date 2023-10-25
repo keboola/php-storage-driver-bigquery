@@ -17,6 +17,7 @@ final class DropTableHandler extends BaseHandler
 
     public function __construct(GCPClientManager $clientManager)
     {
+        parent::__construct();
         $this->clientManager = $clientManager;
     }
 
