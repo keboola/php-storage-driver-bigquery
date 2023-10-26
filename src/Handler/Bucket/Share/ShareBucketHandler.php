@@ -52,6 +52,10 @@ final class ShareBucketHandler extends BaseHandler
             'ShareBucketCommand.sourceBucketId must be filled in'
         );
         assert(
+            $command->getSourceBucketObjectName() !== '',
+            'ShareBucketCommand.sourceBucketObjectName must be filled in'
+        );
+        assert(
             str_contains($command->getSourceProjectId(), '/') === false,
             'ShareBucketCommand.sourceBucketObjectName cannot contain "/"'
         );
@@ -74,7 +78,7 @@ final class ShareBucketHandler extends BaseHandler
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
                 $projectStringId,
-                $listingId
+                $command->getSourceBucketObjectName()
             ),
         ]);
 
