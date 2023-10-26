@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
+use Google\ApiCore\ApiException;
+use Google\ApiCore\ValidationException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
@@ -13,6 +15,7 @@ use Google\Cloud\Iam\V1\Binding;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\InvalidArgumentException;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
@@ -46,11 +49,6 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
         $externalTableName = md5($this->getName()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
-
-        $externalBqClient = $this->clientManager->getBigQueryClient(
-            $this->testRunId,
-            $this->externalProjectCredentials
-        );
 
         // this part simulate user who want to register ext bucket
         // 1. and 2. will be done in one step, but we need to test it can't be registered before grant permission
@@ -215,6 +213,61 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
     }
 
+    public function testRegisterBucketInDifferentRegionShouldFail(): void
+    {
+        $externalTableName = $this->getTestHash() . '_Test_table';
+        $bucketId = $this->getTestHash() . 'bucket_in_eu';
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->externalProjectCredentials);
+
+        // manually create dataset with table in EU
+        $dataset = $bqClient->dataset($bucketId);
+        try {
+            $dataset->delete(['deleteContents' => true]);
+        } catch (Throwable) {
+            // ignore
+        }
+        $bucket = $bqClient->createDataset($bucketId, ['location' => 'EU']);
+        $bucket->createTable($externalTableName);
+
+        // create exchange and listing for external bucket in EU
+        $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
+        [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
+            $externalAnalyticHubClient,
+            $bucketId,
+            'EU'
+        );
+
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
+            ->setDestinationObjectName('test_external')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
+
+        $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
+
+        try {
+            $handler(
+                $this->mainProjectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(),
+            );
+            $this->fail('Should not be able to register bucket from another region.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('Listing region "eu" must be the same as source dataset region "us".', $e->getMessage());
+            $this->assertSame(3000, $e->getCode());
+            $this->assertSame(false, $e->isRetryable());
+        }
+    }
+
     private function prepareTestTable(string $bucketDatabaseName, string $externalTableName): void
     {
         $this->createTestTable($this->externalProjectCredentials, $bucketDatabaseName, $externalTableName);
@@ -243,18 +296,32 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
      */
     private function prepareExternalBucketForRegistration(
         AnalyticsHubServiceClient $externalAnalyticHubClient,
-        string $bucketDatabaseName
+        string $bucketDatabaseName,
+        string $location = GCPClientManager::DEFAULT_LOCATION
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];
 
         $dataExchangeId = str_replace('-', '_', $externalProjectStringId) . '_external';
-        $location = GCPClientManager::DEFAULT_LOCATION;
         $formattedParent = $externalAnalyticHubClient->locationName($externalProjectStringId, $location);
 
         // 1.1 Create exchanger in source project
         $dataExchange = new DataExchange();
         $dataExchange->setDisplayName($dataExchangeId);
+
+        try {
+            // delete if exist in case of retry
+            $dataExchangeName = AnalyticsHubServiceClient::dataExchangeName(
+                $externalProjectStringId,
+                $location,
+                $dataExchangeId
+            );
+            $dataExchange = $externalAnalyticHubClient->getDataExchange($dataExchangeName);
+            $externalAnalyticHubClient->deleteDataExchange($dataExchange->getName());
+        } catch (Throwable $e) {
+            // ignore
+        }
+
         $dataExchange = $externalAnalyticHubClient->createDataExchange(
             $formattedParent,
             $dataExchangeId,

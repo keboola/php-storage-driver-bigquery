@@ -9,11 +9,11 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class SubscribeListingPermissionDeniedException extends Exception implements NonRetryableExceptionInterface
+class InvalidArgumentException extends Exception implements NonRetryableExceptionInterface
 {
     public function __construct(
         string $message,
-        int $code = self::ERR_OBJECT_PERMISSION_DENIED,
+        int $code = self::ERR_VALIDATION,
         ?Throwable $previous = null
     ) {
         parent::__construct(
@@ -23,17 +23,10 @@ class SubscribeListingPermissionDeniedException extends Exception implements Non
         );
     }
 
-    public static function handlePermissionDeniedException(
-        ApiException $e,
-        string $externalBucketName,
-        string $listingName
-    ): ApiException|self {
+    public static function handleException(ApiException $e): ApiException|self
+    {
         throw new self(
-            message: sprintf(
-                'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
-                $externalBucketName,
-                $listingName
-            ),
+            message: $e->getBasicMessage() ?? $e->getMessage(),
             previous: $e
         );
     }
