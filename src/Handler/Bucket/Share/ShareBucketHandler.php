@@ -48,8 +48,8 @@ final class ShareBucketHandler extends BaseHandler
             'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in'
         );
         assert(
-            $command->getSourceBucketObjectName() !== '',
-            'ShareBucketCommand.sourceBucketObjectName must be filled in'
+            $command->getSourceBucketId() !== '',
+            'ShareBucketCommand.sourceBucketId must be filled in'
         );
         assert(
             str_contains($command->getSourceProjectId(), '/') === false,
@@ -66,7 +66,10 @@ final class ShareBucketHandler extends BaseHandler
             GCPClientManager::DEFAULT_LOCATION,
             $dataExchangeId
         );
-        $listingId = $command->getSourceBucketObjectName();
+        // we are using bucketId which is integer id of bucket in connection
+        // this way we are preventing that listing name is too long
+        // which could occurred if bucketObjectName is longer than 63 characters
+        $listingId = $command->getSourceBucketId();
         $lst = new BigQueryDatasetSource([
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
