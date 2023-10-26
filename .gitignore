@@ -7,3 +7,4 @@ tests/generated/*
 /docs/
 phpunit-retry.xml
 .phpunit.result.cache
+/logs/
