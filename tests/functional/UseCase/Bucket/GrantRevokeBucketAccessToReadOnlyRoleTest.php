@@ -215,7 +215,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
     public function testRegisterBucketInDifferentRegionShouldFail(): void
     {
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = $this->getTestHash() . '_Test_table';
         $bucketId = $this->getTestHash() . 'bucket_in_eu';
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->externalProjectCredentials);
 
