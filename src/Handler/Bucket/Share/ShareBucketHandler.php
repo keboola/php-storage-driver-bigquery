@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Share;
 
-use Google\ApiCore\ApiException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
@@ -13,6 +12,7 @@ use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Throwable;
 
 final class ShareBucketHandler extends BaseHandler
 {
@@ -48,6 +48,10 @@ final class ShareBucketHandler extends BaseHandler
             'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in'
         );
         assert(
+            $command->getSourceBucketId() !== '',
+            'ShareBucketCommand.sourceBucketId must be filled in'
+        );
+        assert(
             $command->getSourceBucketObjectName() !== '',
             'ShareBucketCommand.sourceBucketObjectName must be filled in'
         );
@@ -66,12 +70,15 @@ final class ShareBucketHandler extends BaseHandler
             GCPClientManager::DEFAULT_LOCATION,
             $dataExchangeId
         );
-        $listingId = $command->getSourceBucketObjectName();
+        // we are using bucketId which is integer id of bucket in connection
+        // this way we are preventing that listing name is too long
+        // which could occurred if bucketObjectName is longer than 63 characters
+        $listingId = $command->getSourceBucketId();
         $lst = new BigQueryDatasetSource([
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
                 $projectStringId,
-                $listingId
+                $command->getSourceBucketObjectName()
             ),
         ]);
 
@@ -87,8 +94,8 @@ final class ShareBucketHandler extends BaseHandler
         try {
             $listing = $analyticHubClient->createListing($formattedParent, $listingId, $listing);
             $this->logger->debug(sprintf('Listing created: %s', $listing->serializeToJsonString()));
-        } catch (ApiException $e) {
-            if (!str_starts_with($e->getMessage(), 'Listing already exists')) {
+        } catch (Throwable $e) {
+            if (!str_contains($e->getMessage(), 'Listing already exists')) {
                 throw $e;
             }
             $this->logger->debug(sprintf('Listing already exists: %s', $listingName));

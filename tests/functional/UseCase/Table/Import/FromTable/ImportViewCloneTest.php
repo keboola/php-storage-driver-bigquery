@@ -436,6 +436,7 @@ class ImportViewCloneTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
+            ->setSourceBucketId('1234567')
             ->setSourceProjectReadOnlyRoleName($this->projects[0][1]->getProjectReadOnlyRoleName());
 
         /** @var ShareBucketResponse $result */
