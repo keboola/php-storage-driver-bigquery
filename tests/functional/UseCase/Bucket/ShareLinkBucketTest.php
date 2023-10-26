@@ -239,7 +239,7 @@ class ShareLinkBucketTest extends BaseCase
             $sourceProjectId,
             GCPClientManager::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-            $bucketDatabaseName
+            '1234'
         );
         $listing = $analyticHubClient->getListing($formattedName);
         $this->assertNotNull($listing->getName());
