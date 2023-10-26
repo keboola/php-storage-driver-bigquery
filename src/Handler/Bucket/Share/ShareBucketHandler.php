@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Share;
 
+use Google\ApiCore\ApiException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
@@ -73,11 +74,28 @@ final class ShareBucketHandler extends BaseHandler
                 $listingId
             ),
         ]);
+
+        $listingName = $analyticHubClient::listingName(
+            $projectStringId,
+            GCPClientManager::DEFAULT_LOCATION,
+            $dataExchangeId,
+            $listingId
+        );
         $listing = new Listing();
         $listing->setBigqueryDataset($lst);
         $listing->setDisplayName($listingId);
-        $createdListing = $analyticHubClient->createListing($formattedParent, $listingId, $listing);
+        try {
+            $listing = $analyticHubClient->createListing($formattedParent, $listingId, $listing);
+            $this->logger->debug(sprintf('Listing created: %s', $listing->serializeToJsonString()));
+        } catch (ApiException $e) {
+            if (!str_starts_with($e->getMessage(), 'Listing already exists')) {
+                throw $e;
+            }
+            $this->logger->debug(sprintf('Listing already exists: %s', $listingName));
+            // if listing already exists ignore this error
+            // listing is unique for project as it is created with same name as bucket which is also unique in project
+        }
 
-        return (new ShareBucketResponse())->setBucketShareRoleName($createdListing->getName());
+        return (new ShareBucketResponse())->setBucketShareRoleName($listingName);
     }
 }
