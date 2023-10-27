@@ -58,7 +58,10 @@ final class DropProjectHandler extends BaseHandler
 
         foreach ($policy['bindings'] as $bindingKey => $binding) {
             if ($binding['role'] === 'roles/storage.objectAdmin') {
-                $key = array_search('serviceAccount:'.$publicPartKeyFile['client_email'], $binding['members']);
+                $key = array_search('serviceAccount:' . $publicPartKeyFile['client_email'], $binding['members'], false);
+                if ($key === false) {
+                    continue;
+                }
                 unset($policy['bindings'][$bindingKey]['members'][$key]);
             }
         }
@@ -74,7 +77,7 @@ final class DropProjectHandler extends BaseHandler
         }
         $projectsClient = $this->clientManager->getProjectClient($credentials);
 
-        $formattedName = $projectsClient->projectName($projectId);
+        $formattedName = $projectsClient::projectName($projectId);
         $billingClient = $this->clientManager->getBillingClient($credentials);
         $billingInfo = new ProjectBillingInfo();
         $billingInfo->setBillingEnabled(false);
@@ -85,10 +88,10 @@ final class DropProjectHandler extends BaseHandler
 
         $location = GCPClientManager::DEFAULT_LOCATION;
         $dataExchangeId = $command->getReadOnlyRoleName();
-        $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
+        $formattedName = $analyticHubClient::dataExchangeName($projectId, $location, $dataExchangeId);
         $analyticHubClient->deleteDataExchange($formattedName);
 
-        $formattedName = $projectsClient->projectName($projectId);
+        $formattedName = $projectsClient::projectName($projectId);
         $operationResponse = $projectsClient->deleteProject($formattedName);
         $operationResponse->pollUntilComplete();
         if (!$operationResponse->operationSucceeded()) {
