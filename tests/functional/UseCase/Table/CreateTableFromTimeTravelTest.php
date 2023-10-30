@@ -54,14 +54,17 @@ class CreateTableFromTimeTravelTest extends BaseCase
         sleep(1);
         $dateTimeAfterImport = date(DATE_ATOM);
 
+        $insert = [];
         foreach ([['5', '5', '6'], ['7', '7', '7'], ['8', '8', '8'], ['9', '8', '9']] as $i) {
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $i)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $i));
         }
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
 
         $cmd = new CreateTableFromTimeTravelCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -357,13 +360,15 @@ class CreateTableFromTimeTravelTest extends BaseCase
             [], //<-- dont create primary keys allow duplicates
         );
         $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
         foreach ([['1', '1', '3'], ['2', '2', '2'], ['3', '2', '3'], ['4', '4', '4']] as $i) {
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $i)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $i));
         }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
     }
 }
