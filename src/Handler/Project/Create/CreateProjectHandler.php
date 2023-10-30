@@ -12,12 +12,12 @@ use Google\Cloud\ResourceManager\V3\Project;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
 use Google\Cloud\ServiceUsage\V1\ServiceUsageClient;
 use Google\Protobuf\Internal\Message;
+use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\GetIamPolicyRequest;
+use Google\Service\CloudResourceManager\Policy;
+use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Iam\ServiceAccount;
 use Google_Service_CloudResourceManager;
-use Google_Service_CloudResourceManager_Binding;
-use Google_Service_CloudResourceManager_GetIamPolicyRequest;
-use Google_Service_CloudResourceManager_Policy;
-use Google_Service_CloudResourceManager_SetIamPolicyRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -97,7 +97,7 @@ final class CreateProjectHandler extends BaseHandler
 
         /** @var array<string, string> $principal */
         $principal = (array) json_decode($credentials->getPrincipal());
-        $formattedName = $projectsClient->projectName($principal['project_id']);
+        $formattedName = $projectsClient::projectName($principal['project_id']);
         $billingClient = $this->clientManager->getBillingClient($credentials);
         $billingInfo = $billingClient->getProjectBillingInfo($formattedName);
         $mainBillingAccount = $billingInfo->getBillingAccountName();
@@ -147,7 +147,7 @@ final class CreateProjectHandler extends BaseHandler
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $location = GCPClientManager::DEFAULT_LOCATION;
-        $formattedParent = $analyticHubClient->locationName($projectCreateResult->getProjectId(), $location);
+        $formattedParent = $analyticHubClient::locationName($projectCreateResult->getProjectId(), $location);
 
         $dataExchangeId = $nameGenerator->createDataExchangeId($command->getProjectId());
         $dataExchange = new DataExchange();
@@ -211,22 +211,22 @@ final class CreateProjectHandler extends BaseHandler
         string $projectName,
         string $serviceAccEmail
     ): void {
-        $getIamPolicyRequest = new Google_Service_CloudResourceManager_GetIamPolicyRequest();
+        $getIamPolicyRequest = new GetIamPolicyRequest();
         $actualPolicy = $cloudResourceManagerClient->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
 
-        $bigQueryDataOwnerBinding = new Google_Service_CloudResourceManager_Binding();
+        $bigQueryDataOwnerBinding = new Binding();
         $bigQueryDataOwnerBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $bigQueryDataOwnerBinding->setRole(IAmPermissions::ROLES_BIGQUERY_DATA_OWNER);
 
-        $serviceAccountCreatorBinding = new Google_Service_CloudResourceManager_Binding();
+        $serviceAccountCreatorBinding = new Binding();
         $serviceAccountCreatorBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $serviceAccountCreatorBinding->setRole(IAmPermissions::ROLES_IAM_SERVICE_ACCOUNT_CREATOR);
 
-        $bigQueryJobUserBinding = new Google_Service_CloudResourceManager_Binding();
+        $bigQueryJobUserBinding = new Binding();
         $bigQueryJobUserBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $bigQueryJobUserBinding->setRole(IAmPermissions::ROLES_BIGQUERY_JOB_USER);
 
-        $ownerBinding = new Google_Service_CloudResourceManager_Binding();
+        $ownerBinding = new Binding();
         $ownerBinding->setMembers('serviceAccount:' . $serviceAccEmail);
         $ownerBinding->setRole('roles/owner');
 
@@ -236,10 +236,12 @@ final class CreateProjectHandler extends BaseHandler
         $finalBinding[] = $ownerBinding;
         $finalBinding[] = $serviceAccountCreatorBinding;
 
-        $policy = new Google_Service_CloudResourceManager_Policy();
+        $policy = new Policy();
+        $policy->setEtag($actualPolicy->getEtag());
+        $policy->setVersion($actualPolicy->getVersion());
         $policy->setBindings($finalBinding);
 
-        $setIamPolicyRequest = new Google_Service_CloudResourceManager_SetIamPolicyRequest();
+        $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
 
         $cloudResourceManagerClient->projects->setIamPolicy($projectName, $setIamPolicyRequest);
