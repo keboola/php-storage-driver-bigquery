@@ -56,18 +56,20 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getPrimaryKeysNames(),
         );
         $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
                 $quotedValues[] = BigqueryQuote::quote($item);
             }
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $quotedValues)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
 
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -178,18 +180,20 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getPrimaryKeysNames(),
         );
         $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
                 $quotedValues[] = BigqueryQuote::quote($item);
             }
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $quotedValues)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
 
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -306,18 +310,20 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getPrimaryKeysNames(),
         );
         $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
                 $quotedValues[] = BigqueryQuote::quote($item);
             }
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $quotedValues)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $sourceTableName);
         $this->assertSame(5, $ref->getRowsCount());
 

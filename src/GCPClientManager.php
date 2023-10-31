@@ -23,7 +23,6 @@ class GCPClientManager
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
         '500' => Runner::TASK_RETRY_ALWAYS,
         '503' => Runner::TASK_RETRY_ALWAYS,
-        '409' => Runner::TASK_RETRY_ALWAYS,
         '400' => Runner::TASK_RETRY_ALWAYS,
         'rateLimitExceeded' => Runner::TASK_RETRY_ALWAYS,
         'accessDenied' => Runner::TASK_RETRY_ONCE,

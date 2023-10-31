@@ -72,14 +72,17 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             [], //<-- dont create primary keys allow duplicates
         );
         $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
         foreach ([['1', '1', '3'], ['2', '2', '2'], ['2', '2', '2'], ['3', '2', '3'], ['4', '4', '4']] as $i) {
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                implode(',', $i)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $i));
         }
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
 
         // create tables
         if ($isTypedTable) {

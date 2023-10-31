@@ -118,22 +118,6 @@ final class CreateWorkspaceHandler extends BaseHandler
 
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-        $getIamPolicyRequest = new GetIamPolicyRequest();
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
-        $finalBinding[] = $actualPolicy->getBindings();
-
-        foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
-            $bigQueryJobUserBinding = new Binding();
-            $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-            $bigQueryJobUserBinding->setRole($role);
-            $finalBinding[] = $bigQueryJobUserBinding;
-        }
-
-        $policy = new Policy();
-        $policy->setBindings($finalBinding);
-        $setIamPolicyRequest = new SetIamPolicyRequest();
-        $setIamPolicyRequest->setPolicy($policy);
-
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             $this->logger->debug('Try set iam policy Err:' . $e->getMessage());
             return true;
@@ -144,7 +128,26 @@ final class CreateWorkspaceHandler extends BaseHandler
             60_000 // 1m
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $setIamPolicyRequest, $wsServiceAcc): void {
+
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc): void {
+            $getIamPolicyRequest = new GetIamPolicyRequest();
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
+            $finalBinding[] = $actualPolicy->getBindings();
+
+            foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
+                $bigQueryJobUserBinding = new Binding();
+                $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
+                $bigQueryJobUserBinding->setRole($role);
+                $finalBinding[] = $bigQueryJobUserBinding;
+            }
+
+            $policy = new Policy();
+            $policy->setVersion($actualPolicy->getVersion());
+            $policy->setEtag($actualPolicy->getEtag());
+            $policy->setBindings($finalBinding);
+            $setIamPolicyRequest = new SetIamPolicyRequest();
+            $setIamPolicyRequest->setPolicy($policy);
+
             $this->logger->log(
                 LogLevel::DEBUG,
                 'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName

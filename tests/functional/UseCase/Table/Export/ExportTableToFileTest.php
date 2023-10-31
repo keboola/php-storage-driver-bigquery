@@ -768,18 +768,21 @@ class ExportTableToFileTest extends BaseCase
         $bqClient->runQuery($bqClient->query($sql));
 
         // init some values
+        $insert = [];
         foreach ([
                      ['\'1\'', '\'2\'', '\'4\'', '\'2022-01-01 12:00:01\''],
                      ['\'2\'', '\'3\'', '\'4\'', '\'2022-01-01 12:00:02\''],
                      ['\'3\'', '\'3\'', '\'3\'', '\'2022-01-01 12:00:03\''],
                  ] as $i) {
-            $bqClient->runQuery($bqClient->query(sprintf(
-                'INSERT INTO %s.%s VALUES (%s)',
-                BigqueryQuote::quoteSingleIdentifier($databaseName),
-                BigqueryQuote::quoteSingleIdentifier($tableName),
-                implode(',', $i)
-            )));
+            $insert[] = sprintf('(%s)', implode(',', $i));
         }
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($databaseName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+            implode(',', $insert)
+        )));
 
         return $tableDef;
     }

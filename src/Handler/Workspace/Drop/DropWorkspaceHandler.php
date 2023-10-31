@@ -114,6 +114,8 @@ final class DropWorkspaceHandler extends BaseHandler
                 $newBinding[] = $tmpBinding;
             }
             $policy = new Policy();
+            $policy->setVersion($actualPolicy->getVersion());
+            $policy->setEtag($actualPolicy->getEtag());
             $policy->setBindings($newBinding);
             $setIamPolicyRequest = new SetIamPolicyRequest();
             $setIamPolicyRequest->setPolicy($policy);
