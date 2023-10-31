@@ -121,7 +121,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             $this->logger->debug('Try set iam policy Err:' . $e->getMessage());
             return true;
-        }, 5);
+        }, 10);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             5_000, // 5s
             1.8,
