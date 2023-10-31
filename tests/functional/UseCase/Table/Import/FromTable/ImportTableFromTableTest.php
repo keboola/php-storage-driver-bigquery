@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -431,5 +432,128 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $bqClient->runQuery($bqClient->query(
             $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
         ));
+    }
+
+    /**
+     * Full load from workspace simulation
+     * Check import from typed table in workspace to string table
+     */
+    public function testImportStringTableFromTypedTable(): void
+    {
+        $sourceTableName = md5($this->getName()) . '_Test_table';
+        $destinationTableName = md5($this->getName()) . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->projectCredentials);
+
+        // target table with string types
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                new BigqueryColumn(
+                    'col2',
+                    new Bigquery(Bigquery::TYPE_ARRAY, ['length' => 'STRING'])
+                ),
+            ]),
+            []
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        foreach ([['1', ['1']], ['2', ['2']], ['3', ['3']]] as $i) {
+            $quotedValues = [];
+            foreach ($i as $item) {
+                if (is_array($item)) {
+                    $tmp = array_map(fn(string $i) => BigqueryQuote::quote($i), $item);
+                    $quotedValues[] = json_encode($tmp, JSON_THROW_ON_ERROR);
+                    continue;
+                }
+                $quotedValues[] = BigqueryQuote::quote($item);
+            }
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'INSERT INTO %s.%s VALUES (%s)',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+                implode(',', $quotedValues)
+            )));
+        }
+
+        // destination table with string types
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+            ]),
+            []
+        );
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col1')
+            ->setDestinationColumnName('col1');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col2')
+            ->setDestinationColumnName('col2');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings)
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName)
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(0)
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        /** @var TableImportResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $cmd,
+            []
+        );
+        $this->assertSame(1, $response->getImportedRowsCount());
+        $this->assertSame(
+            [], // optimized full load is not returning imported columns
+            iterator_to_array($response->getImportedColumns())
+        );
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->assertSame(1, $ref->getRowsCount());
+        $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        // cleanup
+        $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName());
+        $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
     }
 }
