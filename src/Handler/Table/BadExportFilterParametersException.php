@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table;
 
 use Google\Cloud\Core\Exception\BadRequestException;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
@@ -39,12 +40,33 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
         }
 
         if ($e->getCode() === 400 && str_contains($e->getMessage(), 'Invalid')) {
-            /** @var array<string, array<string, string>> $message */
-            $message = json_decode($e->getMessage(), true);
-            assert($message !== null);
-            assert(isset($message['error']['message']));
             throw new self(
-                message: $message['error']['message'],
+                message: DecodeErrorMessage::getErrorMessage($e),
+                previous: $e
+            );
+        }
+
+        if ($e->getCode() === 400 && str_contains($e->getMessage(), 'can be used for partition elimination')) {
+            //{
+            //  "error": {
+            //    "code": 400,
+            //    "message": "Cannot query over table 'tableName' without a filter over column(s) 'columnName'
+            // that can be used for partition elimination",
+            //    "errors": [
+            //      {
+            //        "message": "Cannot query over table 'tableName' without a filter over column(s) 'columnName'
+            // that can be used for partition elimination",
+            //        "domain": "global",
+            //        "reason": "invalidQuery",
+            //        "location": "q",
+            //        "locationType": "parameter"
+            //      }
+            //    ],
+            //    "status": "INVALID_ARGUMENT"
+            //  }
+            //}
+            throw new self(
+                message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e
             );
         }

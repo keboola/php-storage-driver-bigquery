@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
+use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\Backend\BigQuery\Clustering;
+use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
+use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
+use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
+use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
@@ -19,6 +27,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use Throwable;
 
 /**
  * @group Import
@@ -431,5 +440,126 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $bqClient->runQuery($bqClient->query(
             $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
         ));
+    }
+
+    // simulate output mapping load table to table with requirePartition filter
+    public function testPartitionedTableWithRequirePartitionFilter(): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setNullable(false)
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = (new TableColumnShared)
+            ->setName('time')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+        $any = new Any();
+        $any->pack(
+            (new CreateTableCommand\BigQueryTableMeta())
+                ->setClustering((new Clustering())->setFields(['id']))
+                ->setRangePartitioning(
+                    (new RangePartitioning())
+                        ->setField('id')
+                        ->setRange(
+                            (new RangePartitioning\Range())
+                                ->setStart('0')
+                                ->setEnd('10')
+                                ->setInterval('1')
+                        )
+                )
+                ->setRequirePartitionFilter(true)
+        );
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns)
+            ->setMeta($any);
+        $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $columns[] = (new TableColumnShared)
+            ->setName('_timestamp')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($destinationTableName)
+            ->setColumns($columns)
+            ->setMeta($any);
+        $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('id')
+            ->setDestinationColumnName('id');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('time')
+            ->setDestinationColumnName('time');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($tableName)
+                ->setColumnMappings($columnMappings)
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName)
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setNumberOfIgnoredLines(0)
+                ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
+                ->setTimestampColumn('_timestamp')
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('This should never happen');
+        } catch (Throwable $e) {
+            // 'Cannot query over table 'xxx.xxx' without a filter over column(s) 'id'
+            // that can be used for partition elimination'
+            $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
+            $this->assertStringContainsString(
+                'without a filter over column(s) \'id\' that can be used for partition elimination',
+                $e->getMessage()
+            );
+        }
     }
 }

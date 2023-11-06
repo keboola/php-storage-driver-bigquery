@@ -12,12 +12,16 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\Backend\BigQuery\Clustering;
+use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\TableInfo;
+use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOptions;
@@ -26,6 +30,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
+use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableExportToFileResponse;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
@@ -37,6 +42,7 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use Throwable;
 
 /**
  * @group Export
@@ -931,5 +937,81 @@ class ExportTableToFileTest extends BaseCase
         }
 
         return $result;
+    }
+
+    public function testPartitionedTableWithRequirePartitionFilter(): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setNullable(false)
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = (new TableColumnShared)
+            ->setName('time')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+        $any = new Any();
+        $any->pack(
+            (new CreateTableCommand\BigQueryTableMeta())
+                ->setClustering((new Clustering())->setFields(['id']))
+                ->setRangePartitioning(
+                    (new RangePartitioning())
+                        ->setField('id')
+                        ->setRange(
+                            (new RangePartitioning\Range())
+                                ->setStart('0')
+                                ->setEnd('10')
+                                ->setInterval('1')
+                        )
+                )
+                ->setRequirePartitionFilter(true)
+        );
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns)
+            ->setMeta($any);
+        $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $exportDir = sprintf(
+            'export/%s/',
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
+        );
+        try {
+            $this->exportTable(
+                $bucketDatasetName,
+                $tableName,
+                [
+                    'exportOptions' => (new ExportOptions([
+                        'isCompressed' => false,
+                        'columnsToExport' => ['id'],
+                    ])),
+                ],
+                $exportDir,
+            );
+            $this->fail('This should never happen');
+        } catch (Throwable $e) {
+            // 'Cannot query over table 'xxx.xxx' without a filter over column(s) 'id'
+            // that can be used for partition elimination'
+            $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
+            $this->assertStringContainsString(
+                'without a filter over column(s) \'id\' that can be used for partition elimination',
+                $e->getMessage()
+            );
+        }
     }
 }
