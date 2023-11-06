@@ -33,6 +33,7 @@ final class PreviewTableHandler extends BaseHandler
     public function __construct(
         GCPClientManager $manager
     ) {
+        parent::__construct();
         $this->manager = $manager;
     }
 
