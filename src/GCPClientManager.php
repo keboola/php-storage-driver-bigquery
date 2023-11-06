@@ -26,7 +26,7 @@ class GCPClientManager
         'connect_timeout' => self::CONNECT_TIMEOUT,
     ];
 
-    public const TIMEOUT = 20;
+    public const TIMEOUT = 120;
     public const CONNECT_TIMEOUT = 10;
 
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
@@ -136,7 +136,7 @@ class GCPClientManager
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'restRetryFunction' => Retry::getRetryDecider($this->logger),
-            'requestTimeout' => 60,
+            'requestTimeout' => 120,
             'retries' => 20,
         ]);
     }
@@ -154,6 +154,7 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new StorageClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
+            'requestTimeout' => 120,
         ]);
     }
 
