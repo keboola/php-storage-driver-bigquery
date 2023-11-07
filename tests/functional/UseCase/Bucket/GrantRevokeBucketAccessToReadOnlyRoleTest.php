@@ -16,6 +16,7 @@ use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\InvalidArgumentException;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\SubscribeListingObjectNotFoundException;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
@@ -41,6 +42,55 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $this->externalProjectCredentials = $this->projects[1][0];
         $bucketResponse = $this->createTestBucket($this->projects[1][0], $this->projects[1][2]);
         $this->bucketResponse = $bucketResponse;
+    }
+
+    public function testRegisterNonExistExchanger(): void
+    {
+        $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
+        $externalTableName = md5($this->getName()) . '_Test_table';
+        $this->prepareTestTable($externalBucketName, $externalTableName);
+        $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
+        [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
+            $externalAnalyticHubClient,
+            $externalBucketName
+        );
+
+        $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
+
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $handler->setLogger($this->log);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                'nonexist',
+            ])
+            ->setDestinationObjectName('test_external')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
+
+        try {
+            $handler(
+                $this->mainProjectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(),
+            );
+            $this->fail('Should fail, because listing does not exist.');
+        } catch (SubscribeListingObjectNotFoundException $e) {
+            $this->assertSame(
+                sprintf(
+                    'Failed to find listing: projects/%s/locations/%s/dataExchanges/%s/listings/nonexist',
+                    $parsedName['project'],
+                    $parsedName['location'],
+                    $parsedName['data_exchange']
+                ),
+                $e->getMessage()
+            );
+        }
     }
 
     public function testRegisterBucket(): void
