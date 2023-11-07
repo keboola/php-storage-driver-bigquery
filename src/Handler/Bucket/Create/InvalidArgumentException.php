@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
 use Google\ApiCore\ApiException;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
@@ -26,7 +27,7 @@ class InvalidArgumentException extends Exception implements NonRetryableExceptio
     public static function handleException(ApiException $e): ApiException|self
     {
         throw new self(
-            message: $e->getBasicMessage() ?? $e->getMessage(),
+            message: DecodeErrorMessage::getErrorMessage($e),
             previous: $e
         );
     }
