@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery;
 
+use Google\Protobuf\Any;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Init\InitBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
@@ -33,7 +35,6 @@ use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandl
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\DropObject\DropWorkspaceObjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilderFactory;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
@@ -44,7 +45,7 @@ use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleComma
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
-use Keboola\StorageDriver\Command\Common\RuntimeOptions;
+use Keboola\StorageDriver\Command\Common\DriverResponse;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -67,10 +68,22 @@ use Keboola\StorageDriver\Contract\Driver\ClientInterface;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\CommandNotSupportedException;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 class BigQueryDriverClient implements ClientInterface
 {
+    protected LoggerInterface $internalLogger;
+
+    public function __construct(?LoggerInterface $internalLogger = null)
+    {
+        if ($internalLogger === null) {
+            $this->internalLogger = new NullLogger();
+        } else {
+            $this->internalLogger = $internalLogger;
+        }
+    }
+
     /**
      * @param string[] $features
      */
@@ -81,17 +94,29 @@ class BigQueryDriverClient implements ClientInterface
         Message $runtimeOptions
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
-        $manager = new GCPClientManager(new NullLogger());
+        $manager = new GCPClientManager($this->internalLogger);
         $handler = $this->getHandler($command, $manager);
+        $handler->setInternalLogger($this->internalLogger);
 
-        return $handler(
+        $handledResponse = $handler(
             $credentials,
             $command,
             $features,
             $runtimeOptions,
         );
+        $response = new DriverResponse();
+        if ($handledResponse !== null) {
+            $any = new Any();
+            $any->pack($handledResponse);
+            $response->setCommandResponse($any);
+        }
+        $response->setMessages($handler->getMessages());
+        return $handledResponse;
     }
 
+    /**
+     * @return BaseHandler
+     */
     private function getHandler(Message $command, GCPClientManager $manager): DriverCommandHandlerInterface
     {
         switch (true) {

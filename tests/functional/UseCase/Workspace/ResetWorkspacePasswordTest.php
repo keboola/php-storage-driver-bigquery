@@ -40,7 +40,7 @@ class ResetWorkspacePasswordTest extends BaseCase
 
         // reset password
         $handler = new ResetWorkspacePasswordHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new ResetWorkspacePasswordCommand())
             ->setWorkspaceUserName($createResponse->getWorkspaceUserName());
 

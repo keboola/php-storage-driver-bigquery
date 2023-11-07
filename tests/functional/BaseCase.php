@@ -186,7 +186,7 @@ class BaseCase extends TestCase
         $this->log->add('CREATING: ' . $id);
 
         $handler = new CreateProjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new CreateprojectCommand();
 
         $meta = new Any();
@@ -354,7 +354,7 @@ class BaseCase extends TestCase
             $branchId
         );
         $handler = new CreateBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new CreateBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -477,7 +477,7 @@ class BaseCase extends TestCase
             $workspaceId
         );
         $handler = new CreateWorkspaceHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new CreateWorkspaceCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setProjectId($projectId)
@@ -491,6 +491,7 @@ class BaseCase extends TestCase
         );
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
         $this->log->add('Workspace created: ' . $response->getWorkspaceObjectName());
+        $this->log->add('Workspace created: ' . $response->getWorkspacePassword());
 
         $credentials = (new GenericBackendCredentials())
             ->setHost($projectCredentials->getHost())
@@ -512,7 +513,7 @@ class BaseCase extends TestCase
         array $structure
     ): void {
         $createTableHandler = new CreateTableHandler($this->clientManager);
-        $createTableHandler->setLogger($this->log);
+        $createTableHandler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -565,18 +566,20 @@ class BaseCase extends TestCase
                 BigqueryQuote::quoteSingleIdentifier($tableName),
             )));
         }
+
         foreach ($insertGroups as $insertGroup) {
+            $insert = [];
             foreach ($insertGroup['rows'] as $insertRow) {
-                $insertSql = sprintf(
-                    "INSERT INTO %s.%s\n(%s) VALUES\n(%s);",
-                    BigqueryQuote::quoteSingleIdentifier($databaseName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                    $insertGroup['columns'],
-                    $insertRow
-                );
-                $inserted = $bqClient->runQuery($bqClient->query($insertSql));
-                $this->assertEquals(1, $inserted->info()['numDmlAffectedRows']);
+                $insert[] = sprintf('(%s)', $insertRow);
             }
+            $insertSql = sprintf(
+                "INSERT INTO %s.%s\n(%s) VALUES\n%s;",
+                BigqueryQuote::quoteSingleIdentifier($databaseName),
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                $insertGroup['columns'],
+                implode(",\n", $insert)
+            );
+            $bqClient->runQuery($bqClient->query($insertSql));
         }
     }
 
@@ -628,7 +631,7 @@ class BaseCase extends TestCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $database;

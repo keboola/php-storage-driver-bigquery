@@ -1537,7 +1537,7 @@ class PreviewTableTest extends BaseCase
     private function dropTable(string $databaseName, string $tableName): void
     {
         $handler = new DropTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -1564,7 +1564,7 @@ class PreviewTableTest extends BaseCase
     private function previewTable(string $databaseName, string $tableName, array $commandInput): PreviewTableResponse
     {
         $handler = new PreviewTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $command = new PreviewTableCommand();
 
@@ -1667,7 +1667,7 @@ class PreviewTableTest extends BaseCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;
@@ -1709,7 +1709,7 @@ class PreviewTableTest extends BaseCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         try {
             $this->previewTable(
                 $bucketDatasetName,

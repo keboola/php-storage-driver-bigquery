@@ -50,7 +50,7 @@ class CreateDropProjectTest extends BaseCase
     public function testCreateProject(): void
     {
         $handler = new CreateProjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new CreateProjectCommand();
 
         $meta = new Any();
@@ -158,7 +158,7 @@ class CreateDropProjectTest extends BaseCase
         $this->assertTrue($hasStorageObjAdminRole);
 
         $handler = new DropProjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $meta = new Any();
         $meta->pack((new DropProjectCommand\DropProjectBigqueryMeta())->setGcsFileBucketName(

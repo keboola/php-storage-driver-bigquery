@@ -93,12 +93,12 @@ final class ShareBucketHandler extends BaseHandler
         $listing->setDisplayName($listingId);
         try {
             $listing = $analyticHubClient->createListing($formattedParent, $listingId, $listing);
-            $this->logger->debug(sprintf('Listing created: %s', $listing->serializeToJsonString()));
+            $this->internalLogger->debug(sprintf('Listing created: %s', $listing->serializeToJsonString()));
         } catch (Throwable $e) {
             if (!str_contains($e->getMessage(), 'Listing already exists')) {
                 throw $e;
             }
-            $this->logger->debug(sprintf('Listing already exists: %s', $listingName));
+            $this->internalLogger->debug(sprintf('Listing already exists: %s', $listingName));
             // if listing already exists ignore this error
             // listing is unique for project as it is created with same name as bucket which is also unique in project
         }

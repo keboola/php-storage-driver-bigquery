@@ -110,7 +110,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new GrantBucketAccessToReadOnlyRoleCommand())
             ->setPath([
                 $parsedName['project'],
@@ -231,7 +231,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         );
 
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new RevokeBucketAccessFromReadOnlyRoleCommand())
             ->setBucketObjectName('123_test_external');
         $handler(

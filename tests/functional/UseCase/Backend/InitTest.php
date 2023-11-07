@@ -15,7 +15,7 @@ class InitTest extends BaseCase
     public function testInitBackend(): void
     {
         $handler = new InitBackendHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new InitBackendCommand();
         $response = $handler(
             $this->getCredentials(),
