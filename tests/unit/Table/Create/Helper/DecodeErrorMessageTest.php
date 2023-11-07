@@ -69,6 +69,11 @@ class DecodeErrorMessageTest extends TestCase
             'Errors: error.errors[0].message
 error.errors[1].message',
         ];
+
+        yield 'test' => [
+            '{"message": "Error msg","code": 5,"status": "NOT_FOUND","details": []}',
+            'Error msg',
+        ];
     }
 
     /**
