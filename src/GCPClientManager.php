@@ -135,7 +135,7 @@ class GCPClientManager
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'restRetryFunction' => Retry::getRetryDecider($this->logger),
-            'requestTimeout' => 120,
+            'requestTimeout' => self::TIMEOUT,
             'retries' => 20,
         ]);
     }
@@ -153,7 +153,7 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new StorageClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
-            'requestTimeout' => 120,
+            'requestTimeout' => self::TIMEOUT,
         ]);
     }
 
