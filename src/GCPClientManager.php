@@ -107,8 +107,8 @@ class GCPClientManager
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
             'retry' => self::DEFAULT_RETRY_SETTINGS,
         ]);
-        $httpClient = new GuzzleClient(self::CONNECTION_TIMEOUTS_MAP);
-        $client->setHttpClient($httpClient);
+
+        $this->setTimeouts($client);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
@@ -122,8 +122,7 @@ class GCPClientManager
             'retry' => self::DEFAULT_RETRY_SETTINGS,
             'retry_map' => self::RETRY_MAP,
         ]);
-        $httpClient = new GuzzleClient(self::CONNECTION_TIMEOUTS_MAP);
-        $client->setHttpClient($httpClient);
+        $this->setTimeouts($client);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
@@ -179,5 +178,15 @@ class GCPClientManager
         foreach ($this->clients as $client) {
             $client->close();
         }
+    }
+
+    private function setTimeouts(Google_Client $client): void
+    {
+        $guzzleClient = $client->getHttpClient();
+
+        $config = $guzzleClient->getConfig();
+        assert(is_array($config));
+        $config = array_merge($config, self::CONNECTION_TIMEOUTS_MAP);
+        $client->setHttpClient(new GuzzleClient($config));
     }
 }
