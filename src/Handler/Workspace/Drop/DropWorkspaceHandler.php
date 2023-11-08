@@ -87,7 +87,7 @@ final class DropWorkspaceHandler extends BaseHandler
                 return true;
             }
             return false;
-        }, 10);
+        }, 20);
         $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($cloudResourceManager, $credentials, $keyData): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
