@@ -14,12 +14,21 @@ use Google\Cloud\Storage\StorageClient;
 use Google\Task\Runner;
 use Google_Client;
 use Google_Service_CloudResourceManager;
+use GuzzleHttp\Client as GuzzleClient;
 use Keboola\StorageDriver\BigQuery\Client\BigQuery\Retry;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Psr\Log\LoggerInterface;
 
 class GCPClientManager
 {
+    public const CONNECTION_TIMEOUTS_MAP = [
+        'timeout' => self::TIMEOUT,
+        'connect_timeout' => self::CONNECT_TIMEOUT,
+    ];
+
+    public const TIMEOUT = 120;
+    public const CONNECT_TIMEOUT = 10;
+
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
         '500' => Runner::TASK_RETRY_ALWAYS,
         '503' => Runner::TASK_RETRY_ALWAYS,
@@ -64,6 +73,7 @@ class GCPClientManager
         $client = new FoldersClient([
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
         ]);
+
         $this->clients[] = $client;
 
         return $client;
@@ -97,6 +107,8 @@ class GCPClientManager
             'credentials' => CredentialsHelper::getCredentialsArray($credentials),
             'retry' => self::DEFAULT_RETRY_SETTINGS,
         ]);
+
+        $this->setTimeouts($client);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
@@ -110,6 +122,7 @@ class GCPClientManager
             'retry' => self::DEFAULT_RETRY_SETTINGS,
             'retry_map' => self::RETRY_MAP,
         ]);
+        $this->setTimeouts($client);
         $client->setScopes(self::SCOPES_CLOUD_PLATFORM);
 
         // note: the close method is not used in this client
@@ -122,6 +135,7 @@ class GCPClientManager
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'restRetryFunction' => Retry::getRetryDecider($this->logger),
+            'requestTimeout' => self::TIMEOUT,
             'retries' => 20,
         ]);
     }
@@ -139,6 +153,7 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new StorageClient([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
+            'requestTimeout' => self::TIMEOUT,
         ]);
     }
 
@@ -163,5 +178,15 @@ class GCPClientManager
         foreach ($this->clients as $client) {
             $client->close();
         }
+    }
+
+    private function setTimeouts(Google_Client $client): void
+    {
+        $guzzleClient = $client->getHttpClient();
+
+        $config = $guzzleClient->getConfig();
+        assert(is_array($config));
+        $config = array_merge($config, self::CONNECTION_TIMEOUTS_MAP);
+        $client->setHttpClient(new GuzzleClient($config));
     }
 }
