@@ -114,6 +114,10 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
                 throw InvalidArgumentException::handleException($e);
             }
 
+            if ($e->getCode() === Code::NOT_FOUND) {
+                throw SubscribeListingObjectNotFoundException::handleException($e);
+            }
+
             throw $e;
         }
 

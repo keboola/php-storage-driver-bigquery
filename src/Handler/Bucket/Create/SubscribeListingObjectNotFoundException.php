@@ -10,11 +10,11 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class InvalidArgumentException extends Exception implements NonRetryableExceptionInterface
+class SubscribeListingObjectNotFoundException extends Exception implements NonRetryableExceptionInterface
 {
     public function __construct(
         string $message,
-        int $code = self::ERR_VALIDATION,
+        int $code = self::ERR_NOT_FOUND,
         ?Throwable $previous = null
     ) {
         parent::__construct(

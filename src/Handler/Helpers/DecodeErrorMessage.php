@@ -20,6 +20,10 @@ final class DecodeErrorMessage
             return $e->getMessage();
         }
 
+        if (array_key_exists('message', $message)) {
+            return $message['message'];
+        }
+
         if (!array_key_exists('error', $message)) {
             return $e->getMessage();
         }
