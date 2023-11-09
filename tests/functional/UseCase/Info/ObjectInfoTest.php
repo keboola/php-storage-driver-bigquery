@@ -103,6 +103,8 @@ class ObjectInfoTest extends BaseCase
 
     public function testInfoSchema(): void
     {
+        $this->createOtherTypesOfObjectsWhichCanBeRead();
+        // Run object info cmd
         $handler = new ObjectInfoHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
@@ -132,11 +134,51 @@ class ObjectInfoTest extends BaseCase
             $this->getTestHash()
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'snapshot'
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'externalTable'
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
             'bucket_view1'
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'materialized_view'
+        );
+        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $this->assertCount(0, $handler->getMessages()->getIterator());
+    }
+
+    private function createOtherTypesOfObjectsWhichCanBeRead(): void
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE MATERIALIZED VIEW %s.`materialized_view` AS '
+            . 'SELECT * FROM %s.%s;',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE SNAPSHOT TABLE %s.`snapshot` CLONE %s.%s '
+            . 'OPTIONS ( expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR));',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://'.getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv')
+        )));
     }
 
     public function testInfoTable(): void
