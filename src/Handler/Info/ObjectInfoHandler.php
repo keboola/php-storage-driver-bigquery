@@ -13,6 +13,7 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ViewReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\DatabaseInfo;
@@ -162,12 +163,14 @@ final class ObjectInfoHandler extends BaseHandler
                     BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
                 )));
             } catch (Throwable $e) {
+                $message = DecodeErrorMessage::getErrorMessage($e);
                 $this->userLogger->warning(sprintf(
                     'Selecting data from table "%s" failed with error: "%s" Table was ignored',
                     $info['id'],
-                    $e->getMessage()
+                    $message
                 ), [
                     'info' => $info,
+                    'message' => $e->getMessage(),
                 ]);
                 continue;
             }
