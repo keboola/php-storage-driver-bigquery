@@ -12,6 +12,7 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
@@ -27,6 +28,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDesti
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
@@ -282,6 +284,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $bigqueryImportOptions,
                 $sourceMapping
             );
+        } catch (BigqueryInputDataException $e) {
+            throw new ImportValidationException($e->getMessage());
         } finally {
             if ($stagingTable !== null) {
                 try {
