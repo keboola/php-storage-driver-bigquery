@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -331,5 +332,122 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
         $bqClient->runQuery($bqClient->query($sql));
+    }
+
+    public function testImportTableFromFileWithNullValues(): void
+    {
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        $this->createAccountsTableWithNotNull($bqClient, $bucketDatabaseName, $destinationTableName);
+
+        $cmd = new TableImportFromFileCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $cmd->setFileProvider(FileProvider::GCS);
+        $cmd->setFileFormat(FileFormat::CSV);
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'import';
+        $columns[] = 'isImported';
+        $columns[] = 'id';
+        $columns[] = 'idTwitter';
+        $columns[] = 'name';
+        $columns[] = 'apiLimitExceededDatetime';
+        $columns[] = 'analyzeSentiment';
+        $columns[] = 'importKloutScore';
+        $columns[] = 'timestamp';
+        $columns[] = 'oauthToken';
+        $columns[] = 'oauthSecret';
+        $columns[] = 'idApp';
+        $formatOptions = new Any();
+        $formatOptions->pack(
+            (new TableImportFromFileCommand\CsvTypeOptions())
+                ->setColumnsNames($columns)
+                ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
+                ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
+                ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE)
+        );
+        $cmd->setFormatTypeOptions($formatOptions);
+
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath('sliced/accounts')
+                ->setFileName('GCS.accounts.csvmanifest')
+        );
+
+        $credentials = new Any();
+        // here must be credentials because content of manifest are downloaded
+        $credentials->pack(
+            (new GCSCredentials())
+                ->setKey((string) getenv('BQ_PRINCIPAL'))
+                ->setSecret((string) getenv('BQ_SECRET'))
+        );
+        $cmd->setFileCredentials($credentials);
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName)
+        );
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $convertCols = new RepeatedField(GPBType::STRING);
+        $convertCols[] = 'apiLimitExceededDatetime';
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupCols)
+                ->setConvertEmptyValuesToNullOnColumns($convertCols)
+                ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
+                ->setNumberOfIgnoredLines(0)
+                ->setTimestampColumn('_timestamp')
+        );
+
+        $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setLogger($this->log);
+        /** @var TableImportResponse $response */
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+        } catch (ImportValidationException $e) {
+            $this->assertSame('Required field apiLimitExceededDatetime cannot be null', $e->getMessage());
+        }
+
+        // cleanup
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
+        $bqClient->runQuery($bqClient->query($sql));
+    }
+
+    protected function createAccountsTableWithNotNull(
+        BigQueryClient $bqClient,
+        string $bucketDatabaseName,
+        string $destinationTableName
+    ): void {
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE TABLE %s.%s (
+                `id` STRING(60),
+                `idTwitter` STRING(60),
+                `name` STRING(100) NOT NULL,
+                `import` STRING(60) NOT NULL,
+                `isImported` STRING(60) NOT NULL,
+                `apiLimitExceededDatetime` STRING(60) NOT NULL,
+                `analyzeSentiment` STRING(60) NOT NULL,
+                `importKloutScore` STRING(60) NOT NULL,
+                `timestamp` STRING(60),
+                `oauthToken` STRING(60),
+                `oauthSecret` STRING(60),
+                `idApp` STRING(60),
+                `_timestamp` TIMESTAMP
+            );',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+        )));
     }
 }

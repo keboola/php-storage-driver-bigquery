@@ -19,6 +19,7 @@ use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
@@ -146,7 +147,7 @@ final class ImportTableFromFileHandler extends BaseHandler
                 $importState
             );
         } catch (BigqueryInputDataException $e) {
-            throw new ImportValidationException($e->getMessage());
+            throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
         } finally {
             if ($stagingTable !== null) {
                 try {
