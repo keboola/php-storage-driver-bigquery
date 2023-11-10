@@ -20,6 +20,7 @@ use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -285,7 +286,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $sourceMapping
             );
         } catch (BigqueryInputDataException $e) {
-            throw new ImportValidationException($e->getMessage());
+            throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
         } finally {
             if ($stagingTable !== null) {
                 try {
