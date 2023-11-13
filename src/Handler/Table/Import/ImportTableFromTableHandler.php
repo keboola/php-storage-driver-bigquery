@@ -11,6 +11,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
@@ -221,7 +222,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable,
                 $importOptions
             );
-        } catch (BadRequestException $e) {
+        } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
