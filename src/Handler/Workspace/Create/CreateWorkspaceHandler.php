@@ -6,9 +6,11 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\Expr;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
+use Google\Service\CloudResourceManager\TagKey;
 use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -129,7 +131,28 @@ final class CreateWorkspaceHandler extends BaseHandler
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc): void {
+        $wsTag = new TagKey();
+        $wsTag->setParent($projectName);
+        $wsTag->setShortName('workspace');
+
+        $tags = $cloudResourceManager->tagKeys->listTagKeys([
+            'parent' => 'projects/' . $projectCredentials['project_id'],
+        ]);
+
+        if (count($tags) === 0) {
+            $cloudResourceManager->tagKeys->create($wsTag);
+        }
+        
+        $tags = $cloudResourceManager->tagKeys->listTagKeys([
+            'parent' => 'projects/' . $projectCredentials['project_id'],
+        ]);
+        $wsTagId = null;
+        foreach ($tags->getTagKeys() as $tagKey) {
+            if($tagKey->getShortName() === 'workspace') {
+                $wsTagId = $tagKey->getName();
+            }
+        }
+        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc, $wsTagId): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
             $finalBinding[] = $actualPolicy->getBindings();
@@ -138,6 +161,13 @@ final class CreateWorkspaceHandler extends BaseHandler
                 $bigQueryJobUserBinding = new Binding();
                 $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
                 $bigQueryJobUserBinding->setRole($role);
+
+                if ($role === IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER) {
+                    $expr = new Expr();
+                    $expr->setDescription('Don\'t show other ws datasets in ws');
+                    $expr->setExpression(sprintf('!resource.hasTagKeyId("%s")', $wsTagId));
+                    $bigQueryJobUserBinding->setCondition($expr);
+                }
                 $finalBinding[] = $bigQueryJobUserBinding;
             }
 

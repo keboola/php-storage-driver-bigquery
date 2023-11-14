@@ -56,6 +56,25 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
     }
 
+    public function testInWorkspaceCantSeeOtherWs(): void
+    {
+        $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2], '123');
+        // create 2 ws in same project
+        [
+            $credentialsWs1,
+            $responseWs1,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
+        [
+            $credentialsWs2,
+            $responseWs2,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
+        $wsBqClientWs1 = $this->clientManager->getBigQueryClient($this->testRunId, $credentialsWs2);
+
+        $this->assertCount(2, $wsBqClientWs1->datasets());
+    }
+
     public function testCreateDropWorkspace(): void
     {
         // CREATE
