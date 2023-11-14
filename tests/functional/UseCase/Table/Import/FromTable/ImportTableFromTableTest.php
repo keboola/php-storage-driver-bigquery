@@ -678,6 +678,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 [],
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
+            $this->fail('should fail because of nulls in required field');
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field col3 cannot be null', $e->getMessage());
         } finally {

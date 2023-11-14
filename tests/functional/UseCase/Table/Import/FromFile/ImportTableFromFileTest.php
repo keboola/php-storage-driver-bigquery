@@ -415,6 +415,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 [],
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
+            $this->fail('should fail because of nulls in required field');
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field apiLimitExceededDatetime cannot be null', $e->getMessage());
         }
