@@ -133,7 +133,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,
@@ -258,7 +258,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,
@@ -393,7 +393,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projectCredentials,
@@ -452,7 +452,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;
@@ -544,7 +544,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         try {
             $handler(
                 $this->projectCredentials,
@@ -669,7 +669,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         try {
             $handler(

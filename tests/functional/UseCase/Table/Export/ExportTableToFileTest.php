@@ -199,7 +199,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $response = $handler(
             $this->projectCredentials,
             $cmd,
@@ -270,7 +270,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $response = $handler(
             $this->projectCredentials,
             $cmd,
@@ -889,7 +889,7 @@ class ExportTableToFileTest extends BaseCase
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $handler(
             $this->projectCredentials,
             $cmd,
@@ -946,7 +946,7 @@ class ExportTableToFileTest extends BaseCase
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatasetName;

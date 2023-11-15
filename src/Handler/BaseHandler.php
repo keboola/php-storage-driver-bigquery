@@ -4,26 +4,41 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler;
 
+use Google\Protobuf\Internal\RepeatedField;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\UserInMemoryLogger;
+use Keboola\StorageDriver\Command\Common\LogMessage;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 abstract class BaseHandler implements DriverCommandHandlerInterface
 {
-    protected LoggerInterface $logger;
+    protected LoggerInterface $internalLogger;
 
-    public function __construct(?LoggerInterface $logger = null)
-    {
-        if ($logger === null) {
-            $this->logger = new NullLogger();
+    protected UserInMemoryLogger $userLogger;
+
+    public function __construct(
+        ?LoggerInterface $internalLogger = null,
+    ) {
+        if ($internalLogger === null) {
+            $this->internalLogger = new NullLogger();
         } else {
-            $this->logger = $logger;
+            $this->internalLogger = $internalLogger;
         }
+        $this->userLogger = new UserInMemoryLogger();
     }
 
-    public function setLogger(LoggerInterface $logger): self
+    public function setInternalLogger(LoggerInterface $logger): self
     {
-        $this->logger = $logger;
+        $this->internalLogger = $logger;
         return $this;
+    }
+
+    /**
+     * @return RepeatedField<LogMessage>
+     */
+    public function getMessages(): RepeatedField
+    {
+        return $this->userLogger->getLogs();
     }
 }

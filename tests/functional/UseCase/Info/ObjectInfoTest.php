@@ -6,11 +6,13 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\LogMessage;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfo;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\SchemaInfo;
 use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -65,7 +67,7 @@ class ObjectInfoTest extends BaseCase
         );
 
         $handler = new ObjectInfoHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
         // expect database
         $command->setExpectedObjectType(ObjectType::DATABASE);
@@ -103,8 +105,10 @@ class ObjectInfoTest extends BaseCase
 
     public function testInfoSchema(): void
     {
+        $this->createOtherTypesOfObjectsWhichCanBeRead();
+        // Run object info cmd
         $handler = new ObjectInfoHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::SCHEMA);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([$this->bucketResponse->getCreateBucketObjectName()]));
@@ -127,9 +131,20 @@ class ObjectInfoTest extends BaseCase
         $this->assertNotNull($response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
+        $this->assertCount(5, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash()
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'snapshot'
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'externalTable'
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
@@ -137,12 +152,91 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1'
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'materialized_view'
+        );
+        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $this->assertCount(0, $handler->getMessages()->getIterator());
+
+        // Create workspace
+        [
+            $credentials,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
+        // Run same object info cmd but as workspace user
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::SCHEMA);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([$this->bucketResponse->getCreateBucketObjectName()]));
+        $response = $handler(
+            $credentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertInstanceOf(SchemaInfo::class, $response->getSchemaInfo());
+        /** @var Traversable<ObjectInfo> $objects */
+        $objects = $response->getSchemaInfo()->getObjects()->getIterator();
+        $this->assertCount(4, $objects);
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            $this->getTestHash()
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'snapshot'
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'bucket_view1'
+        );
+        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'materialized_view'
+        );
+        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+
+        /** @var LogMessage[] $logs */
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        $this->assertCount(1, $logs);
+        $this->assertSame(LogMessage\Level::Warning, $logs[0]->getLevel());
+        $this->assertStringContainsString('Table was ignored', $logs[0]->getMessage());
+    }
+
+    private function createOtherTypesOfObjectsWhichCanBeRead(): void
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE MATERIALIZED VIEW %s.`materialized_view` AS '
+            . 'SELECT * FROM %s.%s;',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE SNAPSHOT TABLE %s.`snapshot` CLONE %s.%s '
+            . 'OPTIONS ( expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR));',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv')
+        )));
     }
 
     public function testInfoTable(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::TABLE);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([
@@ -192,7 +286,7 @@ class ObjectInfoTest extends BaseCase
     public function testInfoView(): void
     {
         $handler = new ObjectInfoHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
         $command->setExpectedObjectType(ObjectType::VIEW);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([

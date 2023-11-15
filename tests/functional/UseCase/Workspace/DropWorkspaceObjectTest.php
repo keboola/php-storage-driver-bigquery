@@ -59,7 +59,7 @@ class DropWorkspaceObjectTest extends BaseCase
 
         // DROP with BAD TABLE NAME
         $handler = new DropWorkspaceObjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new DropWorkspaceObjectCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName())
             ->setObjectNameToDrop('objectNotExists');
@@ -86,7 +86,7 @@ class DropWorkspaceObjectTest extends BaseCase
 
         // DROP with BAD TABLE NAME with IGNORE
         $handler = new DropWorkspaceObjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new DropWorkspaceObjectCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName())
             ->setObjectNameToDrop('objectNotExists')
@@ -106,7 +106,7 @@ class DropWorkspaceObjectTest extends BaseCase
 
         // DROP table
         $handler = new DropWorkspaceObjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new DropWorkspaceObjectCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName())
             ->setObjectNameToDrop('testTable2');
@@ -125,7 +125,7 @@ class DropWorkspaceObjectTest extends BaseCase
 
         // DROP table used in view
         $handler = new DropWorkspaceObjectHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new DropWorkspaceObjectCommand())
             ->setWorkspaceObjectName($response->getWorkspaceObjectName())
             ->setObjectNameToDrop('testTable');

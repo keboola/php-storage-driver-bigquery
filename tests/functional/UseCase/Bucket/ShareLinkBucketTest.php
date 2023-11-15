@@ -64,7 +64,7 @@ class ShareLinkBucketTest extends BaseCase
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
         $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
@@ -106,7 +106,7 @@ class ShareLinkBucketTest extends BaseCase
         $sourceProjectId = $publicPart['project_id'];
         // share the bucket
         $handler = new ShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
@@ -133,7 +133,7 @@ class ShareLinkBucketTest extends BaseCase
         $targetProjectId = $publicPart['project_id'];
         // link the bucket
         $handler = new LinkBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new LinkBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setTargetProjectId($targetProjectId)
@@ -152,7 +152,7 @@ class ShareLinkBucketTest extends BaseCase
         $linkedBucketSchemaName = $result->getLinkedBucketObjectName();
         $this->assertNotEmpty($linkedBucketSchemaName);
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
         $columns[] = (new TableColumnShared())
             ->setName('ID')
@@ -189,7 +189,7 @@ class ShareLinkBucketTest extends BaseCase
 
         // unlink and check that target project cannot access it anymore
         $unlinkHandler = new UnLinkBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new UnLinkBucketCommand())
             ->setBucketObjectName($linkedBucketSchemaName);
 
@@ -219,7 +219,7 @@ class ShareLinkBucketTest extends BaseCase
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
         $handler = new ShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
@@ -245,7 +245,7 @@ class ShareLinkBucketTest extends BaseCase
         $this->assertNotNull($listing->getName());
 
         $handler = new UnShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new UnShareBucketCommand())
             ->setBucketShareRoleName($listing->getName());
 
@@ -279,7 +279,7 @@ class ShareLinkBucketTest extends BaseCase
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
         $handler = new ShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
@@ -296,7 +296,7 @@ class ShareLinkBucketTest extends BaseCase
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->sourceProjectCredentials);
 
         $handler = new CreateTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
         $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
@@ -342,7 +342,7 @@ class ShareLinkBucketTest extends BaseCase
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
         $handler = new LinkBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new LinkBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setTargetProjectId($targetProjectId)
@@ -366,7 +366,7 @@ class ShareLinkBucketTest extends BaseCase
         $this->assertTrue($testTableBefore->exists());
 
         $handler = new UnShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new UnShareBucketCommand())
             ->setBucketShareRoleName($listing->getName());
 

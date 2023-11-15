@@ -7,12 +7,13 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Info;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
-use Google\Cloud\Core\Exception\NotFoundException;
+use Google\Cloud\BigQuery\Table;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ViewReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\DatabaseInfo;
@@ -25,9 +26,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\ObjectNotFoundException;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\UnknownObjectException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Schema\Bigquery\BigquerySchemaReflection;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Keboola\TableBackendUtils\TableNotExistsReflectionException;
+use Throwable;
 
 final class ObjectInfoHandler extends BaseHandler
 {
@@ -94,26 +96,6 @@ final class ObjectInfoHandler extends BaseHandler
     }
 
     /**
-     * @return Generator<int, ObjectInfo>
-     */
-    private function getChildObjectsForSchema(BigQueryClient $bqClient, string $databaseName): Generator
-    {
-        $ref = new BigquerySchemaReflection($bqClient, $databaseName);
-        $tables = $ref->getTablesNames();
-        foreach ($tables as $table) {
-            yield (new ObjectInfo())
-                ->setObjectType(ObjectType::TABLE)
-                ->setObjectName($table);
-        }
-        $views = $ref->getViewsNames();
-        foreach ($views as $view) {
-            yield (new ObjectInfo())
-                ->setObjectType(ObjectType::VIEW)
-                ->setObjectName($view);
-        }
-    }
-
-    /**
      * @param string[] $path
      */
     private function getDatabaseResponse(
@@ -146,14 +128,71 @@ final class ObjectInfoHandler extends BaseHandler
         assert(count($path) === 1, 'Error path must have exactly one element.');
         $infoObject = new SchemaInfo();
         $objects = new RepeatedField(GPBType::MESSAGE, ObjectInfo::class);
-        $this->assertDatasetExist($bqClient, $path[0]);
-        foreach ($this->getChildObjectsForSchema($bqClient, $path[0]) as $object) {
+        $dataset = $this->getDataset($bqClient, $path[0]);
+        foreach ($this->getObjectsForDataset($bqClient, $dataset) as $object) {
             $objects[] = $object;
         }
-        $this->assertSchemaExists($objects, $bqClient, $path[0]);
         $infoObject->setObjects($objects);
         $response->setSchemaInfo($infoObject);
         return $response;
+    }
+
+    /**
+     * @return Generator<int, ObjectInfo>
+     */
+    private function getObjectsForDataset(BigQueryClient $client, Dataset $dataset): Generator
+    {
+        //TABLE: A normal BigQuery table.
+        //VIEW: A virtual table defined by a SQL query.
+        //EXTERNAL: A table that references data stored in an external storage system, such as Google Cloud Storage.
+        //MATERIALIZED_VIEW: A precomputed view defined by a SQL query.
+        //SNAPSHOT: An immutable BigQuery table that preserves the contents of a base table at a particular time.
+        /** @var Table $table */
+        foreach ($dataset->tables() as $table) {
+            $this->internalLogger->debug(sprintf(
+                'Processing table "%s".',
+                $table->id()
+            ));
+            $info = $table->info();
+            try {
+                // we need to run select as query as ->rows method is not supported for view
+                $client->runQuery($client->query(sprintf(
+                    'SELECT * FROM %s.%s.%s LIMIT 1',
+                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
+                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
+                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
+                )));
+            } catch (Throwable $e) {
+                $message = DecodeErrorMessage::getErrorMessage($e);
+                $this->userLogger->warning(sprintf(
+                    'Selecting data from table "%s" failed with error: "%s" Table was ignored',
+                    $info['id'],
+                    $message
+                ), [
+                    'info' => $info,
+                    'message' => $e->getMessage(),
+                ]);
+                continue;
+            }
+            if ($info['type'] === 'VIEW' || $info['type'] === 'MATERIALIZED_VIEW') {
+                $this->internalLogger->debug(sprintf(
+                    'Found view "%s".',
+                    $table->id()
+                ));
+                yield (new ObjectInfo())
+                    ->setObjectType(ObjectType::VIEW)
+                    ->setObjectName($table->id());
+                continue;
+            }
+            $this->internalLogger->debug(sprintf(
+                'Found table "%s".',
+                $table->id()
+            ));
+            // TABLE,EXTERNAL,SNAPSHOT
+            yield (new ObjectInfo())
+                ->setObjectType(ObjectType::TABLE)
+                ->setObjectName($table->id());
+        }
     }
 
     /**
@@ -165,7 +204,7 @@ final class ObjectInfoHandler extends BaseHandler
         BigQueryClient $bqClient
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
-        $this->assertDatasetExist($bqClient, $path[0]);
+        $this->getDataset($bqClient, $path[0]);
         try {
             $response->setTableInfo(TableReflectionResponseTransformer::transformTableReflectionToResponse(
                 $path[0],
@@ -190,7 +229,7 @@ final class ObjectInfoHandler extends BaseHandler
         ObjectInfoResponse $response
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
-        $this->assertDatasetExist($bqClient, $path[0]);
+        $this->getDataset($bqClient, $path[0]);
 
         $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
             $path[0],
@@ -203,22 +242,13 @@ final class ObjectInfoHandler extends BaseHandler
         return $response;
     }
 
-    private function assertSchemaExists(RepeatedField $objects, BigQueryClient $bqClient, string $databaseName): void
+    private function getDataset(BigQueryClient $bqClient, string $datasetName): Dataset
     {
-        if ($objects->count() === 0) {
-            // test if database exists
-            $datasetSchema = $bqClient->dataset($databaseName);
-            if ($datasetSchema->exists() === false) {
-                throw new ObjectNotFoundException($databaseName);
-            }
-        }
-    }
-
-    private function assertDatasetExist(BigQueryClient $bqClient, string $datasetName): void
-    {
-        $datasetSchema = $bqClient->dataset($datasetName);
-        if ($datasetSchema->exists() === false) {
+        $dataset = $bqClient->dataset($datasetName);
+        if ($dataset->exists() === false) {
             throw new ObjectNotFoundException($datasetName);
         }
+
+        return $dataset;
     }
 }

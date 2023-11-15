@@ -237,7 +237,7 @@ class DeleteTableRowsTest extends BaseCase
     private function dropTable(string $databaseName, string $tableName): void
     {
         $handler = new DropTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $databaseName;
@@ -269,7 +269,7 @@ class DeleteTableRowsTest extends BaseCase
         int $expectedRowsCount
     ): PreviewTableResponse {
         $handler = new DeleteTableRowsHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new DeleteTableRowsCommand();
         $this->setPath($databaseName, $command, $tableName);
 
@@ -294,7 +294,7 @@ class DeleteTableRowsTest extends BaseCase
 
         // preview data
         $handler = new PreviewTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new PreviewTableCommand();
 
         $columns = new RepeatedField(GPBType::STRING);

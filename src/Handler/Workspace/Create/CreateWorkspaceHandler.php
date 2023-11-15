@@ -84,7 +84,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         );
 
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
-            $this->logger->debug('Try create SA Err:' . $e->getMessage());
+            $this->internalLogger->debug('Try create SA Err:' . $e->getMessage());
             return true;
         }, 5);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
@@ -119,7 +119,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
-            $this->logger->debug('Try set iam policy Err:' . $e->getMessage());
+            $this->internalLogger->debug('Try set iam policy Err:' . $e->getMessage());
             return true;
         }, 10);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
@@ -148,7 +148,7 @@ final class CreateWorkspaceHandler extends BaseHandler
             $setIamPolicyRequest = new SetIamPolicyRequest();
             $setIamPolicyRequest->setPolicy($policy);
 
-            $this->logger->log(
+            $this->internalLogger->log(
                 LogLevel::DEBUG,
                 'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName
             );
@@ -157,7 +157,7 @@ final class CreateWorkspaceHandler extends BaseHandler
                 $cloudResourceManager,
                 $projectName,
                 $wsServiceAcc->getEmail(),
-                $this->logger
+                $this->internalLogger
             );
         });
 

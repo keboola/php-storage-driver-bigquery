@@ -92,7 +92,7 @@ class ImportViewCloneTest extends BaseCase
                 ->setImportType($importType)
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         try {
             $handler(
                 $this->projects[0][0],
@@ -181,7 +181,7 @@ class ImportViewCloneTest extends BaseCase
                 ->setImportType($importType)
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $this->projects[0][0],
@@ -283,7 +283,7 @@ class ImportViewCloneTest extends BaseCase
                 ->setImportType($importType)
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
             $targetProjectCredentials,
@@ -435,7 +435,7 @@ class ImportViewCloneTest extends BaseCase
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
         $handler = new ShareBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
@@ -461,7 +461,7 @@ class ImportViewCloneTest extends BaseCase
         /** @var string $targetProjectId */
         $targetProjectId = $publicPart['project_id'];
         $handler = new LinkBucketHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = (new LinkBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setTargetProjectId($targetProjectId)
@@ -482,7 +482,7 @@ class ImportViewCloneTest extends BaseCase
             'sharedTable',
             function () use ($linkedBucketSchemaName, $credentials): void {
                 $unlinkHandler = new UnLinkBucketHandler($this->clientManager);
-                $unlinkHandler->setLogger($this->log);
+                $unlinkHandler->setInternalLogger($this->log);
                 $command = (new UnLinkBucketCommand())
                     ->setBucketObjectName($linkedBucketSchemaName);
 

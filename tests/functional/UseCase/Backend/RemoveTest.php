@@ -17,7 +17,7 @@ class RemoveTest extends BaseCase
     public function testInitBackend(): void
     {
         $handler = new RemoveBackendHandler();
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         $command = new RemoveBackendCommand();
         $handler(
             $this->getCredentials(),
