@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -560,6 +561,134 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
                 $e->getMessage()
             );
+        }
+    }
+
+    public function testLoadNullsToRequiredFields(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // create tables
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                new BigqueryColumn('col3', new Bigquery(
+                    Bigquery::TYPE_STRING,
+                    [
+                        'nullable' => true,
+                        'default' => '\'\'',
+                    ]
+                )),
+            ]),
+            []
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
+        // data in source table have nulls -> should fail, because we are trying to fit null value in to required field
+        foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', null]] as $i) {
+            $quotedValues = [];
+            foreach ($i as $item) {
+                $quotedValues[] = is_null($item) ? 'null' : BigqueryQuote::quote($item);
+            }
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
+        }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert)
+        )));
+
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                BigqueryColumn::createGenericColumn('col3'),
+            ]),
+            []
+        );
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col1')
+            ->setDestinationColumnName('col1');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col2')
+            ->setDestinationColumnName('col2');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col3')
+            ->setDestinationColumnName('col3');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings)
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName)
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(0)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('should fail because of nulls in required field');
+        } catch (ImportValidationException $e) {
+            $this->assertSame('Required field col3 cannot be null', $e->getMessage());
+        } finally {
+            // cleanup
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+            ));
         }
     }
 }

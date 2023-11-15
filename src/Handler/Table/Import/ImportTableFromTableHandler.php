@@ -11,7 +11,9 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
@@ -19,6 +21,7 @@ use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -27,6 +30,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDesti
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
@@ -218,7 +222,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable,
                 $importOptions
             );
-        } catch (BadRequestException $e) {
+        } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
@@ -282,6 +286,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $bigqueryImportOptions,
                 $sourceMapping
             );
+        } catch (BigqueryInputDataException $e) {
+            throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
         } finally {
             if ($stagingTable !== null) {
                 try {

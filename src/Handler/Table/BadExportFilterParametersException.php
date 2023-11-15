@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table;
 
 use Google\Cloud\Core\Exception\BadRequestException;
+use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
@@ -24,9 +25,9 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
     /**
      * @throws self
      */
-    public static function handleWrongTypeInFilters(BadRequestException $e): void
+    public static function handleWrongTypeInFilters(BigqueryException|BadRequestException $e): void
     {
-        if ($e->getCode() === 400 && str_contains($e->getMessage(), 'No matching signature for operator ')) {
+        if (str_contains($e->getMessage(), 'No matching signature for operator ')) {
             $expectedActualPattern = '/types:\s(.*?)\./';
             preg_match($expectedActualPattern, $e->getMessage(), $matches);
             assert(isset($matches[1]));
@@ -39,14 +40,14 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             );
         }
 
-        if ($e->getCode() === 400 && str_contains($e->getMessage(), 'Invalid')) {
+        if (str_contains($e->getMessage(), 'Invalid')) {
             throw new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e
             );
         }
 
-        if ($e->getCode() === 400 && str_contains($e->getMessage(), 'can be used for partition elimination')) {
+        if (str_contains($e->getMessage(), 'can be used for partition elimination')) {
             //{
             //  "error": {
             //    "code": 400,
