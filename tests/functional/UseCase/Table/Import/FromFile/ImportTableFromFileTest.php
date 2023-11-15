@@ -406,7 +406,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
         // loading from file will fail on import staging->final table anyway, because staging table has nullable=true
         try {
             $handler(

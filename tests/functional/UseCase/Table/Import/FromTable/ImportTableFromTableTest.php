@@ -669,7 +669,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
-        $handler->setLogger($this->log);
+        $handler->setInternalLogger($this->log);
 
         try {
             $handler(
