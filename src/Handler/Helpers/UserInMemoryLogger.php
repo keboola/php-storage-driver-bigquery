@@ -38,10 +38,16 @@ class UserInMemoryLogger extends AbstractLogger
 
     /**
      * @throws \JsonException
+     * @param mixed $level
+     * @param Stringable|string $message
      * @param array<mixed> $context
      */
-    public function log(mixed $level, Stringable|string $message, array $context = []): void
-    {
+    // phpcs:ignore SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingAnyTypeHint,SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingNativeTypeHint
+    public function log(
+        $level,
+        $message,
+        array $context = []
+    ): void {
         $msg = new LogMessage();
         $msg->setLevel(self::LOG_LEVEL_MAP[$level]);
         $msg->setMessage((string) $message);

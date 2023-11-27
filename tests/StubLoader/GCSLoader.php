@@ -111,7 +111,7 @@ class GCSLoader extends BaseStubLoader
         echo PHP_EOL;
 
         $promises = [];
-        $promises[] = fn() => new Promise(function ($resolve) use ($bucket) {
+        $promises[] = fn() => new Promise(function ($resolve) use ($bucket): void {
             $blobName = '02_tw_accounts.csv.invalid.manifest';
             $res = $bucket->upload(
                 json_encode([
@@ -129,7 +129,7 @@ class GCSLoader extends BaseStubLoader
                     'name' => $blobName,
                 ]
             );
-            return $resolve([$blobName, $res]);
+            $resolve([$blobName, $res]);
         });
 
         parallel($promises)->then(function (): void {
