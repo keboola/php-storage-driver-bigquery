@@ -111,7 +111,7 @@ class BigQueryDriverClient implements ClientInterface
             $response->setCommandResponse($any);
         }
         $response->setMessages($handler->getMessages());
-        return $handledResponse;
+        return $response;
     }
 
     /**
