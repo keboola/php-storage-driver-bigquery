@@ -154,26 +154,16 @@ final class ObjectInfoHandler extends BaseHandler
                 $table->id()
             ));
             $info = $table->info();
-            try {
-                // we need to run select as query as ->rows method is not supported for view
-                $client->runQuery($client->query(sprintf(
-                    'SELECT * FROM %s.%s.%s LIMIT 1',
-                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
-                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
-                    BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
-                )));
-            } catch (Throwable $e) {
-                $message = DecodeErrorMessage::getErrorMessage($e);
+            if ($info['type'] === 'EXTERNAL') {
                 $this->userLogger->warning(sprintf(
-                    'Selecting data from table "%s" failed with error: "%s" Table was ignored',
+                    'External tables are not supported. Table "%s" was ignored',
                     $info['id'],
-                    $message
                 ), [
                     'info' => $info,
-                    'message' => $e->getMessage(),
                 ]);
                 continue;
             }
+
             if ($info['type'] === 'VIEW' || $info['type'] === 'MATERIALIZED_VIEW') {
                 $this->internalLogger->debug(sprintf(
                     'Found view "%s".',
@@ -188,7 +178,7 @@ final class ObjectInfoHandler extends BaseHandler
                 'Found table "%s".',
                 $table->id()
             ));
-            // TABLE,EXTERNAL,SNAPSHOT
+            // TABLE,SNAPSHOT
             yield (new ObjectInfo())
                 ->setObjectType(ObjectType::TABLE)
                 ->setObjectName($table->id());

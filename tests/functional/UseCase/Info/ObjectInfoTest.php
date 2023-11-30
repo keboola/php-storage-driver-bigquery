@@ -131,7 +131,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertNotNull($response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
-        $this->assertCount(5, $objects);
+        $this->assertCount(4, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash()
@@ -140,11 +140,6 @@ class ObjectInfoTest extends BaseCase
         $table = $this->getObjectByNameAndType(
             $objects,
             'snapshot'
-        );
-        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
-        $table = $this->getObjectByNameAndType(
-            $objects,
-            'externalTable'
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
@@ -157,7 +152,12 @@ class ObjectInfoTest extends BaseCase
             'materialized_view'
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
-        $this->assertCount(0, $handler->getMessages()->getIterator());
+
+        /** @var LogMessage[] $logs */
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        $this->assertCount(1, $logs);
+        $this->assertSame(LogMessage\Level::Warning, $logs[0]->getLevel());
+        $this->assertStringContainsString('External tables are not supported.', $logs[0]->getMessage());
 
         // Create workspace
         [
@@ -206,7 +206,7 @@ class ObjectInfoTest extends BaseCase
         $logs = iterator_to_array($handler->getMessages()->getIterator());
         $this->assertCount(1, $logs);
         $this->assertSame(LogMessage\Level::Warning, $logs[0]->getLevel());
-        $this->assertStringContainsString('Table was ignored', $logs[0]->getMessage());
+        $this->assertStringContainsString('External tables are not supported.', $logs[0]->getMessage());
     }
 
     private function createOtherTypesOfObjectsWhichCanBeRead(): void
