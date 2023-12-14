@@ -54,6 +54,16 @@ final class DropProjectHandler extends BaseHandler
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
 
+        /** @var array{
+         * kind: string,
+         * resourceId: string,
+         * version: int,
+         * etag: string,
+         * bindings: array<int, array{
+         *  role: string,
+         *  members: array<int, string>
+         * }>
+         * } $policy */
         $policy = $fileStorageBucket->iam()->policy();
 
         $policy = PolicyFilter::removeServiceAccFromBucketPolicy($policy, $publicPartKeyFile['client_email']);

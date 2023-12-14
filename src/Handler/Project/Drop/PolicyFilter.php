@@ -6,6 +6,19 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 
 class PolicyFilter
 {
+    /**
+     * @param array{
+     *      kind: string,
+     *      resourceId: string,
+     *      version: int,
+     *      etag: string,
+     *      bindings: array<int, array{
+     *          role: string,
+     *          members: array<int, string>
+     *      }>
+     *  } $policy
+     * @return array<string, mixed>
+     */
     public static function removeServiceAccFromBucketPolicy(array $policy, string $serviceAccountEmail): array
     {
         foreach ($policy['bindings'] as $bindingKey => $binding) {
@@ -24,7 +37,10 @@ class PolicyFilter
 
     // The keys for members in binding have to be recalculated,
     // because if there is an error in the queue number GCP will delete all permissions
-    private static function recalculateBindingKeys(&$array): void
+    /**
+     * @param array<string, mixed> $array
+     */
+    private static function recalculateBindingKeys(array &$array): void
     {
         if (isset($array['bindings']) && is_array($array['bindings'])) {
             foreach ($array['bindings'] as &$binding) {

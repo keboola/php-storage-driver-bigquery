@@ -11,8 +11,11 @@ use PHPUnit\Framework\TestCase;
 class PolicyFilterTest extends TestCase
 {
 
-    /** @dataProvider policyProvider */
-    public function testRemoveServiceAccFromBucketPolicy($serviceAccToRemove, $expected): void
+    /**
+     * @param array<string, mixed> $expected
+     * @dataProvider policyProvider
+     */
+    public function testRemoveServiceAccFromBucketPolicy(string $serviceAccToRemove, array $expected): void
     {
         $policy = [
             'kind' => 'storage#policy',
