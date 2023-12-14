@@ -67,7 +67,7 @@ class ResetWorkspacePasswordTest extends BaseCase
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         /** @var array<string, string> $result */
         $result = $wsBqClient->runQuery(
-            $wsBqClient->query('SELECT SESSION_USER() AS USER')
+            $wsBqClient->query('SELECT SESSION_USER() AS USER'),
         )->getIterator()->current();
 
         $credentialsArr = (array) json_decode($createResponse->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);

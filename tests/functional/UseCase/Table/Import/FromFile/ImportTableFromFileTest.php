@@ -60,19 +60,19 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
-                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
         $cmd->setFilePath(
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath('import')
-                ->setFileName('a_b_c-3row.csv')
+                ->setFileName('a_b_c-3row.csv'),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $dedupCols[] = 'col1';
@@ -83,7 +83,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(1)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -102,7 +102,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            ['col1', 'col2', 'col3']
+            ['col1', 'col2', 'col3'],
         );
         $this->assertEqualsCanonicalizing([
             [
@@ -149,19 +149,19 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
-                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
         $cmd->setFilePath(
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath('import')
-                ->setFileName('a_b_c-3row.csv')
+                ->setFileName('a_b_c-3row.csv'),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $cmd->setImportOptions(
@@ -171,7 +171,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(1)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -253,7 +253,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE)
-                ->setCompression($compression)
+                ->setCompression($compression),
         );
         $cmd->setFormatTypeOptions($formatOptions);
         if ($compression === TableImportFromFileCommand\CsvTypeOptions\Compression::GZIP) {
@@ -261,7 +261,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 (new FilePath())
                     ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                     ->setPath('sliced/accounts-gzip')
-                    ->setFileName('GCS.accounts-gzip.csvmanifest')
+                    ->setFileName('GCS.accounts-gzip.csvmanifest'),
             );
         } else {
             // no compression
@@ -269,7 +269,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 (new FilePath())
                     ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                     ->setPath('sliced/accounts')
-                    ->setFileName('GCS.accounts.csvmanifest')
+                    ->setFileName('GCS.accounts.csvmanifest'),
             );
         }
         $credentials = new Any();
@@ -277,13 +277,13 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $credentials->pack(
             (new GCSCredentials())
                 ->setKey((string) getenv('BQ_PRINCIPAL'))
-                ->setSecret((string) getenv('BQ_SECRET'))
+                ->setSecret((string) getenv('BQ_SECRET')),
         );
         $cmd->setFileCredentials($credentials);
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $cmd->setImportOptions(
@@ -293,7 +293,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -321,7 +321,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 'oauthSecret',
                 'idApp',
             ],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         // 0 from destination and 3 rows from source
@@ -367,7 +367,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
-                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
 
@@ -375,7 +375,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath('sliced/accounts')
-                ->setFileName('GCS.accounts.csvmanifest')
+                ->setFileName('GCS.accounts.csvmanifest'),
         );
 
         $credentials = new Any();
@@ -383,13 +383,13 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $credentials->pack(
             (new GCSCredentials())
                 ->setKey((string) getenv('BQ_PRINCIPAL'))
-                ->setSecret((string) getenv('BQ_SECRET'))
+                ->setSecret((string) getenv('BQ_SECRET')),
         );
         $cmd->setFileCredentials($credentials);
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $convertCols = new RepeatedField(GPBType::STRING);
@@ -402,7 +402,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setConvertEmptyValuesToNullOnColumns($convertCols)
                 ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                 ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -429,7 +429,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     protected function createAccountsTableWithNotNull(
         BigQueryClient $bqClient,
         string $bucketDatabaseName,
-        string $destinationTableName
+        string $destinationTableName,
     ): void {
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.%s (
@@ -448,7 +448,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 `_timestamp` TIMESTAMP
             );',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
     }
 }

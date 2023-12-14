@@ -17,12 +17,12 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
     public function __construct(
         string $message,
         int $code = self::ERR_VALIDATION,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
@@ -38,7 +38,7 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
                 $datasetName,
                 $e->getMessage(),
             ),
-            previous: $e
+            previous: $e,
         );
     }
 
@@ -49,7 +49,7 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
         BadRequestException $e,
         string $datasetName,
         string $tableName,
-        array $createTableOptions
+        array $createTableOptions,
     ): self {
         $message = $e->getMessage();
         try {
@@ -69,9 +69,9 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
                 $tableName,
                 $datasetName,
                 $message,
-                json_encode($createTableOptions, JSON_PRETTY_PRINT)
+                json_encode($createTableOptions, JSON_PRETTY_PRINT),
             ),
-            previous: $e
+            previous: $e,
         );
     }
 }

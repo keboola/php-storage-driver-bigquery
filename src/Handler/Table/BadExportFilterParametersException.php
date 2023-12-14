@@ -18,7 +18,7 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
@@ -36,14 +36,14 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
 
             throw new self(
                 message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
-                previous: $e
+                previous: $e,
             );
         }
 
         if (str_contains($e->getMessage(), 'Invalid')) {
             throw new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
-                previous: $e
+                previous: $e,
             );
         }
 
@@ -68,7 +68,7 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             //}
             throw new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
-                previous: $e
+                previous: $e,
             );
         }
     }

@@ -89,7 +89,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
-            $this->targetProjectCredentials
+            $this->targetProjectCredentials,
         );
 
 //      check that the Project2 cannot access the table yet
@@ -100,7 +100,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectResponse->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
@@ -127,7 +127,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->targetProjectResponse->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $targetProjectId */
         $targetProjectId = $publicPart['project_id'];
@@ -214,7 +214,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectResponse->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
@@ -239,7 +239,7 @@ class ShareLinkBucketTest extends BaseCase
             $sourceProjectId,
             GCPClientManager::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-            '1234'
+            '1234',
         );
         $listing = $analyticHubClient->getListing($formattedName);
         $this->assertNotNull($listing->getName());
@@ -274,7 +274,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->sourceProjectResponse->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
@@ -326,7 +326,7 @@ class ShareLinkBucketTest extends BaseCase
             $sourceProjectId,
             GCPClientManager::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-            '12345'
+            '12345',
         );
         $listing = $analyticHubClient->getListing($formattedName);
         $this->assertNotNull($listing->getName());
@@ -335,7 +335,7 @@ class ShareLinkBucketTest extends BaseCase
             $this->targetProjectResponse->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $targetProjectId */
         $targetProjectId = $publicPart['project_id'];
@@ -358,7 +358,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
-            $this->targetProjectCredentials
+            $this->targetProjectCredentials,
         );
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
@@ -379,7 +379,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $targetProjectBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
-            $this->targetProjectCredentials
+            $this->targetProjectCredentials,
         );
         $targetDataset = $targetProjectBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());

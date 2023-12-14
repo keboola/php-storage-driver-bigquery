@@ -83,7 +83,7 @@ error.errors[1].message',
     {
         $this->assertSame(
             $expectedErrorMessage,
-            DecodeErrorMessage::getErrorMessage(new Exception($message))
+            DecodeErrorMessage::getErrorMessage(new Exception($message)),
         );
     }
 }

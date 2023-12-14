@@ -40,7 +40,7 @@ final class CreateTableHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableCommand);
@@ -72,7 +72,7 @@ final class CreateTableHandler extends BaseHandler
             ]);
             try {
                 $createTableOptions['schema']['fields'][] = SQLtoRestDatatypeConverter::convertColumnToRestFormat(
-                    new BigqueryColumn($column->getName(), $columnDefinition)
+                    new BigqueryColumn($column->getName(), $columnDefinition),
                 );
             } catch (InvalidLengthException $e) {
                 BadTableDefinitionException::handleInvalidLengthException(
@@ -85,7 +85,7 @@ final class CreateTableHandler extends BaseHandler
 
         $createTableOptions = array_merge(
             $createTableOptions,
-            CreateTableMetaHelper::convertTableMetaToRest($command)
+            CreateTableMetaHelper::convertTableMetaToRest($command),
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
@@ -117,8 +117,8 @@ final class CreateTableHandler extends BaseHandler
                 new BigqueryTableReflection(
                     $bqClient,
                     $datasetName,
-                    $command->getTableName()
-                )
+                    $command->getTableName(),
+                ),
             ));
     }
 }

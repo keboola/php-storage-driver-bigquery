@@ -38,7 +38,7 @@ class BaseImportTestCase extends BaseCase
     protected function createDestinationTable(
         string $bucketDatabaseName,
         string $destinationTableName,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -50,13 +50,13 @@ class BaseImportTestCase extends BaseCase
                     new Bigquery(Bigquery::TYPE_STRING, [
                         'length' => '32000',
                         'nullable' => false,
-                    ])
+                    ]),
                 ),
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -82,7 +82,7 @@ class BaseImportTestCase extends BaseCase
                 'INSERT %s.%s (`col1`, `col2`, `col3`, `_timestamp`) VALUES (%s)',
                 BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
                 BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                implode(',', $quotedValues)
+                implode(',', $quotedValues),
             );
             $bqClient->runQuery($bqClient->query($sql));
         }
@@ -92,7 +92,7 @@ class BaseImportTestCase extends BaseCase
     protected function createDestinationTypedTable(
         string $bucketDatabaseName,
         string $destinationTableName,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -101,19 +101,19 @@ class BaseImportTestCase extends BaseCase
             new ColumnCollection([
                 new BigqueryColumn('col1', new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn('col2', new Bigquery(
                     Bigquery::TYPE_BIGINT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn('col3', new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -133,7 +133,7 @@ class BaseImportTestCase extends BaseCase
                 'INSERT %s.%s (`col1`, `col2`, `col3`, `_timestamp`) VALUES (%s)',
                 BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
                 BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                implode(',', $i)
+                implode(',', $i),
             ));
             $bqClient->runQuery($queryJobConfiguration);
         }
@@ -143,7 +143,7 @@ class BaseImportTestCase extends BaseCase
     protected function createAccountsTable(
         BigQueryClient $bqClient,
         string $bucketDatabaseName,
-        string $destinationTableName
+        string $destinationTableName,
     ): void {
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.%s (
@@ -162,7 +162,7 @@ class BaseImportTestCase extends BaseCase
                 `_timestamp` TIMESTAMP
             );',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
     }
 
@@ -182,13 +182,13 @@ class BaseImportTestCase extends BaseCase
     protected function assertTimestamp(
         BigQueryClient $bqClient,
         string $database,
-        string $tableName
+        string $tableName,
     ): void {
         /** @var array<string, array<string>> $timestamps */
         $timestamps = $bqClient->runQuery($bqClient->query(sprintf(
             'SELECT _timestamp FROM %s.%s',
             BigqueryQuote::quoteSingleIdentifier($database),
-            BigqueryQuote::quoteSingleIdentifier($tableName)
+            BigqueryQuote::quoteSingleIdentifier($tableName),
         )))->getIterator()->current();
         $timestamps = $timestamps['_timestamp'];
         foreach ($timestamps as $timestamp) {
@@ -196,7 +196,7 @@ class BaseImportTestCase extends BaseCase
             $this->assertEqualsWithDelta(
                 new DateTime('now'),
                 new DateTime($timestamp),
-                60 // set to 1 minute, it's important that timestamp is there
+                60, // set to 1 minute, it's important that timestamp is there
             );
         }
     }
@@ -209,13 +209,13 @@ class BaseImportTestCase extends BaseCase
         BigQueryClient $client,
         string $schemaName,
         string $tableName,
-        array $columns = []
+        array $columns = [],
     ): array {
         if (count($columns) === 0) {
             $result = $client->runQuery($client->query(sprintf(
                 'SELECT * FROM %s.%s',
                 $schemaName,
-                $tableName
+                $tableName,
             )));
         } else {
             $result = $client->runQuery($client->query(sprintf(
@@ -224,7 +224,7 @@ class BaseImportTestCase extends BaseCase
                     return BigqueryQuote::quoteSingleIdentifier($item);
                 }, $columns)),
                 BigqueryQuote::quoteSingleIdentifier($schemaName),
-                BigqueryQuote::quoteSingleIdentifier($tableName)
+                BigqueryQuote::quoteSingleIdentifier($tableName),
             )));
         }
 

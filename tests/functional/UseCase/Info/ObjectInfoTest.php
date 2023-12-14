@@ -41,7 +41,7 @@ class ObjectInfoTest extends BaseCase
         $this->createTestTable(
             $this->projectCredentials,
             $this->bucketResponse->getCreateBucketObjectName(),
-            $this->getTestHash()
+            $this->getTestHash(),
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bqClient->runQuery($bqClient->query(sprintf(
@@ -63,7 +63,7 @@ class ObjectInfoTest extends BaseCase
         $this->createTestTable(
             $this->projectCredentials,
             $workspaceResponse->getWorkspaceObjectName(),
-            'ws_table1'
+            'ws_table1',
         );
 
         $handler = new ObjectInfoHandler($this->clientManager);
@@ -87,18 +87,18 @@ class ObjectInfoTest extends BaseCase
         $this->assertNotNull($response->getDatabaseInfo());
         $this->assertSame(
             [$this->projectResponse->getProjectUserName()],
-            ProtobufHelper::repeatedStringToArray($response->getPath())
+            ProtobufHelper::repeatedStringToArray($response->getPath()),
         );
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getDatabaseInfo()->getObjects()->getIterator();
         $bucketObject = $this->getObjectByNameAndType(
             $objects,
-            $this->bucketResponse->getCreateBucketObjectName()
+            $this->bucketResponse->getCreateBucketObjectName(),
         );
         $this->assertSame(ObjectType::SCHEMA, $bucketObject->getObjectType());
         $workspaceObject = $this->getObjectByNameAndType(
             $objects,
-            $workspaceResponse->getWorkspaceObjectName()
+            $workspaceResponse->getWorkspaceObjectName(),
         );
         $this->assertSame(ObjectType::SCHEMA, $workspaceObject->getObjectType());
     }
@@ -122,7 +122,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertSame(ObjectType::SCHEMA, $response->getObjectType());
         $this->assertSame(
             [$this->bucketResponse->getCreateBucketObjectName()],
-            ProtobufHelper::repeatedStringToArray($response->getPath())
+            ProtobufHelper::repeatedStringToArray($response->getPath()),
         );
         $this->assertFalse($response->hasDatabaseInfo());
         $this->assertTrue($response->hasSchemaInfo());
@@ -134,22 +134,22 @@ class ObjectInfoTest extends BaseCase
         $this->assertCount(4, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
-            $this->getTestHash()
+            $this->getTestHash(),
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $table = $this->getObjectByNameAndType(
             $objects,
-            'snapshot'
+            'snapshot',
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
-            'bucket_view1'
+            'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
-            'materialized_view'
+            'materialized_view',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
 
@@ -183,22 +183,22 @@ class ObjectInfoTest extends BaseCase
         $this->assertCount(4, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
-            $this->getTestHash()
+            $this->getTestHash(),
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $table = $this->getObjectByNameAndType(
             $objects,
-            'snapshot'
+            'snapshot',
         );
         $this->assertSame(ObjectType::TABLE, $table->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
-            'bucket_view1'
+            'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
-            'materialized_view'
+            'materialized_view',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
 
@@ -229,7 +229,7 @@ class ObjectInfoTest extends BaseCase
         $bqClient->runQuery($bqClient->query(sprintf(
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv')
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
     }
 
@@ -256,7 +256,7 @@ class ObjectInfoTest extends BaseCase
                 $this->bucketResponse->getCreateBucketObjectName(),
                 $this->getTestHash(),
             ],
-            ProtobufHelper::repeatedStringToArray($response->getPath())
+            ProtobufHelper::repeatedStringToArray($response->getPath()),
         );
         $this->assertFalse($response->hasDatabaseInfo());
         $this->assertFalse($response->hasSchemaInfo());
@@ -268,17 +268,17 @@ class ObjectInfoTest extends BaseCase
         $this->assertSame($this->getTestHash(), $tableInfo->getTableName());
         $this->assertSame(
             [$this->bucketResponse->getCreateBucketObjectName()],
-            ProtobufHelper::repeatedStringToArray($tableInfo->getPath())
+            ProtobufHelper::repeatedStringToArray($tableInfo->getPath()),
         );
         $this->assertSame(
             [],
-            ProtobufHelper::repeatedStringToArray($tableInfo->getPrimaryKeysNames())
+            ProtobufHelper::repeatedStringToArray($tableInfo->getPrimaryKeysNames()),
         );
         /** @var TableColumn[] $columns */
         $columns = iterator_to_array($tableInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame(['id', 'name', 'large'], $columnsNames);
     }
@@ -306,7 +306,7 @@ class ObjectInfoTest extends BaseCase
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'bucket_view1',
             ],
-            ProtobufHelper::repeatedStringToArray($response->getPath())
+            ProtobufHelper::repeatedStringToArray($response->getPath()),
         );
         $this->assertFalse($response->hasDatabaseInfo());
         $this->assertFalse($response->hasSchemaInfo());
@@ -319,13 +319,13 @@ class ObjectInfoTest extends BaseCase
         $this->assertSame('bucket_view1', $viewInfo->getViewName());
         $this->assertSame(
             [$this->bucketResponse->getCreateBucketObjectName()],
-            ProtobufHelper::repeatedStringToArray($viewInfo->getPath())
+            ProtobufHelper::repeatedStringToArray($viewInfo->getPath()),
         );
         /** @var TableColumn[] $columns */
         $columns = iterator_to_array($viewInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame(['id', 'name', 'large'], $columnsNames);
     }

@@ -21,7 +21,7 @@ class IAMServiceWrapper extends Iam
 
     public function createServiceAccount(
         string $projectServiceAccountId,
-        string $projectName
+        string $projectName,
     ): ServiceAccount {
         $serviceAccountsService = $this->projects_serviceAccounts;
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
@@ -38,7 +38,7 @@ class IAMServiceWrapper extends Iam
      * @return array{0:string, 1:string}
      */
     public function createKeyFileCredentials(
-        ServiceAccount $serviceAccount
+        ServiceAccount $serviceAccount,
     ): array {
         $serviceAccKeysService = $this->projects_serviceAccounts_keys;
 
@@ -50,7 +50,7 @@ class IAMServiceWrapper extends Iam
         $key = $proxy->call(function () use (
             $serviceAccKeysService,
             $serviceAccount,
-            $createServiceAccountKeyRequest
+            $createServiceAccountKeyRequest,
         ) {
             try {
                 return $serviceAccKeysService->create($serviceAccount->getName(), $createServiceAccountKeyRequest);

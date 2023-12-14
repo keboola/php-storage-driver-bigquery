@@ -35,7 +35,7 @@ final class ResetWorkspacePasswordHandler extends BaseHandler
         Message $credentials, // project credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ResetWorkspacePasswordCommand);
@@ -56,7 +56,7 @@ final class ResetWorkspacePasswordHandler extends BaseHandler
         $serviceAccResourceName = sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail);
         $keys = $serviceAccKeysService->listProjectsServiceAccountsKeys(
             $serviceAccResourceName,
-            ['keyTypes' => self::KEY_TYPE_USER_MANAGED]
+            ['keyTypes' => self::KEY_TYPE_USER_MANAGED],
         );
 
         /** @var ServiceAccountKey $key */

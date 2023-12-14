@@ -9,7 +9,7 @@ class NameGenerator
     protected string $stackPrefix;
 
     public function __construct(
-        string $stackPrefix
+        string $stackPrefix,
     ) {
         $stackPrefix = rtrim($stackPrefix, '_');
         $stackPrefix = str_replace('_', '-', strtolower($stackPrefix));

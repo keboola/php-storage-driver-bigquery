@@ -20,7 +20,7 @@ class ParatestFileLogger extends AbstractLogger
     private string $prefix = '';
 
     public function __construct(
-        private readonly string $name
+        private readonly string $name,
     ) {
         $this->fs = new Filesystem();
     }
@@ -41,7 +41,7 @@ class ParatestFileLogger extends AbstractLogger
         $now = $now->format('m-d-Y H:i:s.u');
         $this->fs->appendToFile(
             filename: $this->getLogFilename(),
-            content: $now . ' ' . $this->prefix . $message . "\n"
+            content: $now . ' ' . $this->prefix . $message . "\n",
         );
     }
 

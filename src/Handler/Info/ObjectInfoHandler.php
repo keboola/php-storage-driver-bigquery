@@ -49,7 +49,7 @@ final class ObjectInfoHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ObjectInfoCommand);
@@ -101,7 +101,7 @@ final class ObjectInfoHandler extends BaseHandler
     private function getDatabaseResponse(
         array $path,
         BigQueryClient $bqClient,
-        ObjectInfoResponse $response
+        ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 1, 'Error path must have exactly one element.');
         $objects = new RepeatedField(GPBType::MESSAGE, ObjectInfo::class);
@@ -123,7 +123,7 @@ final class ObjectInfoHandler extends BaseHandler
     private function getSchemaResponse(
         array $path,
         BigQueryClient $bqClient,
-        ObjectInfoResponse $response
+        ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 1, 'Error path must have exactly one element.');
         $infoObject = new SchemaInfo();
@@ -151,7 +151,7 @@ final class ObjectInfoHandler extends BaseHandler
         foreach ($dataset->tables() as $table) {
             $this->internalLogger->debug(sprintf(
                 'Processing table "%s".',
-                $table->id()
+                $table->id(),
             ));
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
@@ -167,7 +167,7 @@ final class ObjectInfoHandler extends BaseHandler
             if ($info['type'] === 'VIEW' || $info['type'] === 'MATERIALIZED_VIEW') {
                 $this->internalLogger->debug(sprintf(
                     'Found view "%s".',
-                    $table->id()
+                    $table->id(),
                 ));
                 yield (new ObjectInfo())
                     ->setObjectType(ObjectType::VIEW)
@@ -176,7 +176,7 @@ final class ObjectInfoHandler extends BaseHandler
             }
             $this->internalLogger->debug(sprintf(
                 'Found table "%s".',
-                $table->id()
+                $table->id(),
             ));
             // TABLE,SNAPSHOT
             yield (new ObjectInfo())
@@ -191,7 +191,7 @@ final class ObjectInfoHandler extends BaseHandler
     private function getTableResponse(
         array $path,
         ObjectInfoResponse $response,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->getDataset($bqClient, $path[0]);
@@ -201,8 +201,8 @@ final class ObjectInfoHandler extends BaseHandler
                 new BigqueryTableReflection(
                     $bqClient,
                     $path[0],
-                    $path[1]
-                )
+                    $path[1],
+                ),
             ));
         } catch (TableNotExistsReflectionException $e) {
             throw new ObjectNotFoundException($path[1]);
@@ -216,7 +216,7 @@ final class ObjectInfoHandler extends BaseHandler
     private function getViewResponse(
         array $path,
         BigQueryClient $bqClient,
-        ObjectInfoResponse $response
+        ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->getDataset($bqClient, $path[0]);
@@ -226,8 +226,8 @@ final class ObjectInfoHandler extends BaseHandler
             new BigqueryTableReflection(
                 $bqClient,
                 $path[0],
-                $path[1]
-            )
+                $path[1],
+            ),
         ));
         return $response;
     }

@@ -63,7 +63,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         $cmd = new CreateTableFromTimeTravelCommand();
@@ -72,14 +72,14 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setSource(
             (new CreateTableFromTimeTravelCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         /** @var int $dateTimeAfterImportTimestamp */
@@ -110,11 +110,11 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $columns = iterator_to_array($tableInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame(
             ['col1', 'col2', 'col3'],
-            $columnsNames
+            $columnsNames,
         );
 
         $sourceRef = new BigqueryTableReflection($bqClient, $bucketDatasetName, $sourceTableName);
@@ -140,8 +140,8 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $bucketDatasetName,
             $sourceTableName,
             new BigqueryColumn('newColumn', new Bigquery(
-                Bigquery::TYPE_STRING
-            ))
+                Bigquery::TYPE_STRING,
+            )),
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
@@ -153,14 +153,14 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setSource(
             (new CreateTableFromTimeTravelCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         /** @var int $dateTimeBeforeAlterTimestamp */
@@ -191,11 +191,11 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $columns = iterator_to_array($tableInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame(
             ['col1', 'col2', 'col3'],
-            $columnsNames
+            $columnsNames,
         );
 
         $sourceRef = new BigqueryTableReflection($bqClient, $bucketDatasetName, $sourceTableName);
@@ -219,7 +219,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setSource(
             (new CreateTableFromTimeTravelCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName('table_should_never_be_created')
+                ->setTableName('table_should_never_be_created'),
         );
 
         $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
@@ -228,7 +228,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setDestination(
             (new Table())
                 ->setPath($destPath)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         /** @var int $timestamp */
@@ -257,7 +257,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setSource(
             (new CreateTableFromTimeTravelCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
@@ -266,7 +266,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setDestination(
             (new Table())
                 ->setPath($destPath)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $datetime = new DateTimeImmutable('1989-08-31 06:00:00');
@@ -299,7 +299,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setSource(
             (new CreateTableFromTimeTravelCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $destinationTableName = $this->getTestHash() . '_createdFromTimeTravel';
@@ -308,7 +308,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         $cmd->setDestination(
             (new Table())
                 ->setPath($destPath)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         /** @var int $timestamp */
@@ -330,7 +330,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
     private function initTestTableAndImportBaseData(
         BigQueryClient $bqClient,
         string $bucketDatasetName,
-        string $sourceTableName
+        string $sourceTableName,
     ): void {
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatasetName,
@@ -339,18 +339,18 @@ class CreateTableFromTimeTravelTest extends BaseCase
             new ColumnCollection([
                 new BigqueryColumn('col1', new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn('col2', new Bigquery(
                     Bigquery::TYPE_BIGINT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn('col3', new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
             ]),
-            ['col1']
+            ['col1'],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -368,7 +368,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
     }
 }

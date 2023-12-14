@@ -18,7 +18,7 @@ class BigQueryClientWrapper extends BigQueryClient
      */
     public function __construct(
         readonly string $runId,
-        array $config = []
+        array $config = [],
     ) {
         parent::__construct($config);
     }

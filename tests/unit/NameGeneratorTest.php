@@ -61,7 +61,7 @@ class NameGeneratorTest extends TestCase
         $nameGenerator = new NameGenerator('KBC_prefix_');
         $this->assertSame(
             'KBC_PREFIX_123_RO',
-            $nameGenerator->createDataExchangeId('123')
+            $nameGenerator->createDataExchangeId('123'),
         );
     }
 }

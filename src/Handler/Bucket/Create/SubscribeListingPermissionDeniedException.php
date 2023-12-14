@@ -14,27 +14,27 @@ class SubscribeListingPermissionDeniedException extends Exception implements Non
     public function __construct(
         string $message,
         int $code = self::ERR_OBJECT_PERMISSION_DENIED,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
     public static function handlePermissionDeniedException(
         ApiException $e,
         string $externalBucketName,
-        string $listingName
+        string $listingName,
     ): ApiException|self {
         throw new self(
             message: sprintf(
                 'Failed to register external bucket "%s" permission denied for subscribe listing "%s"',
                 $externalBucketName,
-                $listingName
+                $listingName,
             ),
-            previous: $e
+            previous: $e,
         );
     }
 }

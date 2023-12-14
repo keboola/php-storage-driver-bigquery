@@ -46,7 +46,7 @@ class UserInMemoryLogger extends AbstractLogger
     public function log(
         $level,
         $message,
-        array $context = []
+        array $context = [],
     ): void {
         $msg = new LogMessage();
         $msg->setLevel(self::LOG_LEVEL_MAP[$level]);
@@ -54,7 +54,7 @@ class UserInMemoryLogger extends AbstractLogger
         $ctx = new Any();
         $ctx->pack(
             (new StringValue())
-                ->setValue(json_encode($context, JSON_THROW_ON_ERROR))
+                ->setValue(json_encode($context, JSON_THROW_ON_ERROR)),
         );
         $msg->setContext($ctx);
         $this->logs[] = $msg;

@@ -29,7 +29,7 @@ final class DropProjectHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropProjectCommand);
@@ -54,23 +54,25 @@ final class DropProjectHandler extends BaseHandler
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
 
+        /** @var array{
+         * kind: string,
+         * resourceId: string,
+         * version: int,
+         * etag: string,
+         * bindings: array<int, array{
+         *  role: string,
+         *  members: array<int, string>
+         * }>
+         * } $policy */
         $policy = $fileStorageBucket->iam()->policy();
 
-        foreach ($policy['bindings'] as $bindingKey => $binding) {
-            if ($binding['role'] === 'roles/storage.objectAdmin') {
-                $key = array_search('serviceAccount:' . $publicPartKeyFile['client_email'], $binding['members'], false);
-                if ($key === false) {
-                    continue;
-                }
-                unset($policy['bindings'][$bindingKey]['members'][$key]);
-            }
-        }
+        $policy = PolicyFilter::removeServiceAccFromBucketPolicy($policy, $publicPartKeyFile['client_email']);
 
         $fileStorageBucket->iam()->setPolicy($policy);
 
         $projectId = (string) $publicPartKeyFile['project_id'];
         $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(
-            sprintf('projects/%s', $projectId)
+            sprintf('projects/%s', $projectId),
         );
         foreach ($serviceAccountsInProject as $item) {
             $serviceAccountsService->delete(sprintf('projects/%s/serviceAccounts/%s', $projectId, $item->getEmail()));

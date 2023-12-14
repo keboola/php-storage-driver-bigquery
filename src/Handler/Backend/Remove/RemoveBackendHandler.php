@@ -18,7 +18,7 @@ final class RemoveBackendHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof RemoveBackendCommand);

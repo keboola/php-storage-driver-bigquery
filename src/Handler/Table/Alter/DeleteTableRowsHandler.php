@@ -40,7 +40,7 @@ final class DeleteTableRowsHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DeleteTableRowsCommand);
@@ -67,9 +67,9 @@ final class DeleteTableRowsHandler extends BaseHandler
                 sprintf(
                     'TRUNCATE TABLE %s.%s',
                     BigqueryQuote::quoteSingleIdentifier($datasetName),
-                    BigqueryQuote::quoteSingleIdentifier($command->getTableName())
+                    BigqueryQuote::quoteSingleIdentifier($command->getTableName()),
                 ),
-                []
+                [],
             );
         } else {
             // delete from
@@ -84,7 +84,7 @@ final class DeleteTableRowsHandler extends BaseHandler
                 $tableColumnsDefinitions,
                 $datasetName,
                 $command->getTableName(),
-                false
+                false,
             );
         }
         /** @var array<string> $queryDataBindings */
@@ -93,7 +93,7 @@ final class DeleteTableRowsHandler extends BaseHandler
 
         $bqClient->runQuery(
             $bqClient->query($queryData->getQuery())
-                ->parameters($queryDataBindings)
+                ->parameters($queryDataBindings),
         );
 
         $ref->refresh();
@@ -110,13 +110,13 @@ final class DeleteTableRowsHandler extends BaseHandler
         if ($command->getChangeSince() !== '') {
             assert(
                 is_numeric($command->getChangeSince()),
-                'PreviewTableCommand.changeSince must be numeric timestamp'
+                'PreviewTableCommand.changeSince must be numeric timestamp',
             );
         }
         if ($command->getChangeUntil() !== '') {
             assert(
                 is_numeric($command->getChangeUntil()),
-                'PreviewTableCommand.changeUntil must be numeric timestamp'
+                'PreviewTableCommand.changeUntil must be numeric timestamp',
             );
         }
     }

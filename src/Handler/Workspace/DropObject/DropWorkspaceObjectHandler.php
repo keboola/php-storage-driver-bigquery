@@ -31,7 +31,7 @@ final class DropWorkspaceObjectHandler extends BaseHandler
         Message $credentials, // workspace credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceObjectCommand);
@@ -41,11 +41,11 @@ final class DropWorkspaceObjectHandler extends BaseHandler
         // validate
         assert(
             $command->getWorkspaceObjectName() !== '',
-            'DropWorkspaceObjectCommand.workspaceObjectName is required'
+            'DropWorkspaceObjectCommand.workspaceObjectName is required',
         );
         assert(
             $command->getObjectNameToDrop() !== '',
-            'DropWorkspaceObjectCommand.objectNameToDrop is required'
+            'DropWorkspaceObjectCommand.objectNameToDrop is required',
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
@@ -53,7 +53,7 @@ final class DropWorkspaceObjectHandler extends BaseHandler
         $isTableExists = $this->isTableExists(
             $bqClient,
             $command->getWorkspaceObjectName(),
-            $command->getObjectNameToDrop()
+            $command->getObjectNameToDrop(),
         );
         if ($command->getIgnoreIfNotExists() && !$isTableExists) {
             return null;
@@ -62,7 +62,7 @@ final class DropWorkspaceObjectHandler extends BaseHandler
         $bqClient->runQuery($bqClient->query(sprintf(
             'DROP TABLE %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($command->getWorkspaceObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($command->getObjectNameToDrop())
+            BigqueryQuote::quoteSingleIdentifier($command->getObjectNameToDrop()),
         )));
 
         return null;

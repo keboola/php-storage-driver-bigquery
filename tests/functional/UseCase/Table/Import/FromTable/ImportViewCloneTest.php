@@ -64,13 +64,13 @@ class ImportViewCloneTest extends BaseCase
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
-            $bqClient
+            $bqClient,
         );
         // create also destination so table exists
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName . '_dest',
-            $bqClient
+            $bqClient,
         );
 
         // import
@@ -80,16 +80,16 @@ class ImportViewCloneTest extends BaseCase
         $cmd->setSource(
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($sourceTableName . '_dest')
+                ->setTableName($sourceTableName . '_dest'),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType($importType)
+                ->setImportType($importType),
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -109,7 +109,7 @@ class ImportViewCloneTest extends BaseCase
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType($importType)
-                ->setCreateMode(ImportOptions\CreateMode::REPLACE)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE),
         );
         $response = $handler(
             $this->projects[0][0],
@@ -122,7 +122,7 @@ class ImportViewCloneTest extends BaseCase
         $this->assertSame(0, $response->getImportedRowsCount());
         $this->assertSame(
             [],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
 
         // check table read
@@ -139,7 +139,7 @@ class ImportViewCloneTest extends BaseCase
             $bqClient,
             $bucketDatabaseName,
             $sourceTableName . '_dest',
-            3
+            3,
         );
     }
 
@@ -159,7 +159,7 @@ class ImportViewCloneTest extends BaseCase
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
-            $bqClient
+            $bqClient,
         );
 
         // import
@@ -169,16 +169,16 @@ class ImportViewCloneTest extends BaseCase
         $cmd->setSource(
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType($importType)
+                ->setImportType($importType),
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -193,7 +193,7 @@ class ImportViewCloneTest extends BaseCase
         $this->assertSame(0, $response->getImportedRowsCount());
         $this->assertSame(
             [],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
 
         // check table read
@@ -210,7 +210,7 @@ class ImportViewCloneTest extends BaseCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            3
+            3,
         );
 
         // cleanup
@@ -219,23 +219,23 @@ class ImportViewCloneTest extends BaseCase
                 sprintf(
                     'DROP VIEW %s.%s',
                     BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+                ),
             ));
         } else {
             $bqClient->runQuery($bqClient->query(
                 $qb->getDropTableCommand(
                     $bucketDatabaseName,
-                    $destinationTableName
-                )
+                    $destinationTableName,
+                ),
             ));
         }
 
         $bqClient->runQuery($bqClient->query(
             $qb->getDropTableCommand(
                 $bucketDatabaseName,
-                $sourceTableName
-            )
+                $sourceTableName,
+            ),
         ));
     }
 
@@ -258,7 +258,7 @@ class ImportViewCloneTest extends BaseCase
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $targetProjectCredentials,
             $targetProjectResponse,
-            $this->projects[1][2]
+            $this->projects[1][2],
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 
@@ -269,18 +269,18 @@ class ImportViewCloneTest extends BaseCase
         $cmd->setSource(
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($linkedBucketTableName)
+                ->setTableName($linkedBucketTableName),
         );
         $destPath = new RepeatedField(GPBType::STRING);
         $destPath[] = $workspaceResponse->getWorkspaceObjectName();
         $cmd->setDestination(
             (new Table())
                 ->setPath($destPath)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType($importType)
+                ->setImportType($importType),
         );
         $handler = new ImportTableFromTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -300,7 +300,7 @@ class ImportViewCloneTest extends BaseCase
         }
         $this->assertSame(
             [],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
         // check table read
         if ($importType === ImportOptions\ImportType::VIEW) {
@@ -312,7 +312,7 @@ class ImportViewCloneTest extends BaseCase
         $ref = new BigqueryTableReflection(
             $bqClient,
             $workspaceResponse->getWorkspaceObjectName(),
-            $destinationTableName
+            $destinationTableName,
         );
         // this will be also 0 for view but will match result from reflection
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
@@ -321,7 +321,7 @@ class ImportViewCloneTest extends BaseCase
             $bqClient,
             $workspaceResponse->getWorkspaceObjectName(),
             $destinationTableName,
-            3
+            3,
         );
 
         // check table read as WS user
@@ -329,7 +329,7 @@ class ImportViewCloneTest extends BaseCase
         $ref = new BigqueryTableReflection(
             $wsBqClient,
             $workspaceResponse->getWorkspaceObjectName(),
-            $destinationTableName
+            $destinationTableName,
         );
         if ($importType === ImportOptions\ImportType::VIEW) {
             // rest api is not returning rows count for views
@@ -343,7 +343,7 @@ class ImportViewCloneTest extends BaseCase
             $wsBqClient,
             $workspaceResponse->getWorkspaceObjectName(),
             $destinationTableName,
-            3
+            3,
         );
 
         // cleanup
@@ -352,15 +352,15 @@ class ImportViewCloneTest extends BaseCase
                 sprintf(
                     'DROP VIEW %s.%s',
                     BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+                ),
             ));
         } else {
             $bqClient->runQuery($bqClient->query(
                 (new BigqueryTableQueryBuilder())->getDropTableCommand(
                     $workspaceResponse->getWorkspaceObjectName(),
-                    $destinationTableName
-                )
+                    $destinationTableName,
+                ),
             ));
         }
         $cleanUp();
@@ -369,7 +369,7 @@ class ImportViewCloneTest extends BaseCase
     private function createSourceTable(
         string $bucketDatabaseName,
         string $sourceTableName,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): void {
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -381,7 +381,7 @@ class ImportViewCloneTest extends BaseCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -404,7 +404,7 @@ class ImportViewCloneTest extends BaseCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
     }
 
@@ -422,7 +422,7 @@ class ImportViewCloneTest extends BaseCase
         $this->createSourceTable(
             $bucketDatabaseName,
             'sharedTable',
-            $sourceBqClient
+            $sourceBqClient,
         );
 
         // share the bucket
@@ -430,7 +430,7 @@ class ImportViewCloneTest extends BaseCase
             $this->projects[0][1]->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
@@ -456,7 +456,7 @@ class ImportViewCloneTest extends BaseCase
             $this->projects[1][1]->getProjectUserName(),
             true,
             512,
-            JSON_THROW_ON_ERROR
+            JSON_THROW_ON_ERROR,
         );
         /** @var string $targetProjectId */
         $targetProjectId = $publicPart['project_id'];
@@ -503,14 +503,14 @@ class ImportViewCloneTest extends BaseCase
         BigQueryClient $bqClient,
         string $datasetName,
         string $tableName,
-        int $expectedRowsCount
+        int $expectedRowsCount,
     ): void {
         $result = $bqClient->runQuery($bqClient->query(
             sprintf(
                 'SELECT * FROM %s.%s',
                 BigqueryQuote::quoteSingleIdentifier($datasetName),
-                BigqueryQuote::quoteSingleIdentifier($tableName)
-            )
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            ),
         ));
         $this->assertCount($expectedRowsCount, $result);
     }

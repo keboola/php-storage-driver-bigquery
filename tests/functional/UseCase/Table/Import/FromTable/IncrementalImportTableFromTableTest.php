@@ -51,18 +51,18 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 new BigqueryColumn('col1', new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn('col2', new Bigquery(
                     Bigquery::TYPE_BIGINT,
-                    []
+                    [],
                 )),
                 new BigqueryColumn($sourceExtraColumn, new Bigquery(
                     Bigquery::TYPE_INT,
-                    []
+                    [],
                 )),
             ]),
-            ['col1']
+            ['col1'],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -81,7 +81,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         // create tables
@@ -96,7 +96,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatabaseName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col1')
@@ -111,12 +111,12 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $dedupColumns = new RepeatedField(GPBType::STRING);
@@ -130,7 +130,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
                 ->setNumberOfIgnoredLines(0)
                 ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
                 ->setTimestampColumn('_timestamp')
-                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -150,7 +150,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            ['col1', 'col3']
+            ['col1', 'col3'],
         );
         $this->assertEqualsCanonicalizing([
             [

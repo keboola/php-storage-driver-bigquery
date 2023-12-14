@@ -58,7 +58,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
@@ -99,7 +99,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                     $importOptions,
                     $source,
                     $bigqueryImportOptions,
-                    $sourceMapping
+                    $sourceMapping,
                 );
                 break;
             case ImportType::VIEW:
@@ -119,7 +119,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             default:
                 throw new LogicException(sprintf(
                     'Unknown import type "%s".',
-                    $importOptions->getImportType()
+                    $importOptions->getImportType(),
                 ));
         }
 
@@ -127,7 +127,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-            $destination->getTableName()
+            $destination->getTableName(),
         );
         $destinationStats = $destinationRef->getTableStats();
         $response->setTableRowsCount($destinationStats->getRowsCount());
@@ -148,7 +148,7 @@ final class ImportTableFromTableHandler extends BaseHandler
 
     private function createSource(
         BigQueryClient $bqClient,
-        TableImportFromTableCommand $command
+        TableImportFromTableCommand $command,
     ): Table {
         $sourceMapping = $command->getSource();
         assert($sourceMapping !== null);
@@ -160,13 +160,13 @@ final class ImportTableFromTableHandler extends BaseHandler
         $sourceTableDef = (new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
-            $sourceMapping->getTableName()
+            $sourceMapping->getTableName(),
         ))->getTableDefinition();
         return new Table(
             ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
             $sourceMapping->getTableName(),
             $sourceColumns,
-            $sourceTableDef->getPrimaryKeysNames()
+            $sourceTableDef->getPrimaryKeysNames(),
         );
     }
 
@@ -179,13 +179,13 @@ final class ImportTableFromTableHandler extends BaseHandler
         ImportOptions $options,
         Table $source,
         BigqueryImportOptions $importOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): array {
         /** @var BigqueryTableDefinition $destinationDefinition */
         $destinationDefinition = (new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-            $destination->getTableName()
+            $destination->getTableName(),
         ))->getTableDefinition();
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
@@ -208,7 +208,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $importState = $toStageImporter->importToStagingTable(
                 $source,
                 $destinationDefinition,
-                $importOptions
+                $importOptions,
             );
             return [null, $importState->getResult()];
         }
@@ -220,7 +220,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $importState = $toStageImporter->importToStagingTable(
                 $source,
                 $stagingTable,
-                $importOptions
+                $importOptions,
             );
         } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
@@ -235,7 +235,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $stagingTable,
             $destinationDefinition,
             $importOptions,
-            $importState
+            $importState,
         );
         return [$stagingTable, $importResult];
     }
@@ -243,14 +243,14 @@ final class ImportTableFromTableHandler extends BaseHandler
     private function createStageTable(
         BigqueryTableDefinition $destinationDefinition,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): BigqueryTableDefinition {
         // prepare staging table definition
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
         $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
         $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
             $destinationDefinition,
-            $mappings
+            $mappings,
         );
         // create staging table
         $qb = new BigqueryTableQueryBuilder();
@@ -259,8 +259,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable->getSchemaName(),
                 $stagingTable->getTableName(),
                 $stagingTable->getColumnsDefinitions(),
-                [] //<-- there are no PK in BQ
-            )
+                [], //<-- there are no PK in BQ
+            ),
         ));
         return $stagingTable;
     }
@@ -271,7 +271,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         ImportOptions $importOptions,
         Table $source,
         BigqueryImportOptions $bigqueryImportOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): Result {
         $stagingTable = null;
         try {
@@ -284,7 +284,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $importOptions,
                 $source,
                 $bigqueryImportOptions,
-                $sourceMapping
+                $sourceMapping,
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
@@ -294,8 +294,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                     $bqClient->runQuery($bqClient->query(
                         (new BigqueryTableQueryBuilder())->getDropTableCommand(
                             $stagingTable->getSchemaName(),
-                            $stagingTable->getTableName()
-                        )
+                            $stagingTable->getTableName(),
+                        ),
                     ));
                 } catch (Throwable $e) {
                     // ignore
@@ -312,7 +312,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     private function createView(
         BigQueryClient $bqClient,
         CommandDestination $destination,
-        Table $source
+        Table $source,
     ): Result {
         $sql = sprintf(
             <<<SQL
@@ -331,7 +331,7 @@ SQL,
 
         try {
             $bqClient->runQuery(
-                $bqClient->query($sql)
+                $bqClient->query($sql),
             );
         } catch (ConflictException $e) {
             throw ObjectAlreadyExistsException::handleConflictException($e);
@@ -361,7 +361,7 @@ SQL,
 
         try {
             $bqClient->runQuery(
-                $bqClient->query($sql)
+                $bqClient->query($sql),
             );
             return new Result([
                 'importedRowsCount' => 0,
@@ -394,14 +394,14 @@ SQL,
         );
 
         $bqClient->runQuery(
-            $bqClient->query($sql)
+            $bqClient->query($sql),
         );
 
         return new Result([
             'importedRowsCount' => (new BigqueryTableReflection(
                 $bqClient,
                 ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-                $destination->getTableName()
+                $destination->getTableName(),
             ))->getRowsCount(),
         ]);
     }

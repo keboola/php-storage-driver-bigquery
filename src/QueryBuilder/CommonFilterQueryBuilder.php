@@ -45,7 +45,7 @@ abstract class CommonFilterQueryBuilder
 
     public function __construct(
         BigQueryClient $bigQueryClient,
-        ColumnConverter $columnConverter
+        ColumnConverter $columnConverter,
     ) {
         $this->bigQueryClient = $bigQueryClient;
         $this->columnConverter = $columnConverter;
@@ -59,8 +59,8 @@ abstract class CommonFilterQueryBuilder
                 'SUBSTRING(CAST(%s as STRING), 0, %d) AS %s',
                 $selectColumn,
                 self::DEFAULT_CAST_SIZE,
-                BigqueryQuote::quoteSingleIdentifier($column)
-            )
+                BigqueryQuote::quoteSingleIdentifier($column),
+            ),
         );
         //flag if is cast
         $query->addSelect(
@@ -68,8 +68,8 @@ abstract class CommonFilterQueryBuilder
                 '(CASE WHEN LENGTH(CAST(%s as STRING)) > %s THEN 1 ELSE 0 END) AS %s',
                 $selectColumn,
                 self::DEFAULT_CAST_SIZE,
-                BigqueryQuote::quoteSingleIdentifier(uniqid($column))
-            )
+                BigqueryQuote::quoteSingleIdentifier(uniqid($column)),
+            ),
         );
     }
 
@@ -93,7 +93,7 @@ abstract class CommonFilterQueryBuilder
         string $tableName,
         string $changeSince,
         string $changeUntil,
-        QueryBuilder $query
+        QueryBuilder $query,
     ): void {
         if ($changeSince !== '') {
             $query->andWhere(sprintf(
@@ -143,13 +143,13 @@ abstract class CommonFilterQueryBuilder
         TableWhereFilter $filter,
         string $value,
         QueryBuilder $query,
-        string $tableName
+        string $tableName,
     ): void {
         if ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
-                $filter->getDataType()
+                $filter->getDataType(),
             );
             $value = $this->convertNonStringValue($filter, $value);
         } else {
@@ -165,8 +165,8 @@ abstract class CommonFilterQueryBuilder
                 '%s %s %s',
                 $columnSql,
                 self::OPERATOR_SINGLE_VALUE[$filter->getOperator()],
-                $query->createNamedParameter($value, $filter->getDataType())
-            )
+                $query->createNamedParameter($value, $filter->getDataType()),
+            ),
         );
     }
 
@@ -177,7 +177,7 @@ abstract class CommonFilterQueryBuilder
         string $tableName,
         TableWhereFilter $filter,
         array $values,
-        QueryBuilder $query
+        QueryBuilder $query,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -189,7 +189,7 @@ abstract class CommonFilterQueryBuilder
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
-                $filter->getDataType()
+                $filter->getDataType(),
             );
             $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
             $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
@@ -207,8 +207,8 @@ abstract class CommonFilterQueryBuilder
                 '%s %s UNNEST(%s)',
                 $columnSql,
                 self::OPERATOR_MULTI_VALUE[$filter->getOperator()],
-                $param
-            )
+                $param,
+            ),
         );
     }
 
@@ -224,9 +224,9 @@ abstract class CommonFilterQueryBuilder
                         $this->columnConverter->convertColumnByDataType(
                             $tableName,
                             $orderBy->getColumnName(),
-                            $orderBy->getDataType()
+                            $orderBy->getDataType(),
                         ),
-                        ExportOrderBy\Order::name($orderBy->getOrder())
+                        ExportOrderBy\Order::name($orderBy->getOrder()),
                     );
                     return;
                 }
@@ -236,13 +236,13 @@ abstract class CommonFilterQueryBuilder
                         BigqueryQuote::quoteSingleIdentifier($tableName),
                         BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
                     ),
-                    ExportOrderBy\Order::name($orderBy->getOrder())
+                    ExportOrderBy\Order::name($orderBy->getOrder()),
                 );
             }
         } catch (QueryException $e) {
             throw new QueryBuilderException(
                 $e->getMessage(),
-                $e
+                $e,
             );
         }
     }
@@ -266,7 +266,7 @@ abstract class CommonFilterQueryBuilder
             $selectColumn = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                BigqueryQuote::quoteSingleIdentifier($column)
+                BigqueryQuote::quoteSingleIdentifier($column),
             );
 
             if ($truncateLargeColumns) {
@@ -282,7 +282,7 @@ abstract class CommonFilterQueryBuilder
                     $query,
                     $selectColumn,
                     $column,
-                    $def[0]->getColumnDefinition()
+                    $def[0]->getColumnDefinition(),
                 );
                 continue;
             }
@@ -295,7 +295,7 @@ abstract class CommonFilterQueryBuilder
         QueryBuilder $query,
         string $selectColumn,
         string $column,
-        Bigquery $def
+        Bigquery $def,
     ): void {
         if ($def->getType() === Bigquery::TYPE_ARRAY) {
             $query->addSelect(
@@ -304,8 +304,8 @@ abstract class CommonFilterQueryBuilder
                     $selectColumn,
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier($column)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                ),
             );
 
             //flag if is cast
@@ -314,8 +314,8 @@ abstract class CommonFilterQueryBuilder
                     '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
-                )
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column)),
+                ),
             );
             return;
         }
@@ -327,8 +327,8 @@ abstract class CommonFilterQueryBuilder
                     $selectColumn,
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier($column)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                ),
             );
 
             //flag if is cast
@@ -337,8 +337,8 @@ abstract class CommonFilterQueryBuilder
                     '(CASE WHEN LENGTH(ST_ASGEOJSON(%s)) > %s THEN 1 ELSE 0 END) AS %s',
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
-                )
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column)),
+                ),
             );
             return;
         }
@@ -350,8 +350,8 @@ abstract class CommonFilterQueryBuilder
                     $selectColumn,
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier($column)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                ),
             );
 
             //flag if is cast
@@ -360,8 +360,8 @@ abstract class CommonFilterQueryBuilder
                     '(CASE WHEN LENGTH(TO_JSON_STRING(%s)) > %s THEN 1 ELSE 0 END) AS %s',
                     $selectColumn,
                     self::DEFAULT_CAST_SIZE,
-                    BigqueryQuote::quoteSingleIdentifier(uniqid($column))
-                )
+                    BigqueryQuote::quoteSingleIdentifier(uniqid($column)),
+                ),
             );
 
             return;
@@ -378,8 +378,8 @@ abstract class CommonFilterQueryBuilder
                 sprintf(
                     '%s AS %s',
                     $selectColumn,
-                    BigqueryQuote::quoteSingleIdentifier($column)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                ),
             );
         } else {
             //cast value to string
@@ -387,8 +387,8 @@ abstract class CommonFilterQueryBuilder
                 sprintf(
                     'CAST(%s as STRING) AS %s',
                     $selectColumn,
-                    BigqueryQuote::quoteSingleIdentifier($column)
-                )
+                    BigqueryQuote::quoteSingleIdentifier($column),
+                ),
             );
         }
 
@@ -396,8 +396,8 @@ abstract class CommonFilterQueryBuilder
         $query->addSelect(
             sprintf(
                 '0 AS %s',
-                BigqueryQuote::quoteSingleIdentifier(uniqid($column))
-            )
+                BigqueryQuote::quoteSingleIdentifier(uniqid($column)),
+            ),
         );
     }
 

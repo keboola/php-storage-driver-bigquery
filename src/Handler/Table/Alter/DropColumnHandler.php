@@ -30,7 +30,7 @@ final class DropColumnHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropColumnCommand);
@@ -53,7 +53,7 @@ final class DropColumnHandler extends BaseHandler
         $dropColumnSql = $builder->getDropColumnCommand(
             $databaseName,
             $command->getTableName(),
-            $command->getColumnName()
+            $command->getColumnName(),
         );
 
         $bqClient->runQuery($bqClient->query($dropColumnSql));

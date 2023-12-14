@@ -92,7 +92,7 @@ class CreateDropBucketTest extends BaseCase
             assert($message !== false);
             $this->assertStringContainsString(
                 $bucket->getCreateBucketObjectName() . ' is still in use',
-                $message['error']['message']
+                $message['error']['message'],
             );
         }
 

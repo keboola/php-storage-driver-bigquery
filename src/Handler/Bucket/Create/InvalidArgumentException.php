@@ -15,12 +15,12 @@ class InvalidArgumentException extends Exception implements NonRetryableExceptio
     public function __construct(
         string $message,
         int $code = self::ERR_VALIDATION,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
@@ -28,7 +28,7 @@ class InvalidArgumentException extends Exception implements NonRetryableExceptio
     {
         throw new self(
             message: DecodeErrorMessage::getErrorMessage($e),
-            previous: $e
+            previous: $e,
         );
     }
 }

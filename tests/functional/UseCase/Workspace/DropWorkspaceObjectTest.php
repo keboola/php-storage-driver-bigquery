@@ -42,11 +42,11 @@ class DropWorkspaceObjectTest extends BaseCase
         // create tables
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
         $bqClient->runQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.`testTable2` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // create view
@@ -54,7 +54,7 @@ class DropWorkspaceObjectTest extends BaseCase
             'CREATE VIEW %s.`testView` AS '
             . 'SELECT `id` FROM %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // DROP with BAD TABLE NAME
@@ -78,9 +78,9 @@ class DropWorkspaceObjectTest extends BaseCase
                 sprintf(
                     '%s.%s',
                     $response->getWorkspaceObjectName(),
-                    'objectNotExists'
+                    'objectNotExists',
                 ),
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 

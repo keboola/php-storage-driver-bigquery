@@ -30,7 +30,7 @@ final class CreateBucketHandler extends BaseHandler
         Message $credentials, // project credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateBucketCommand);
@@ -40,7 +40,7 @@ final class CreateBucketHandler extends BaseHandler
 
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
             $command->getBucketId(),
-            $command->getBranchId()
+            $command->getBranchId(),
         );
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);

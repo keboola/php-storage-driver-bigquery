@@ -37,7 +37,7 @@ final class AddColumnHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof AddColumnCommand);
@@ -65,7 +65,7 @@ final class AddColumnHandler extends BaseHandler
                 'length' => $column->getLength() === '' ? null : $column->getLength(),
                 'nullable' => true,
                 'default' => null,
-            ])
+            ]),
         );
 
         // build sql
@@ -75,7 +75,7 @@ final class AddColumnHandler extends BaseHandler
         $createTableSql = $builder->getAddColumnCommand(
             $databaseName,
             $command->getTableName(),
-            $columnDefinition
+            $columnDefinition,
         );
 
         $bqClient->runQuery($bqClient->query($createTableSql));
@@ -88,8 +88,8 @@ final class AddColumnHandler extends BaseHandler
                 new BigqueryTableReflection(
                     $bqClient,
                     $databaseName,
-                    $command->getTableName()
-                )
+                    $command->getTableName(),
+                ),
             ));
     }
 }

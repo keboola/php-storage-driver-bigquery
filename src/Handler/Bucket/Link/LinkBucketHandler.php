@@ -32,7 +32,7 @@ final class LinkBucketHandler extends BaseHandler
         Message $credentials, // main credentials
         Message $command, // linked bucket
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof LinkBucketCommand);
@@ -51,7 +51,7 @@ final class LinkBucketHandler extends BaseHandler
 
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
             $command->getTargetBucketId(),
-            null
+            null,
         );
 
         $datasetReference = new DestinationDatasetReference();

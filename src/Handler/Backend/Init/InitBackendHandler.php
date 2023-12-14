@@ -31,7 +31,7 @@ final class InitBackendHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof InitBackendCommand);
@@ -55,7 +55,7 @@ final class InitBackendHandler extends BaseHandler
                 $formattedName,
                 [
                     IAmPermissions::RESOURCE_MANAGER_PROJECTS_CREATE,
-                ]
+                ],
             );
         } finally {
             $foldersClient->close();
@@ -64,7 +64,7 @@ final class InitBackendHandler extends BaseHandler
         if (count($folderPermissions->getPermissions()) === 0) {
             throw new Exception(sprintf(
                 'Missing rights "%s for service account.',
-                IAmPermissions::RESOURCE_MANAGER_PROJECTS_CREATE
+                IAmPermissions::RESOURCE_MANAGER_PROJECTS_CREATE,
             ));
         }
 

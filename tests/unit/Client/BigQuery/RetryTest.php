@@ -30,7 +30,7 @@ class RetryTest extends TestCase
             '',
             $this->createMock(RequestInterface::class),
             $response,
-            $this->getException($code)
+            $this->getException($code),
         );
     }
 

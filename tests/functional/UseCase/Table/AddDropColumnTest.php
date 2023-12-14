@@ -56,7 +56,7 @@ class AddDropColumnTest extends BaseCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -76,7 +76,7 @@ class AddDropColumnTest extends BaseCase
             ->setColumnDefinition(
                 (new TableColumnShared())
                     ->setName('newCol')
-                    ->setType(Bigquery::TYPE_BIGINT)
+                    ->setType(Bigquery::TYPE_BIGINT),
             );
         $handler = new AddColumnHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -95,7 +95,7 @@ class AddDropColumnTest extends BaseCase
 
         $bqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
-            $this->projectCredentials
+            $this->projectCredentials,
         );
 
         $tableRef = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $tableName);
@@ -125,7 +125,7 @@ class AddDropColumnTest extends BaseCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(

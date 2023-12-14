@@ -29,7 +29,7 @@ class FakeConnectionFactory
         string $user = 'fakeuser',
         string $password = 'fakepassword',
         array $params = [],
-        ?Configuration $config = null
+        ?Configuration $config = null,
     ): Connection {
         /** @var array{
          *     'port'?:string,
@@ -54,12 +54,12 @@ class FakeConnectionFactory
                 'host' => $host,
                 'user' => $user,
                 'password' => $password,
-            ]
+            ],
         );
         return DriverManager::getConnection(
         // @phpstan-ignore-next-line
             $params,
-            $config
+            $config,
         );
     }
 }

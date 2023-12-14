@@ -191,7 +191,7 @@ class BaseCase extends TestCase
 
         $meta = new Any();
         $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            (string) getenv('BQ_BUCKET_NAME')
+            (string) getenv('BQ_BUCKET_NAME'),
         ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($id);
@@ -201,7 +201,7 @@ class BaseCase extends TestCase
             $this->getCredentials(),
             $command,
             [],
-            new RuntimeOptions()
+            new RuntimeOptions(),
         );
 
         assert($response instanceof CreateProjectResponse);
@@ -296,7 +296,7 @@ class BaseCase extends TestCase
 
         $any = new Any();
         $any->pack((new GenericBackendCredentials\BigQueryCredentialsMeta())->setFolderId(
-            $folderId
+            $folderId,
         ));
         return (new GenericBackendCredentials())
             ->setPrincipal($principal)
@@ -328,7 +328,7 @@ class BaseCase extends TestCase
     private function dropTestBucket(
         GenericBackendCredentials $projectCredentials,
         string $bucketId,
-        ?string $branchId
+        ?string $branchId,
     ): void {
         $nameGenerator = new NameGenerator($this->getStackPrefix());
         $datasetName = $nameGenerator->createObjectNameForBucketInProject($bucketId, $branchId);
@@ -344,14 +344,14 @@ class BaseCase extends TestCase
     protected function createTestBucket(
         GenericBackendCredentials $projectCredentials,
         string $projectId,
-        ?string $branchId = null
+        ?string $branchId = null,
     ): CreateBucketResponse {
         $bucket = $this->getTestHash() . 'in.c-Test';
         $this->log->add('Creating bucket:' . $bucket);
         $this->dropTestBucket(
             $projectCredentials,
             $bucket,
-            $branchId
+            $branchId,
         );
         $handler = new CreateBucketHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -440,7 +440,7 @@ class BaseCase extends TestCase
                 $agg['files'][] = $file->name();
                 return $agg;
             },
-            ['size' => 0, 'files' => []]
+            ['size' => 0, 'files' => []],
         );
 
         return $result;
@@ -474,7 +474,7 @@ class BaseCase extends TestCase
         $workspaceId = 'WS' . substr($this->getTestHash(), -7) . self::getRand();
         $this->dropTestWorkspace(
             $projectCredentials,
-            $workspaceId
+            $workspaceId,
         );
         $handler = new CreateWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -510,7 +510,7 @@ class BaseCase extends TestCase
         GenericBackendCredentials $credentials,
         string $databaseName,
         string $tableName,
-        array $structure
+        array $structure,
     ): void {
         $createTableHandler = new CreateTableHandler($this->clientManager);
         $createTableHandler->setInternalLogger($this->log);
@@ -556,7 +556,7 @@ class BaseCase extends TestCase
         string $databaseName,
         string $tableName,
         array $insertGroups,
-        bool $truncate = false
+        bool $truncate = false,
     ): void {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         if ($truncate) {
@@ -577,7 +577,7 @@ class BaseCase extends TestCase
                 BigqueryQuote::quoteSingleIdentifier($databaseName),
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 $insertGroup['columns'],
-                implode(",\n", $insert)
+                implode(",\n", $insert),
             );
             $bqClient->runQuery($bqClient->query($insertSql));
         }
@@ -605,8 +605,8 @@ class BaseCase extends TestCase
                 sprintf(
                     'projects/%s/serviceAccounts/%s',
                     $credentialsArr['project_id'],
-                    $credentialsArr['client_email']
-                )
+                    $credentialsArr['client_email'],
+                ),
             );
         } catch (GoogleServiceException $e) {
             if ($e->getCode() === 404) {
@@ -623,7 +623,7 @@ class BaseCase extends TestCase
     protected function createTestTable(
         GenericBackendCredentials $credentials,
         string $database,
-        ?string $tableName = null
+        ?string $tableName = null,
     ): string {
         if ($tableName === null) {
             $tableName = $this->getTestHash() . '_Test_table';

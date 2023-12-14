@@ -43,11 +43,11 @@ class ClearWorkspaceTest extends BaseCase
         // create tables
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable2` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // CLEAR with BAD OBJECT NAME
@@ -68,7 +68,7 @@ class ClearWorkspaceTest extends BaseCase
             $this->assertSame(404, $e->getCode());
             $this->assertStringContainsString(
                 'Not found: ',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 

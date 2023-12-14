@@ -25,7 +25,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 
     public function __construct(
         BigQueryClient $bqClient,
-        ColumnConverter $columnConverter
+        ColumnConverter $columnConverter,
     ) {
         parent::__construct($bqClient, $columnConverter);
     }
@@ -42,7 +42,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         ColumnCollection $tableColumnsDefinitions,
         string $schemaName,
         string $tableName,
-        bool $truncateLargeColumns
+        bool $truncateLargeColumns,
     ): QueryBuilderResponse {
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
@@ -52,7 +52,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                 $filters,
                 $query,
                 $tableColumnsDefinitions,
-                $tableName
+                $tableName,
             );
         }
 
@@ -64,25 +64,25 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $query,
                     $tableColumnsDefinitions,
                     $truncateLargeColumns,
-                    $tableName
+                    $tableName,
                 );
                 $query->from(sprintf(
                     '%s.%s',
                     BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName)
+                    BigqueryQuote::quoteSingleIdentifier($tableName),
                 ));
                 break;
             case self::MODE_DELETE:
                 $query->delete(sprintf(
                     '%s.%s',
                     BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName)
+                    BigqueryQuote::quoteSingleIdentifier($tableName),
                 ));
                 break;
             default:
                 throw new LogicException(sprintf(
                     'Unknown mode "%s".',
-                    $mode
+                    $mode,
                 ));
         }
 
@@ -94,13 +94,13 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             $sql = str_replace(
                 sprintf(':%s', $key),
                 sprintf('@%s', $key),
-                $sql
+                $sql,
             );
         }
 
         return new QueryBuilderResponse(
             $sql,
-            $params
+            $params,
         );
     }
 
@@ -120,7 +120,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         QueryBuilder $query,
         string $fulltextSearchKey,
         array $columns,
-        string $tableName
+        string $tableName,
     ): void {
         foreach ($columns as $column) {
             $query->orWhere(
@@ -130,8 +130,8 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                         BigqueryQuote::quoteSingleIdentifier($tableName),
                         BigqueryQuote::quoteSingleIdentifier($column),
                     ),
-                    BigqueryQuote::quote("%{$fulltextSearchKey}%")
-                )
+                    BigqueryQuote::quote("%{$fulltextSearchKey}%"),
+                ),
             );
         }
     }
@@ -145,7 +145,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         ExportFilters $filters,
         QueryBuilder $query,
         ColumnCollection $tableColumnsDefinitions,
-        string $tableName
+        string $tableName,
     ): void {
         $this->processChangedConditions($tableName, $filters->getChangeSince(), $filters->getChangeUntil(), $query);
         try {
@@ -163,7 +163,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $query,
                     $filters->getFulltextSearch(),
                     $tableInfoColumns,
-                    $tableName
+                    $tableName,
                 );
             } else {
                 $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName);
@@ -171,7 +171,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         } catch (QueryException $e) {
             throw new QueryBuilderException(
                 $e->getMessage(),
-                $e
+                $e,
             );
         }
         $this->processLimitStatement($filters->getLimit(), $query);

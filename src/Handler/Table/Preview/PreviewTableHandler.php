@@ -31,7 +31,7 @@ final class PreviewTableHandler extends BaseHandler
     private GCPClientManager $manager;
 
     public function __construct(
-        GCPClientManager $manager
+        GCPClientManager $manager,
     ) {
         parent::__construct();
         $this->manager = $manager;
@@ -46,7 +46,7 @@ final class PreviewTableHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof PreviewTableCommand);
@@ -76,7 +76,7 @@ final class PreviewTableHandler extends BaseHandler
             $tableColumnsDefinitions,
             $datasetName,
             $command->getTableName(),
-            true
+            true,
         );
 
         /** @var array<string> $queryDataBindings */
@@ -86,7 +86,7 @@ final class PreviewTableHandler extends BaseHandler
         try {
             $result = $bqClient->runQuery(
                 $bqClient->query($queryData->getQuery())
-                    ->parameters($queryDataBindings)
+                    ->parameters($queryDataBindings),
             );
         } catch (BadRequestException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
@@ -147,13 +147,13 @@ final class PreviewTableHandler extends BaseHandler
             if ($filters->getChangeSince() !== '') {
                 assert(
                     is_numeric($filters->getChangeSince()),
-                    'PreviewTableCommand.changeSince must be numeric timestamp'
+                    'PreviewTableCommand.changeSince must be numeric timestamp',
                 );
             }
             if ($filters->getChangeUntil() !== '') {
                 assert(
                     is_numeric($filters->getChangeUntil()),
-                    'PreviewTableCommand.changeUntil must be numeric timestamp'
+                    'PreviewTableCommand.changeUntil must be numeric timestamp',
                 );
             }
         }

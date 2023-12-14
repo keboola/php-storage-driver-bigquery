@@ -40,7 +40,7 @@ class CreateTableMetaHelperTest extends TestCase
             (new TimePartitioning())
                 ->setType('DAY')
                 ->setField('date')
-                ->setExpirationMs('1000')
+                ->setExpirationMs('1000'),
         ));
         yield 'time partitioning' => [
             (new CreateTableCommand())->setMeta($meta),
@@ -57,7 +57,7 @@ class CreateTableMetaHelperTest extends TestCase
         $meta = new Any();
         $meta->pack((new CreateTableCommand\BigQueryTableMeta())->setTimePartitioning(
             (new TimePartitioning())
-                ->setType('DAY')
+                ->setType('DAY'),
         ));
         yield 'time partitioning minimal' => [
             (new CreateTableCommand())->setMeta($meta),
@@ -74,7 +74,7 @@ class CreateTableMetaHelperTest extends TestCase
             (new TimePartitioning())
                 ->setType('DAY')
                 ->setField('date')
-                ->setExpirationMs('1000')
+                ->setExpirationMs('1000'),
         )->setClustering((new Clustering())->setFields(['col1', 'col2'])));
         yield 'time partitioning with clustering' => [
             (new CreateTableCommand())->setMeta($meta),
@@ -96,7 +96,7 @@ class CreateTableMetaHelperTest extends TestCase
             (new TimePartitioning())
                 ->setType('DAY')
                 ->setField('date')
-                ->setExpirationMs('1000')
+                ->setExpirationMs('1000'),
         )->setClustering((new Clustering())->setFields(['col1', 'col2']))->setRangePartitioning(
             (new RangePartitioning())
                 ->setField('col1')
@@ -104,8 +104,8 @@ class CreateTableMetaHelperTest extends TestCase
                     (new RangePartitioning\Range())
                         ->setStart('1')
                         ->setEnd('100')
-                        ->setInterval('10')
-                )
+                        ->setInterval('10'),
+                ),
         )->setRequirePartitionFilter(true));
         yield 'time partitioning with clustering with range' => [
             (new CreateTableCommand())->setMeta($meta),

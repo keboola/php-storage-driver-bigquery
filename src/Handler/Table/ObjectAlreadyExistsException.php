@@ -14,12 +14,12 @@ class ObjectAlreadyExistsException extends Exception implements NonRetryableExce
     public function __construct(
         string $message,
         int $code = self::ERR_OBJECT_ALREADY_EXISTS,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
@@ -28,7 +28,7 @@ class ObjectAlreadyExistsException extends Exception implements NonRetryableExce
         if ($e->getCode() === 409) {
             throw new self(
                 message: 'Object already exists.',
-                previous: $e
+                previous: $e,
             );
         }
 

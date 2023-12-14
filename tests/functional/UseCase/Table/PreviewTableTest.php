@@ -536,7 +536,7 @@ class PreviewTableTest extends BaseCase
                     sprintf(
                     //phpcs:ignore
                         "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s', '1989-08-31 02:00:00', b'\x01\x02\x03\x04', ST_GEOGPOINT(-122.4194, 37.7749), INTERVAL 1 YEAR, JSON'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}', 1234567890.12345678901234567890",
-                        str_repeat('VeryLongString123456', 5)
+                        str_repeat('VeryLongString123456', 5),
                     ),
                     '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
@@ -1169,7 +1169,7 @@ class PreviewTableTest extends BaseCase
                     //phpcs:ignore
                     sprintf(
                         "5, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
-                        str_repeat('VeryLongString123456', 1000)
+                        str_repeat('VeryLongString123456', 1000),
                     ),
                 ],
             ],
@@ -1275,7 +1275,7 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'PreviewTableCommand.path is required and size must equal 1',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 
@@ -1315,7 +1315,7 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'PreviewTableCommand.limit cannot be greater than 1000',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 
@@ -1331,7 +1331,7 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'PreviewTableCommand.changeSince must be numeric timestamp',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 
@@ -1347,7 +1347,7 @@ class PreviewTableTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'PreviewTableCommand.changeUntil must be numeric timestamp',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 
@@ -1650,7 +1650,7 @@ class PreviewTableTest extends BaseCase
                         "Unsupported value kind '%s' in row #%d and column '%s'",
                         $columnValueKind,
                         $rowNumber,
-                        $column->getColumnName()
+                        $column->getColumnName(),
                     ));
                 }
 
@@ -1691,10 +1691,10 @@ class PreviewTableTest extends BaseCase
                             (new RangePartitioning\Range())
                                 ->setStart('0')
                                 ->setEnd('10')
-                                ->setInterval('1')
-                        )
+                                ->setInterval('1'),
+                        ),
                 )
-                ->setRequirePartitionFilter(true)
+                ->setRequirePartitionFilter(true),
         );
         $command = (new CreateTableCommand())
             ->setPath($path)
@@ -1719,7 +1719,7 @@ class PreviewTableTest extends BaseCase
                         'id',
                         'time',
                     ],
-                ]
+                ],
             );
             $this->fail('This should never happen');
         } catch (Throwable $e) {
@@ -1728,7 +1728,7 @@ class PreviewTableTest extends BaseCase
             $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
             $this->assertStringContainsString(
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
     }

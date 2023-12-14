@@ -50,7 +50,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
             $externalAnalyticHubClient,
-            $externalBucketName
+            $externalBucketName,
         );
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
@@ -84,9 +84,9 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
                     'Failed to find listing: projects/%s/locations/%s/dataExchanges/%s/listings/nonexist',
                     $parsedName['project'],
                     $parsedName['location'],
-                    $parsedName['data_exchange']
+                    $parsedName['data_exchange'],
                 ),
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
     }
@@ -104,7 +104,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
             $externalAnalyticHubClient,
-            $externalBucketName
+            $externalBucketName,
         );
 
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
@@ -132,7 +132,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         } catch (Throwable $e) {
             $msg = sprintf(
                 'Failed to register external bucket "test_external" permission denied for subscribe listing "%s"',
-                $createdListing->getName()
+                $createdListing->getName(),
             );
             $this->assertSame($msg, $e->getMessage());
         }
@@ -157,7 +157,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         // And I can get rows from external table
         $result = $mainBqClient->runQuery(
-            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
+            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
         );
         $this->assertCount(3, $result);
 
@@ -179,7 +179,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
                     'large' => 'awesome !',
                 ],
             ],
-            iterator_to_array($result->rows())
+            iterator_to_array($result->rows()),
         );
 
         // Add more data to test rows will be added in main project
@@ -195,12 +195,12 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $this->externalProjectCredentials,
             $externalBucketName,
             $externalTableName,
-            $insertGroups
+            $insertGroups,
         );
 
         // And I can get rows from external table
         $result = $mainBqClient->runQuery(
-            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
+            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
         );
         $this->assertCount(4, $result);
 
@@ -227,7 +227,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
                     'large' => 'data',
                 ],
             ],
-            iterator_to_array($result->rows())
+            iterator_to_array($result->rows()),
         );
 
         $handler = new RevokeBucketAccessFromReadOnlyRoleHandler($this->clientManager);
@@ -243,7 +243,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         try {
             $mainBqClient->runQuery(
-                $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`')
+                $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
             );
             $this->fail('Should not be able to get data from external table after revoke access.');
         } catch (NotFoundException $e) {
@@ -256,7 +256,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             assert(isset($message['error']['message']));
             $this->assertSame(
                 sprintf('Not found: Dataset %s:123_test_external was not found in location US', $mainProjectStringId),
-                $message['error']['message']
+                $message['error']['message'],
             );
         }
     }
@@ -282,7 +282,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
             $externalAnalyticHubClient,
             $bucketId,
-            'EU'
+            'EU',
         );
 
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
@@ -335,7 +335,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $this->externalProjectCredentials,
             $bucketDatabaseName,
             $externalTableName,
-            $insertGroups
+            $insertGroups,
         );
     }
 
@@ -345,7 +345,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
     private function prepareExternalBucketForRegistration(
         AnalyticsHubServiceClient $externalAnalyticHubClient,
         string $bucketDatabaseName,
-        string $location = GCPClientManager::DEFAULT_LOCATION
+        string $location = GCPClientManager::DEFAULT_LOCATION,
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];
@@ -362,7 +362,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $dataExchangeName = AnalyticsHubServiceClient::dataExchangeName(
                 $externalProjectStringId,
                 $location,
-                $dataExchangeId
+                $dataExchangeId,
             );
             $dataExchange = $externalAnalyticHubClient->getDataExchange($dataExchangeName);
             $externalAnalyticHubClient->deleteDataExchange($dataExchange->getName());
@@ -373,7 +373,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $dataExchange = $externalAnalyticHubClient->createDataExchange(
             $formattedParent,
             $dataExchangeId,
-            $dataExchange
+            $dataExchange,
         );
 
         $listingId = str_replace('-', '_', $externalCredentials['project_id']) . '_listing';
@@ -381,7 +381,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
                 $externalProjectStringId,
-                $bucketDatabaseName
+                $bucketDatabaseName,
             ),
         ]);
         $listing = new Listing();
@@ -395,7 +395,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
     private function grantMainProjectToRegisterExternalBucket(
         AnalyticsHubServiceClient $externalAnalyticHubClient,
-        DataExchange $dataExchange
+        DataExchange $dataExchange,
     ): void {
         $mainCredentials = CredentialsHelper::getCredentialsArray($this->mainProjectCredentials);
         $iamExchangerPolicy = $externalAnalyticHubClient->getIamPolicy($dataExchange->getName());
