@@ -66,19 +66,19 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
-                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
         $cmd->setFilePath(
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath('import')
-                ->setFileName('a_b_c-3row.csv')
+                ->setFileName('a_b_c-3row.csv'),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $dedupCols[] = 'col1';
@@ -90,7 +90,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
                 ->setNumberOfIgnoredLines(1)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -110,7 +110,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            ['col1', 'col2', 'col3']
+            ['col1', 'col2', 'col3'],
         );
         $this->assertEqualsCanonicalizing([
             [

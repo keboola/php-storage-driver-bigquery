@@ -98,8 +98,8 @@ final class Retry
             sprintf(
                 'Retrying [%s] request with exception::%s',
                 $statusCode,
-                json_encode($message, JSON_THROW_ON_ERROR)
-            )
+                json_encode($message, JSON_THROW_ON_ERROR),
+            ),
         );
     }
 
@@ -117,8 +117,8 @@ final class Retry
             sprintf(
                 'Not retrying [%s] request with exception::%s',
                 $statusCode,
-                $message
-            )
+                $message,
+            ),
         );
     }
 }

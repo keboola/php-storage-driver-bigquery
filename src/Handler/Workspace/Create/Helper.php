@@ -29,7 +29,7 @@ class Helper
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             10_000, // 10s
             1.5,
-            120_000 // 2m
+            120_000, // 2m
         );
         if (!str_starts_with($projectName, 'projects')) {
             $projectName = 'projects/' . $projectName;
@@ -55,7 +55,7 @@ class Helper
                 throw new RuntimeException(sprintf(
                     'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
                     implode(',', CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
-                    implode(',', $serviceAccRoles)
+                    implode(',', $serviceAccRoles),
                 ));
             }
         });

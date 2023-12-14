@@ -32,7 +32,7 @@ final class ShareBucketHandler extends BaseHandler
         Message $credentials, // backend credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof ShareBucketCommand);
@@ -41,23 +41,23 @@ final class ShareBucketHandler extends BaseHandler
         assert($command->getSourceProjectId() !== '', 'ShareBucketCommand.sourceProjectId must be filled in');
         assert(
             str_contains($command->getSourceProjectId(), '/') === false,
-            'ShareBucketCommand.sourceProjectId cannot contain "/"'
+            'ShareBucketCommand.sourceProjectId cannot contain "/"',
         );
         assert(
             $command->getSourceProjectReadOnlyRoleName() !== '',
-            'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in'
+            'ShareBucketCommand.sourceProjectReadOnlyRoleName must be filled in',
         );
         assert(
             $command->getSourceBucketId() !== '',
-            'ShareBucketCommand.sourceBucketId must be filled in'
+            'ShareBucketCommand.sourceBucketId must be filled in',
         );
         assert(
             $command->getSourceBucketObjectName() !== '',
-            'ShareBucketCommand.sourceBucketObjectName must be filled in'
+            'ShareBucketCommand.sourceBucketObjectName must be filled in',
         );
         assert(
             str_contains($command->getSourceProjectId(), '/') === false,
-            'ShareBucketCommand.sourceBucketObjectName cannot contain "/"'
+            'ShareBucketCommand.sourceBucketObjectName cannot contain "/"',
         );
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
@@ -68,7 +68,7 @@ final class ShareBucketHandler extends BaseHandler
         $formattedParent = $analyticHubClient::dataExchangeName(
             $projectStringId,
             GCPClientManager::DEFAULT_LOCATION,
-            $dataExchangeId
+            $dataExchangeId,
         );
         // we are using bucketId which is integer id of bucket in connection
         // this way we are preventing that listing name is too long
@@ -78,7 +78,7 @@ final class ShareBucketHandler extends BaseHandler
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
                 $projectStringId,
-                $command->getSourceBucketObjectName()
+                $command->getSourceBucketObjectName(),
             ),
         ]);
 
@@ -86,7 +86,7 @@ final class ShareBucketHandler extends BaseHandler
             $projectStringId,
             GCPClientManager::DEFAULT_LOCATION,
             $dataExchangeId,
-            $listingId
+            $listingId,
         );
         $listing = new Listing();
         $listing->setBigqueryDataset($lst);

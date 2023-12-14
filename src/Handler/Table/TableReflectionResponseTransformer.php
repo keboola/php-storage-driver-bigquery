@@ -19,7 +19,7 @@ class TableReflectionResponseTransformer
 {
     public static function transformTableReflectionToResponse(
         string $dataset,
-        BigqueryTableReflection $ref
+        BigqueryTableReflection $ref,
     ): TableInfo {
         $res = new TableInfo();
         $def = $ref->getTableDefinition();
@@ -85,7 +85,7 @@ class TableReflectionResponseTransformer
         if ($clustering !== null) {
             $meta->setClustering(
                 (new Clustering())
-                    ->setFields($clustering->columns)
+                    ->setFields($clustering->columns),
             );
         }
         $partitions = [];

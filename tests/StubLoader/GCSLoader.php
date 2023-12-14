@@ -36,7 +36,7 @@ class GCSLoader extends BaseStubLoader
      */
     public function __construct(
         array $credentials,
-        string $bucketName
+        string $bucketName,
     ) {
         $this->client = new StorageClient([
             'keyFile' => $credentials,
@@ -52,7 +52,7 @@ class GCSLoader extends BaseStubLoader
                 'activate-service-account',
                 '--key-file',
                 '/tmp/gcs-credentials.json',
-            ]
+            ],
         );
         $p->run();
         echo $p->getOutput();
@@ -70,7 +70,7 @@ class GCSLoader extends BaseStubLoader
                 'rm',
                 '-r',
                 'gs://' . $this->bucketName . '/*',
-            ]
+            ],
         );
         $p->setTimeout(60 * 10 * 1000);
         $p->run();
@@ -102,7 +102,7 @@ class GCSLoader extends BaseStubLoader
             null,
             [
                 'GOOGLE_APPLICATION_CREDENTIALS' => '/tmp/gcs-credentials.json',
-            ]
+            ],
         );
         $p->setTimeout(60 * 10 * 1000);
         $p->run();
@@ -119,7 +119,7 @@ class GCSLoader extends BaseStubLoader
                         [
                             'url' => sprintf(
                                 'gs://%s/not-exists.csv',
-                                $this->bucketName
+                                $this->bucketName,
                             ),
                             'mandatory' => true,
                         ],
@@ -127,7 +127,7 @@ class GCSLoader extends BaseStubLoader
                 ], JSON_THROW_ON_ERROR),
                 [
                     'name' => $blobName,
-                ]
+                ],
             );
             $resolve([$blobName, $res]);
         });
@@ -161,7 +161,7 @@ class GCSLoader extends BaseStubLoader
                         'gs://%s/sliced/%s/%s',
                         $this->bucketName,
                         $directory->getBasename(),
-                        $file->getFilename()
+                        $file->getFilename(),
                     ),
                     'mandatory' => true,
                 ];
@@ -171,7 +171,7 @@ class GCSLoader extends BaseStubLoader
                 '%s/%s.%s.csvmanifest',
                 $directory->getPathname(),
                 self::MANIFEST_SUFFIX,
-                $directory->getBasename()
+                $directory->getBasename(),
             );
             file_put_contents($manifestFilePath, json_encode($manifest, JSON_THROW_ON_ERROR));
         }

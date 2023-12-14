@@ -15,12 +15,12 @@ class SubscribeListingObjectNotFoundException extends Exception implements NonRe
     public function __construct(
         string $message,
         int $code = self::ERR_NOT_FOUND,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 
@@ -28,7 +28,7 @@ class SubscribeListingObjectNotFoundException extends Exception implements NonRe
     {
         throw new self(
             message: DecodeErrorMessage::getErrorMessage($e),
-            previous: $e
+            previous: $e,
         );
     }
 }

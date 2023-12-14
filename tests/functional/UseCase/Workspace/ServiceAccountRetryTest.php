@@ -42,7 +42,7 @@ class ServiceAccountRetryTest extends BaseCase
         $projectCreateResult = $this->createProjectForTest(
             $projectsClient,
             $folderId,
-            $projectId
+            $projectId,
         );
         $projectName = $projectCreateResult->getName();
 
@@ -51,7 +51,7 @@ class ServiceAccountRetryTest extends BaseCase
         // using very low initial delay to test that the retry will fail. catching the exception will happen later
         $iamClient->getClient()->setConfig(
             'retry',
-            ['retries' => 3, 'factor' => 1.1, 'initial_delay' => 5, 'jitter' => 0.1]
+            ['retries' => 3, 'factor' => 1.1, 'initial_delay' => 5, 'jitter' => 0.1],
         );
         for ($i = 1; $i < 10; $i++) {
             $projectServiceAccountId = $nameGenerator->createProjectServiceAccountId($namePrefix . '-' . $i);

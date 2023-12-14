@@ -62,7 +62,7 @@ final class CreateProjectHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateProjectCommand);
@@ -209,7 +209,7 @@ final class CreateProjectHandler extends BaseHandler
     private function setPermissionsToServiceAccount(
         Google_Service_CloudResourceManager $cloudResourceManagerClient,
         string $projectName,
-        string $serviceAccEmail
+        string $serviceAccEmail,
     ): void {
         $getIamPolicyRequest = new GetIamPolicyRequest();
         $actualPolicy = $cloudResourceManagerClient->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
@@ -249,13 +249,13 @@ final class CreateProjectHandler extends BaseHandler
 
     private function waitUntilServiceAccPropagate(
         IAMServiceWrapper $iAmClient,
-        ServiceAccount $projectServiceAccount
+        ServiceAccount $projectServiceAccount,
     ): void {
         $retryPolicy = new SimpleRetryPolicy(10);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             1_000, // 1s
             1.8,
-            10_000 // 1m
+            10_000, // 1m
         );
 
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);

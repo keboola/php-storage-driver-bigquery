@@ -56,7 +56,7 @@ class CreateDropProjectTest extends BaseCase
         $meta = new Any();
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName
+            $fileStorageBucketName,
         ));
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
@@ -118,7 +118,7 @@ class CreateDropProjectTest extends BaseCase
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
             'projects/' . $projectId,
             (new Google_Service_CloudResourceManager_GetIamPolicyRequest()),
-            []
+            [],
         );
         $actualPolicy = $actualPolicy->getBindings();
 
@@ -162,7 +162,7 @@ class CreateDropProjectTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new DropProjectCommand\DropProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName
+            $fileStorageBucketName,
         ));
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
@@ -206,7 +206,7 @@ class CreateDropProjectTest extends BaseCase
         $serviceAccountsService->get(sprintf(
             'projects/%s/serviceAccounts/%s',
             $projectId,
-            $publicPart['client_email']
+            $publicPart['client_email'],
         ));
     }
 }

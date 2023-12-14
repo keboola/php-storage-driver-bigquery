@@ -28,7 +28,7 @@ final class UnShareBucketHandler extends BaseHandler
         Message $credentials, // backend credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnshareBucketCommand);

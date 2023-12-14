@@ -18,7 +18,7 @@ final class StageTableDefinitionFactory
      */
     public static function createStagingTableDefinitionWithMapping(
         BigqueryTableDefinition $destination,
-        array $columnsMapping
+        array $columnsMapping,
     ): BigqueryTableDefinition {
         $newDefinitions = [];
         $primaries = $destination->getPrimaryKeysNames();
@@ -35,8 +35,8 @@ final class StageTableDefinitionFactory
                                 'length' => $definition->getColumnDefinition()->getLength(),
                                 'nullable' => !in_array($columnMapping->getDestinationColumnName(), $primaries),
                                 'default' => $definition->getColumnDefinition()->getDefault(),
-                            ]
-                        )
+                            ],
+                        ),
                     );
                     continue 2;
                 }
@@ -50,7 +50,7 @@ final class StageTableDefinitionFactory
             BackendHelper::generateTempTableName(),
             true,
             new ColumnCollection($newDefinitions),
-            $destination->getPrimaryKeysNames()
+            $destination->getPrimaryKeysNames(),
         );
     }
 
@@ -59,7 +59,7 @@ final class StageTableDefinitionFactory
      */
     public static function createStagingTableDefinition(
         BigqueryTableDefinition $destination,
-        array $sourceColumnsNames
+        array $sourceColumnsNames,
     ): BigqueryTableDefinition {
         $newDefinitions = [];
         // create staging table for source columns in order
@@ -79,8 +79,8 @@ final class StageTableDefinitionFactory
                                 'length' => $length,
                                 'nullable' => true,
                                 'default' => $definition->getColumnDefinition()->getDefault(),
-                            ]
-                        )
+                            ],
+                        ),
                     );
                     continue 2;
                 }
@@ -94,7 +94,7 @@ final class StageTableDefinitionFactory
             BackendHelper::generateStagingTableName(),
             true,
             new ColumnCollection($newDefinitions),
-            [] // <-- ignore primary keys
+            [], // <-- ignore primary keys
         );
     }
 
@@ -107,8 +107,8 @@ final class StageTableDefinitionFactory
                 [
                     'length' => (string) Bigquery::MAX_LENGTH,
                     'nullable' => true,
-                ]
-            )
+                ],
+            ),
         );
     }
 }

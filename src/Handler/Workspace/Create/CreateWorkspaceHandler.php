@@ -51,7 +51,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateWorkspaceCommand);
@@ -80,7 +80,7 @@ final class CreateWorkspaceHandler extends BaseHandler
             '%s/serviceAccounts/%s@%s.iam.gserviceaccount.com',
             $projectName,
             $newWsServiceAccId,
-            $projectCredentials['project_id']
+            $projectCredentials['project_id'],
         );
 
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
@@ -90,14 +90,14 @@ final class CreateWorkspaceHandler extends BaseHandler
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             5_000, // 5s
             1.8,
-            60_000 // 1m
+            60_000, // 1m
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $wsServiceAcc = $proxy->call(function () use (
             $iamService,
             $newServiceAccountName,
             $newWsServiceAccId,
-            $projectName
+            $projectName,
         ): ServiceAccount {
             try {
                 return $iamService->projects_serviceAccounts->get($newServiceAccountName);
@@ -125,7 +125,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             5_000, // 5s
             1.8,
-            60_000 // 1m
+            60_000, // 1m
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
@@ -150,14 +150,14 @@ final class CreateWorkspaceHandler extends BaseHandler
 
             $this->internalLogger->log(
                 LogLevel::DEBUG,
-                'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName
+                'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName,
             );
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
             Helper::assertServiceAccountBindings(
                 $cloudResourceManager,
                 $projectName,
                 $wsServiceAcc->getEmail(),
-                $this->internalLogger
+                $this->internalLogger,
             );
         });
 

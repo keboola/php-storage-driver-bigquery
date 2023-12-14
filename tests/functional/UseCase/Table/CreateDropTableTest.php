@@ -170,7 +170,7 @@ class CreateDropTableTest extends BaseCase
                         ->setStart('0')
                         ->setEnd('10')
                         ->setInterval('1'))),
-            'range'
+            'range',
         );
 
         $this->assertNotNull($tableInfo->getMeta());
@@ -195,7 +195,7 @@ class CreateDropTableTest extends BaseCase
                     ->setType('DAY')
                     ->setField('time')
                     ->setExpirationMs($expirationMs)/**10 days*/),
-            'time'
+            'time',
         );
 
         $this->assertNotNull($tableInfo->getMeta());
@@ -220,7 +220,7 @@ class CreateDropTableTest extends BaseCase
                 ->setRangePartitioning((new RangePartitioning())
                     ->setField('id')
                     ->setRange((new RangePartitioning\Range()))),
-            'range'
+            'range',
         );
     }
 
@@ -260,7 +260,7 @@ class CreateDropTableTest extends BaseCase
 
     private function createTableForPartitioning(
         CreateTableCommand\BigQueryTableMeta $meta,
-        string $nameSuffix
+        string $nameSuffix,
     ): TableInfo {
         $tableName = md5($this->getName()) . $nameSuffix;
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();

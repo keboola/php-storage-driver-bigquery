@@ -53,7 +53,7 @@ final class ImportTableFromFileHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromFileCommand);
@@ -63,11 +63,11 @@ final class ImportTableFromFileHandler extends BaseHandler
         // validate
         assert(
             $command->getFileProvider() === FileProvider::GCS,
-            'Only S3 is supported TableImportFromFileCommand.fileProvider.'
+            'Only S3 is supported TableImportFromFileCommand.fileProvider.',
         );
         assert(
             $command->getFileFormat() === FileFormat::CSV,
-            'Only CSV is supported TableImportFromFileCommand.fileFormat.'
+            'Only CSV is supported TableImportFromFileCommand.fileFormat.',
         );
         $any = $command->getFormatTypeOptions();
         assert($any !== null, 'TableImportFromFileCommand.formatTypeOptions is required.');
@@ -75,7 +75,7 @@ final class ImportTableFromFileHandler extends BaseHandler
         assert($formatOptions instanceof TableImportFromFileCommand\CsvTypeOptions);
         assert(
             $formatOptions->getSourceType() !== TableImportFromFileCommand\CsvTypeOptions\SourceType::DIRECTORY,
-            'TableImportFromFileCommand.formatTypeOptions.sourceType directory is not supported.'
+            'TableImportFromFileCommand.formatTypeOptions.sourceType directory is not supported.',
         );
         assert($command->hasFilePath() === true, 'TableImportFromFileCommand.filePath is required.');
         $destination = $command->getDestination();
@@ -86,7 +86,7 @@ final class ImportTableFromFileHandler extends BaseHandler
         $csvOptions = new CsvOptions(
             $formatOptions->getDelimiter(),
             $formatOptions->getEnclosure(),
-            $formatOptions->getEscapedBy()
+            $formatOptions->getEscapedBy(),
         );
 
         $filePath = $command->getFilePath();
@@ -99,7 +99,7 @@ final class ImportTableFromFileHandler extends BaseHandler
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-            $destination->getTableName()
+            $destination->getTableName(),
         );
         try {
             /** @var BigqueryTableDefinition $destinationDefinition */
@@ -119,12 +119,12 @@ final class ImportTableFromFileHandler extends BaseHandler
             // prepare staging table definition
             $stagingTable = StageTableDefinitionFactory::createStagingTableDefinition(
                 $destinationDefinition,
-                $source->getColumnsNames()
+                $source->getColumnsNames(),
             );
             // create staging table
             $qb = new BigqueryTableQueryBuilder();
             $query = $bqClient->query(
-                $qb->getCreateTableCommandFromDefinition($stagingTable)
+                $qb->getCreateTableCommandFromDefinition($stagingTable),
             );
             $bqClient->runQuery($query);
 
@@ -133,7 +133,7 @@ final class ImportTableFromFileHandler extends BaseHandler
             $importState = $toStageImporter->importToStagingTable(
                 $source,
                 $stagingTable,
-                $bigqueryImportOptions
+                $bigqueryImportOptions,
             );
             // import data to destination
             $toFinalTableImporter = new FullImporter($bqClient);
@@ -144,7 +144,7 @@ final class ImportTableFromFileHandler extends BaseHandler
                 $stagingTable,
                 $destinationDefinition,
                 $bigqueryImportOptions,
-                $importState
+                $importState,
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
@@ -153,7 +153,7 @@ final class ImportTableFromFileHandler extends BaseHandler
                 try {
                     $query = (new BigqueryTableQueryBuilder())->getDropTableCommand(
                         $stagingTable->getSchemaName(),
-                        $stagingTable->getTableName()
+                        $stagingTable->getTableName(),
                     );
                     $bqClient->runQuery($bqClient->query($query));
                 } catch (Throwable $e) {
@@ -185,13 +185,13 @@ final class ImportTableFromFileHandler extends BaseHandler
         FilePath $filePath,
         GenericBackendCredentials $credentials,
         CsvOptions $csvOptions,
-        TableImportFromFileCommand\CsvTypeOptions $formatOptions
+        TableImportFromFileCommand\CsvTypeOptions $formatOptions,
     ): SourceFile {
         $relativePath = RelativePath::create(
             new GcsProvider(),
             $filePath->getRoot(),
             $filePath->getPath(),
-            $filePath->getFileName()
+            $filePath->getFileName(),
         );
 
         return new SourceFile(
@@ -202,7 +202,7 @@ final class ImportTableFromFileHandler extends BaseHandler
             $csvOptions,
             $formatOptions->getSourceType() === TableImportFromFileCommand\CsvTypeOptions\SourceType::SLICED_FILE,
             ProtobufHelper::repeatedStringToArray($formatOptions->getColumnsNames()),
-            [] // <-- ignore primary keys here should be deprecated
+            [], // <-- ignore primary keys here should be deprecated
         );
     }
 }

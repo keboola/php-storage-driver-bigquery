@@ -40,7 +40,7 @@ class ColumnConverter
                     implode('|', array_map(
                         static fn(int $type) => self::DATA_TYPES_MAP[$type],
                         self::DATA_TYPES_OPTIONS,
-                    ))
+                    )),
                 ),
             );
         }
@@ -48,7 +48,7 @@ class ColumnConverter
             'SAFE_CAST(%s.%s AS %s)',
             BigqueryQuote::quoteSingleIdentifier($tableName),
             BigqueryQuote::quoteSingleIdentifier($column),
-            self::DATA_TYPES_MAP[$dataType]
+            self::DATA_TYPES_MAP[$dataType],
         );
     }
 }

@@ -75,7 +75,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $iamService = $this->clientManager->getIamClient($this->projectCredentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
         $wsServiceAcc = $serviceAccountsService->get(
-            sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail)
+            sprintf('projects/%s/serviceAccounts/%s', $projectId, $wsServiceAccEmail),
         );
         $this->assertNotNull($wsServiceAcc);
 
@@ -86,7 +86,7 @@ class CreateDropWorkspaceTest extends BaseCase
         /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
-            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
         )));
 
         $this->assertCount(1, $datasets);
@@ -102,7 +102,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->clientManager->getCloudResourceManager($this->projectCredentials),
             $projectId,
             $wsServiceAccEmail,
-            $this->log
+            $this->log,
         );
 
         try {
@@ -112,7 +112,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->assertSame(403, $exception->getCode());
             $this->assertStringContainsString(
                 'User does not have bigquery.datasets.create permission in project',
-                $exception->getMessage()
+                $exception->getMessage(),
             );
         }
 
@@ -137,7 +137,7 @@ class CreateDropWorkspaceTest extends BaseCase
                 $credentials,
                 $bucketDatasetName->getCreateBucketObjectName(),
                 $tableName,
-                $insertGroups
+                $insertGroups,
             );
             $this->fail('Insert to read only table should failed');
         } catch (ServiceException $e) {
@@ -148,14 +148,14 @@ class CreateDropWorkspaceTest extends BaseCase
         $result = $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($tableName)
+            BigqueryQuote::quoteSingleIdentifier($tableName),
         )));
 
         $this->assertCount(3, $result);
         // try to create table
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // try to create view
@@ -163,19 +163,19 @@ class CreateDropWorkspaceTest extends BaseCase
             'CREATE VIEW %s.`testView` AS '
             . 'SELECT `id` FROM %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // try to drop view
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'DROP VIEW %s.`testView`;',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // try to drop table
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'DROP TABLE %s.`testTable`;',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // DROP
@@ -216,8 +216,8 @@ class CreateDropWorkspaceTest extends BaseCase
             $bqClient->query(sprintf(
                 'SELECT schema_name FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s;',
                 BigqueryQuote::quoteSingleIdentifier($projectId),
-                BigqueryQuote::quote($response->getWorkspaceObjectName())
-            ))
+                BigqueryQuote::quote($response->getWorkspaceObjectName()),
+            )),
         );
 
         $this->assertNull($datasets->getIterator()->current());
@@ -226,7 +226,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
             'projects/' . $projectId,
             (new GetIamPolicyRequest()),
-            []
+            [],
         );
         $actualPolicy = $actualPolicy->getBindings();
 
@@ -259,7 +259,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->clientManager->getCloudResourceManager($this->projectCredentials),
             $wsKeyData['project_id'],
             $wsKeyData['client_email'],
-            $this->log
+            $this->log,
         );
 
         // drop workspace dataset and call drop workspace which must pass
@@ -297,7 +297,7 @@ class CreateDropWorkspaceTest extends BaseCase
         // create table
         $wsBqClient->runQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName())
+            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
@@ -320,7 +320,7 @@ class CreateDropWorkspaceTest extends BaseCase
         } catch (Throwable $e) {
             $this->assertStringContainsString(
                 'is still in use',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
 
@@ -332,7 +332,7 @@ class CreateDropWorkspaceTest extends BaseCase
             /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
-            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
         )));
 
         // ws dataset exist
@@ -369,7 +369,7 @@ class CreateDropWorkspaceTest extends BaseCase
         /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
-            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName()))
+            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
         )));
 
         $this->assertNull($datasets->getIterator()->current());
@@ -427,19 +427,19 @@ class CreateDropWorkspaceTest extends BaseCase
                 ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
                 ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
-                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
         $cmd->setFilePath(
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath('import')
-                ->setFileName('a_b_c-3row.csv')
+                ->setFileName('a_b_c-3row.csv'),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($tableName)
+                ->setTableName($tableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $cmd->setImportOptions(
@@ -449,7 +449,7 @@ class CreateDropWorkspaceTest extends BaseCase
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(1)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);

@@ -47,7 +47,7 @@ class DeleteTableRowsTest extends BaseCase
                     "2, 100, 100.23, '100.20', 100.23456, '2022-01-01', '12:00:10', '2022-01-01 12:00:10', 'Variable 2'",
                     sprintf(
                         "3, 200, 200.23, '200.23', 200.23456, '2022-01-02', '12:00:10', '2022-01-01 12:00:10', '%s'",
-                        str_repeat('VeryLongString123456', 5)
+                        str_repeat('VeryLongString123456', 5),
                     ),
                     '4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL',
                 ],
@@ -58,7 +58,7 @@ class DeleteTableRowsTest extends BaseCase
             $bucketDatabaseName,
             $tableName,
             $insertGroups,
-            true
+            true,
         );
     }
 
@@ -266,7 +266,7 @@ class DeleteTableRowsTest extends BaseCase
         string $tableName,
         array $commandInput,
         int $expectedDeletedRowsCount,
-        int $expectedRowsCount
+        int $expectedRowsCount,
     ): PreviewTableResponse {
         $handler = new DeleteTableRowsHandler($this->clientManager);
         $handler->setInternalLogger($this->log);

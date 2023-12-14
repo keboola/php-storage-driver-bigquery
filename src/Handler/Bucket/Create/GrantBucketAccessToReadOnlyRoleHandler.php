@@ -43,16 +43,16 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
 
         assert(
             $command->getPath()->count() === 4,
-            'GrantBucketAccessToReadOnlyRoleCommand.path is required and size must equal 4'
+            'GrantBucketAccessToReadOnlyRoleCommand.path is required and size must equal 4',
         );
         assert(
             $command->getDestinationObjectName() !== '',
-            'GrantBucketAccessToReadOnlyRoleCommand.getDestinationObjectName is required'
+            'GrantBucketAccessToReadOnlyRoleCommand.getDestinationObjectName is required',
         );
 
         assert(
             $command->getStackPrefix() !== '',
-            'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required'
+            'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required',
         );
 
         [
@@ -66,7 +66,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
                 $projectId,
                 $location,
                 $dataExchangerId,
-                $listingId
+                $listingId,
             );
 
         // This is the name of a bucket created in the target project that represents an external bucket
@@ -83,7 +83,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
         // so we have to generate it from the name we got in the request.
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
             $registeredBucketName,
-            $command->getBranchId()
+            $command->getBranchId(),
         );
 
         $datasetReference = new DestinationDatasetReference();
@@ -106,7 +106,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
                 throw SubscribeListingPermissionDeniedException::handlePermissionDeniedException(
                     $e,
                     $registeredBucketName,
-                    $listingName
+                    $listingName,
                 );
             }
 

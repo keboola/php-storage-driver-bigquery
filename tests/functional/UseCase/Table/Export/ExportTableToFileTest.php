@@ -72,7 +72,7 @@ class ExportTableToFileTest extends BaseCase
         $sourceTableName = $this->getTestHash() . '_Test_table_export';
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
         // create table
@@ -81,7 +81,7 @@ class ExportTableToFileTest extends BaseCase
 
         $this->clearGCSBucketDir(
             (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir
+            $exportDir,
         );
 
         // export command
@@ -94,20 +94,20 @@ class ExportTableToFileTest extends BaseCase
         $this->assertSame([$bucketDatabaseName], ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPath()));
         $this->assertSame(
             $sourceTableDef->getPrimaryKeysNames(),
-            ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPrimaryKeysNames())
+            ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPrimaryKeysNames()),
         );
         /** @var TableInfo\TableColumn[] $columns */
         $columns = iterator_to_array($exportedTableInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableInfo\TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame($sourceTableDef->getColumnsNames(), $columnsNames);
 
         // check files
         $files = $this->listFilesSimple(
             (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir
+            $exportDir,
         );
         $this->assertNotNull($files);
         $this->assertCount(2, $files);
@@ -117,7 +117,7 @@ class ExportTableToFileTest extends BaseCase
             $csvData = $this->getExportAsCsv((string) getenv('BQ_BUCKET_NAME'), $exportDir);
             $this->assertEqualsArrays(
                 $exportData,
-                $csvData
+                $csvData,
             );
         }
 
@@ -136,7 +136,7 @@ class ExportTableToFileTest extends BaseCase
         $sourceTableName = $this->getTestHash() . '_Test_table_export_sliced';
         $exportDir = sprintf(
             'export/%s/',
-            $this->getTestHash()
+            $this->getTestHash(),
         );
 
         // cleanup
@@ -164,12 +164,12 @@ class ExportTableToFileTest extends BaseCase
                 'Column8',
                 'Column9',
                 'GlobalID',
-            ]
+            ],
         );
 
         $this->clearGCSBucketDir(
             (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir
+            $exportDir,
         );
 
         // export command
@@ -180,7 +180,7 @@ class ExportTableToFileTest extends BaseCase
         $cmd->setSource(
             (new ImportExportShared\Table())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $cmd->setFileProvider(FileProvider::GCS);
@@ -195,7 +195,7 @@ class ExportTableToFileTest extends BaseCase
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath($exportDir)
-                ->setFileName('exp')
+                ->setFileName('exp'),
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
@@ -212,7 +212,7 @@ class ExportTableToFileTest extends BaseCase
         // check files
         $files = $this->listFilesSimple(
             (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir
+            $exportDir,
         );
         $this->assertSame($expectedFiles, $files['files']);
 
@@ -227,7 +227,7 @@ class ExportTableToFileTest extends BaseCase
         $sourceTableName = $this->getTestHash() . '_Test_table_export';
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
         // create table
@@ -237,7 +237,7 @@ class ExportTableToFileTest extends BaseCase
         // clear files
         $this->clearGCSBucketDir(
             (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir
+            $exportDir,
         );
 
         // export command
@@ -248,7 +248,7 @@ class ExportTableToFileTest extends BaseCase
         $cmd->setSource(
             (new ImportExportShared\Table())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
         $cmd->setFileProvider(FileProvider::GCS);
         $cmd->setFileFormat(FileFormat::CSV);
@@ -266,7 +266,7 @@ class ExportTableToFileTest extends BaseCase
         $cmd->setFilePath(
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
-                ->setPath($exportDir)
+                ->setPath($exportDir),
         );
 
         $handler = new ExportTableToFileHandler($this->clientManager);
@@ -287,13 +287,13 @@ class ExportTableToFileTest extends BaseCase
         $this->assertSame([$bucketDatabaseName], ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPath()));
         $this->assertSame(
             $sourceTableDef->getPrimaryKeysNames(),
-            ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPrimaryKeysNames())
+            ProtobufHelper::repeatedStringToArray($exportedTableInfo->getPrimaryKeysNames()),
         );
         /** @var TableInfo\TableColumn[] $columns */
         $columns = iterator_to_array($exportedTableInfo->getColumns()->getIterator());
         $columnsNames = array_map(
             static fn(TableInfo\TableColumn $col) => $col->getName(),
-            $columns
+            $columns,
         );
         $this->assertSame($sourceTableDef->getColumnsNames(), $columnsNames);
 
@@ -305,7 +305,7 @@ class ExportTableToFileTest extends BaseCase
                 ['3', '3'],
             ],
             // data are not trimmed because IE lib doesn't do so. TD serves them in raw form prefixed by space
-            $csvData
+            $csvData,
         );
 
         // cleanup
@@ -508,7 +508,7 @@ class ExportTableToFileTest extends BaseCase
         string $bucketDatabaseName,
         string $sourceTableName,
         array $exportOptions,
-        string $exportDir
+        string $exportDir,
     ): TableExportToFileResponse {
         $cmd = new TableExportToFileCommand();
 
@@ -517,7 +517,7 @@ class ExportTableToFileTest extends BaseCase
         $cmd->setSource(
             (new ImportExportShared\Table())
                 ->setPath($path)
-                ->setTableName($sourceTableName)
+                ->setTableName($sourceTableName),
         );
 
         $cmd->setFileProvider(FileProvider::GCS);
@@ -532,7 +532,7 @@ class ExportTableToFileTest extends BaseCase
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath($exportDir)
-                ->setFileName('exp')
+                ->setFileName('exp'),
         );
 
         $response = (new ExportTableToFileHandler($this->clientManager))(
@@ -607,7 +607,7 @@ class ExportTableToFileTest extends BaseCase
 
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
         try {
             $this->exportTable($bucketDatabaseName, $tableName, $params, $exportDir);
@@ -750,7 +750,7 @@ class ExportTableToFileTest extends BaseCase
     private function createSourceTable(
         string $databaseName,
         string $tableName,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): BigqueryTableDefinition {
         $tableDef = new BigqueryTableDefinition(
             $databaseName,
@@ -762,7 +762,7 @@ class ExportTableToFileTest extends BaseCase
                 BigqueryColumn::createGenericColumn('col3'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -787,7 +787,7 @@ class ExportTableToFileTest extends BaseCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($databaseName),
             BigqueryQuote::quoteSingleIdentifier($tableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         return $tableDef;
@@ -796,7 +796,7 @@ class ExportTableToFileTest extends BaseCase
     private function dropSourceTable(
         string $databaseName,
         string $tableName,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): void {
         $bucket = $bqClient->dataset($databaseName);
         $table = $bucket->table($tableName);
@@ -805,7 +805,7 @@ class ExportTableToFileTest extends BaseCase
         }
         $qb = new BigqueryTableQueryBuilder();
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($databaseName, $tableName)
+            $qb->getDropTableCommand($databaseName, $tableName),
         ));
     }
 
@@ -819,14 +819,14 @@ class ExportTableToFileTest extends BaseCase
         bool $sourceFileIsCompressed,
         string $destinationDatabaseName,
         string $destinationTableName,
-        array $sourceColumns
+        array $sourceColumns,
     ): void {
         // create table
         $columnsLines = [];
         foreach ($sourceColumns as $column) {
             $columnsLines[] = sprintf(
                 '%s STRING',
-                $column
+                $column,
             );
         }
         $bqClient->runQuery($bqClient->query(
@@ -836,8 +836,8 @@ class ExportTableToFileTest extends BaseCase
                 );',
                 BigqueryQuote::quoteSingleIdentifier($destinationDatabaseName),
                 BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                implode(",\n", $columnsLines)
-            )
+                implode(",\n", $columnsLines),
+            ),
         ));
 
         // import data to table
@@ -859,7 +859,7 @@ class ExportTableToFileTest extends BaseCase
                 ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
                 ->setCompression($sourceFileIsCompressed
                     ? TableImportFromFileCommand\CsvTypeOptions\Compression::GZIP
-                    : TableImportFromFileCommand\CsvTypeOptions\Compression::NONE)
+                    : TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
         );
         $cmd->setFormatTypeOptions($formatOptions);
 
@@ -867,7 +867,7 @@ class ExportTableToFileTest extends BaseCase
             (new FilePath())
                 ->setRoot((string) getenv('BQ_BUCKET_NAME'))
                 ->setPath($sourceFilePath)
-                ->setFileName($sourceFileName)
+                ->setFileName($sourceFileName),
         );
 
         $path = new RepeatedField(GPBType::STRING);
@@ -875,7 +875,7 @@ class ExportTableToFileTest extends BaseCase
         $cmd->setDestination(
             (new ImportExportShared\Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $dedupCols = new RepeatedField(GPBType::STRING);
@@ -885,7 +885,7 @@ class ExportTableToFileTest extends BaseCase
                 ->setDedupType(ImportExportShared\ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
-                ->setNumberOfIgnoredLines(1)
+                ->setNumberOfIgnoredLines(1),
         );
 
         $handler = new ImportTableFromFileHandler($this->clientManager);
@@ -917,7 +917,7 @@ class ExportTableToFileTest extends BaseCase
             if ($expectedFileSize !== 0) {
                 self::assertTrue(
                     ($expectedFileSize - 1000000) < $fileSize && $fileSize < ($expectedFileSize + 100000),
-                    sprintf('Actual size is %s but expected is %s', $fileSize, $expectedFileSize)
+                    sprintf('Actual size is %s but expected is %s', $fileSize, $expectedFileSize),
                 );
             }
         }
@@ -970,10 +970,10 @@ class ExportTableToFileTest extends BaseCase
                             (new RangePartitioning\Range())
                                 ->setStart('0')
                                 ->setEnd('10')
-                                ->setInterval('1')
-                        )
+                                ->setInterval('1'),
+                        ),
                 )
-                ->setRequirePartitionFilter(true)
+                ->setRequirePartitionFilter(true),
         );
         $command = (new CreateTableCommand())
             ->setPath($path)
@@ -989,7 +989,7 @@ class ExportTableToFileTest extends BaseCase
 
         $exportDir = sprintf(
             'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash())
+            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
         try {
             $this->exportTable(
@@ -1010,7 +1010,7 @@ class ExportTableToFileTest extends BaseCase
             $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
             $this->assertStringContainsString(
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
     }

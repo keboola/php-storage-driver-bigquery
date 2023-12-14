@@ -24,7 +24,8 @@ class PolicyFilter
 
     // The keys for members in binding have to be recalculated,
     // because if there is an error in the queue number GCP will delete all permissions
-    private static function recalculateBindingKeys(&$array) {
+    private static function recalculateBindingKeys(&$array): void
+    {
         if (isset($array['bindings']) && is_array($array['bindings'])) {
             foreach ($array['bindings'] as &$binding) {
                 if (isset($binding['members']) && is_array($binding['members'])) {
@@ -34,4 +35,3 @@ class PolicyFilter
         }
     }
 }
-

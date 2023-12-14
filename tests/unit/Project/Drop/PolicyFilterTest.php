@@ -33,7 +33,6 @@ class PolicyFilterTest extends TestCase
                 ],
         ];
 
-
         $filtered = PolicyFilter::removeServiceAccFromBucketPolicy($policy, $serviceAccToRemove);
 
         $this->assertSame($expected, $filtered);
@@ -59,7 +58,7 @@ class PolicyFilterTest extends TestCase
                                 ],
                         ],
                     ],
-            ]
+            ],
         ];
     }
 }

@@ -36,7 +36,7 @@ final class CreateTableMetaHelper
     {
         $meta = MetaHelper::getMetaFromCommand(
             $command,
-            CreateTableCommand\BigQueryTableMeta::class
+            CreateTableCommand\BigQueryTableMeta::class,
         );
         if ($meta === null) {
             return [];

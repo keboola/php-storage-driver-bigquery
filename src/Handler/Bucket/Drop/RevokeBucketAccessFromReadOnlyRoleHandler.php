@@ -38,7 +38,7 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler extends BaseHandler
 
         assert(
             $command->getBucketObjectName() !== '',
-            'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required'
+            'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required',
         );
         $ignoreErrors = $command->getIgnoreErrors();
 

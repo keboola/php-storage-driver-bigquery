@@ -28,7 +28,7 @@ final class UnLinkBucketHandler extends BaseHandler
         Message $credentials, // project credentials
         Message $command, // linked bucket
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof UnlinkBucketCommand);

@@ -91,7 +91,7 @@ class BigQueryDriverClient implements ClientInterface
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         $manager = new GCPClientManager($this->internalLogger);

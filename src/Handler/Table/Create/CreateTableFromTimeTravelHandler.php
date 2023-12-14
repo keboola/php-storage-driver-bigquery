@@ -38,7 +38,7 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof CreateTableFromTimeTravelCommand);
@@ -54,14 +54,14 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
         assert($timestamp !== null, 'CreateTableFromTimeTravelCommand.timestamp is required.');
         assert(
             $sourceMapping->getPath()->count() === 1,
-            'CreateTableFromTimeTravelCommand.source.path is required and size must equal 1'
+            'CreateTableFromTimeTravelCommand.source.path is required and size must equal 1',
         );
         /** @var string $sourceDatasetName */
         $sourceDatasetName = $sourceMapping->getPath()[0];
 
         assert(
             $destination->getPath()->count() === 1,
-            'CreateTableFromTimeTravelCommand.destination.path is required and size must equal 1'
+            'CreateTableFromTimeTravelCommand.destination.path is required and size must equal 1',
         );
         /** @var string $destinationDatasetName */
         $destinationDatasetName = $destination->getPath()[0];
@@ -80,7 +80,7 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
             BigqueryQuote::quoteSingleIdentifier($sourceDatasetName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            BigqueryQuote::quote($datetime)
+            BigqueryQuote::quote($datetime),
         );
 
         try {
@@ -92,7 +92,7 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-            $destination->getTableName()
+            $destination->getTableName(),
         );
 
         $destinationStats = $destinationRef->getTableStats();
@@ -102,8 +102,8 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
             new BigqueryTableReflection(
                 $bqClient,
                 $destinationDatasetName,
-                $destinationTableName
-            )
+                $destinationTableName,
+            ),
         );
 
         $tableInfo->setRowsCount($destinationStats->getRowsCount());

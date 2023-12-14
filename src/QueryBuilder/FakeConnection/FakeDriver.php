@@ -28,7 +28,7 @@ class FakeDriver implements Driver
      * }
      */
     public function connect(
-        array $params
+        array $params,
     ): FakeConnection {
         return new FakeConnection();
     }

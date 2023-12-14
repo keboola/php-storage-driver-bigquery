@@ -56,7 +56,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -78,7 +78,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         $tableDestDef = new BigqueryTableDefinition(
@@ -89,7 +89,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
             ]),
-            []
+            [],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -104,7 +104,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatabaseName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col1')
@@ -116,12 +116,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
@@ -129,7 +129,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -144,7 +144,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
             [], // optimized full load is not returning imported columns
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
@@ -152,10 +152,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
 
         // cleanup
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
 
@@ -180,7 +180,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -202,7 +202,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         $tableDestDef = new BigqueryTableDefinition(
@@ -214,7 +214,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            []
+            [],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -229,7 +229,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatabaseName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col1')
@@ -241,12 +241,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
@@ -254,7 +254,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -272,7 +272,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 'col1',
                 'col4',
             ],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
@@ -282,10 +282,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
 
         // cleanup
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
 
@@ -310,7 +310,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -332,7 +332,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $sourceTableName);
         $this->assertSame(5, $ref->getRowsCount());
@@ -346,7 +346,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            []
+            [],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -361,7 +361,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatabaseName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col1')
@@ -373,12 +373,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $dedupCols[] = 'col1';
@@ -389,7 +389,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
                 ->setTimestampColumn('_timestamp')
-                ->setDedupColumnsNames($dedupCols)
+                ->setDedupColumnsNames($dedupCols),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -407,7 +407,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 'col1',
                 'col4',
             ],
-            iterator_to_array($response->getImportedColumns())
+            iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
@@ -417,7 +417,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $bqClient,
             $bucketDatabaseName,
             $destinationTableName,
-            ['col1', 'col4']
+            ['col1', 'col4'],
         );
         $this->assertEqualsCanonicalizing([
             [
@@ -436,10 +436,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
 
         // cleanup
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
         $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
 
@@ -476,10 +476,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
                             (new RangePartitioning\Range())
                                 ->setStart('0')
                                 ->setEnd('10')
-                                ->setInterval('1')
-                        )
+                                ->setInterval('1'),
+                        ),
                 )
-                ->setRequirePartitionFilter(true)
+                ->setRequirePartitionFilter(true),
         );
         $command = (new CreateTableCommand())
             ->setPath($path)
@@ -515,7 +515,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatasetName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('id')
@@ -527,12 +527,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($tableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
@@ -540,7 +540,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setNumberOfIgnoredLines(0)
                 ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
-                ->setTimestampColumn('_timestamp')
+                ->setTimestampColumn('_timestamp'),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -559,7 +559,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
             $this->assertStringContainsString(
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
-                $e->getMessage()
+                $e->getMessage(),
             );
         }
     }
@@ -584,10 +584,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
                     [
                         'nullable' => true,
                         'default' => '\'\'',
-                    ]
+                    ],
                 )),
             ]),
-            []
+            [],
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -610,7 +610,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-            implode(',', $insert)
+            implode(',', $insert),
         )));
 
         $tableDestDef = new BigqueryTableDefinition(
@@ -622,7 +622,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('col2'),
                 BigqueryColumn::createGenericColumn('col3'),
             ]),
-            []
+            [],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -637,7 +637,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $path[] = $bucketDatabaseName;
         $columnMappings = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
         );
         $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
             ->setSourceColumnName('col1')
@@ -652,12 +652,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
         $cmd->setImportOptions(
             (new ImportOptions())
@@ -665,7 +665,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setCreateMode(ImportOptions\CreateMode::REPLACE) // <- just prove that this has no effect on import
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -684,10 +684,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } finally {
             // cleanup
             $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName())
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
             ));
             $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName())
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
             ));
         }
     }

@@ -29,7 +29,7 @@ final class DropProjectHandler extends BaseHandler
         Message $credentials,
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropProjectCommand);
@@ -62,7 +62,7 @@ final class DropProjectHandler extends BaseHandler
 
         $projectId = (string) $publicPartKeyFile['project_id'];
         $serviceAccountsInProject = $serviceAccountsService->listProjectsServiceAccounts(
-            sprintf('projects/%s', $projectId)
+            sprintf('projects/%s', $projectId),
         );
         foreach ($serviceAccountsInProject as $item) {
             $serviceAccountsService->delete(sprintf('projects/%s/serviceAccounts/%s', $projectId, $item->getEmail()));

@@ -14,7 +14,7 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 final class CreateImportOptionHelper
 {
     public static function createOptions(
-        ImportOptions $options
+        ImportOptions $options,
     ): BigqueryImportOptions {
         $strategyMapping = [
             ImportStrategy::STRING_TABLE => ImportOptionsInterface::USING_TYPES_STRING,
@@ -25,7 +25,7 @@ final class CreateImportOptionHelper
             $options->getImportType() === ImportType::INCREMENTAL,
             $options->getTimestampColumn() === '_timestamp',
             $options->getNumberOfIgnoredLines(),
-            $strategyMapping[$options->getImportStrategy()]
+            $strategyMapping[$options->getImportStrategy()],
         );
     }
 }

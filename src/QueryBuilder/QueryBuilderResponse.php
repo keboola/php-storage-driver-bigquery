@@ -17,7 +17,7 @@ class QueryBuilderResponse
      */
     public function __construct(
         string $query,
-        array $bindings
+        array $bindings,
     ) {
         $this->query = $query;
         $this->bindings = $bindings;

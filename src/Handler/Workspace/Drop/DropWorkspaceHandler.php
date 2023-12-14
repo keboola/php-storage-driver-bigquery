@@ -41,7 +41,7 @@ final class DropWorkspaceHandler extends BaseHandler
         Message $credentials, // project credentials
         Message $command,
         array $features,
-        Message $runtimeOptions
+        Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof DropWorkspaceCommand);
@@ -132,7 +132,7 @@ final class DropWorkspaceHandler extends BaseHandler
         $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($serviceAccountsService, $keyData): void {
             $serviceAccountsService->delete(
-                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email'])
+                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email']),
             );
         });
 

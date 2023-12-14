@@ -16,7 +16,7 @@ class ViewReflectionResponseTransformer
 {
     public static function transformTableReflectionToResponse(
         string $dataset,
-        TableReflectionInterface $ref
+        TableReflectionInterface $ref,
     ): ViewInfo {
         $res = new ViewInfo();
         $def = $ref->getTableDefinition();

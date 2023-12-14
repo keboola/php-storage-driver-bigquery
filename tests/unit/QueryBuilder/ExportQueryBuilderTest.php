@@ -30,7 +30,7 @@ class ExportQueryBuilderTest extends TestCase
     public function testBuildQueryFromCommand(
         PreviewTableCommand $previewCommand,
         string $expectedSql,
-        array $expectedBindings
+        array $expectedBindings,
     ): void {
         $connection = $this->createMock(BigQueryClient::class);
 
@@ -49,7 +49,7 @@ class ExportQueryBuilderTest extends TestCase
             $tableColumnsDefinitions,
             'some_schema',
             'some_table',
-            false
+            false,
         );
 
         $this->assertSame(
@@ -360,7 +360,7 @@ class ExportQueryBuilderTest extends TestCase
     public function testBuildQueryFromCommandFailed(
         PreviewTableCommand $previewCommand,
         string $exceptionClass,
-        string $exceptionMessage
+        string $exceptionMessage,
     ): void {
         $connection = $this->createMock(BigQueryClient::class);
 
@@ -381,7 +381,7 @@ class ExportQueryBuilderTest extends TestCase
             $tableColumnsDefinitions,
             'some_schema',
             '',
-            true
+            true,
         );
     }
 
