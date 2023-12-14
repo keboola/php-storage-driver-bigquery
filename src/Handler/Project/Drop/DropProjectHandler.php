@@ -56,15 +56,7 @@ final class DropProjectHandler extends BaseHandler
 
         $policy = $fileStorageBucket->iam()->policy();
 
-        foreach ($policy['bindings'] as $bindingKey => $binding) {
-            if ($binding['role'] === 'roles/storage.objectAdmin') {
-                $key = array_search('serviceAccount:' . $publicPartKeyFile['client_email'], $binding['members'], false);
-                if ($key === false) {
-                    continue;
-                }
-                unset($policy['bindings'][$bindingKey]['members'][$key]);
-            }
-        }
+        $policy = PolicyFilter::removeServiceAccFromBucketPolicy($policy, $publicPartKeyFile['client_email']);
 
         $fileStorageBucket->iam()->setPolicy($policy);
 
