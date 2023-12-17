@@ -302,6 +302,154 @@ class CreateDropTableTest extends BaseCase
         return $response->getTableInfo();
     }
 
+    /** @dataProvider failsDefaultTypesProvider */
+    public function testFailsDefaultsCreateTable(TableColumnShared $column): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = $column;
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Should fail');
+        } catch (BadTableDefinitionException $e) {
+            $this->assertStringContainsString('Invalid default value expression for column', $e->getMessage());
+        }
+
+    }
+
+    public function failsDefaultTypesProvider(): Generator
+    {
+        // INT64
+        yield Bigquery::TYPE_INT64 . '_fail' => [
+            (new TableColumnShared)
+                ->setName('int64')
+                ->setType(Bigquery::TYPE_INT64)
+                ->setDefault('fail'),
+        ];
+
+        // BYTES
+        yield Bigquery::TYPE_BYTES . '_num' => [
+            (new TableColumnShared)
+                ->setName('bytes')
+                ->setType(Bigquery::TYPE_BYTES)
+                ->setDefault(1),
+        ];
+
+        yield Bigquery::TYPE_BYTES . '_fail' => [
+            (new TableColumnShared)
+                ->setName('bytes')
+                ->setType(Bigquery::TYPE_BYTES)
+                ->setDefault('fail'),
+        ];
+
+        // NUMERIC
+        yield Bigquery::TYPE_NUMERIC . '_fail' => [
+            (new TableColumnShared)
+                ->setName('numeric')
+                ->setType(Bigquery::TYPE_NUMERIC)
+                ->setDefault('fail'),
+        ];
+
+        // NUMERIC
+        yield Bigquery::TYPE_BIGNUMERIC . '_fail' => [
+            (new TableColumnShared)
+                ->setName('bignumeric')
+                ->setType(Bigquery::TYPE_BIGNUMERIC)
+                ->setDefault('fail'),
+        ];
+
+        // FLOAT64
+        yield Bigquery::TYPE_FLOAT64 . '_fail' => [
+            (new TableColumnShared)
+                ->setName('float64')
+                ->setType(Bigquery::TYPE_FLOAT64)
+                ->setDefault('fail'),
+        ];
+
+        // STRING
+        yield Bigquery::TYPE_STRING . '_num' => [
+            (new TableColumnShared)
+                ->setName('string')
+                ->setType(Bigquery::TYPE_STRING)
+                ->setDefault(1),
+        ];
+
+        yield Bigquery::TYPE_STRING . '_fail' => [
+            (new TableColumnShared)
+                ->setName('string')
+                ->setType(Bigquery::TYPE_STRING)
+                ->setDefault('1'),
+        ];
+
+        // BOOL
+        yield Bigquery::TYPE_BOOL . '_fail_1' => [
+            (new TableColumnShared)
+                ->setName('bool')
+                ->setType(Bigquery::TYPE_BOOL)
+                ->setDefault('test'),
+        ];
+
+        yield Bigquery::TYPE_BOOL . '_fail_2' => [
+            (new TableColumnShared)
+                ->setName('bool')
+                ->setType(Bigquery::TYPE_BOOL)
+                ->setDefault(123),
+        ];
+
+        // DATE
+        yield Bigquery::TYPE_DATE . '_fail' => [
+            (new TableColumnShared)
+                ->setName('date')
+                ->setType(Bigquery::TYPE_DATE)
+                ->setDefault('fail'),
+        ];
+
+        // DATETIME
+        yield Bigquery::TYPE_DATETIME . '_fail' => [
+            (new TableColumnShared)
+                ->setName('datetime')
+                ->setType(Bigquery::TYPE_DATETIME)
+                ->setDefault('fail'),
+        ];
+
+        // TIME
+        yield Bigquery::TYPE_TIME . '_fail' => [
+            (new TableColumnShared)
+                ->setName('time')
+                ->setType(Bigquery::TYPE_TIME)
+                ->setDefault('fail'),
+        ];
+
+        // TIMESTAMP
+        yield Bigquery::TYPE_TIMESTAMP . '_fail' => [
+            (new TableColumnShared)
+                ->setName('timestamp')
+                ->setType(Bigquery::TYPE_TIMESTAMP)
+                ->setDefault('fail'),
+        ];
+    }
+
     /** @dataProvider defaultTypesProvider */
     public function testDefaultsCreateTable(TableColumnShared $column): void
     {
