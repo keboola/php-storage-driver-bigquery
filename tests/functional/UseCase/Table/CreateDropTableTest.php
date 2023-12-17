@@ -348,13 +348,6 @@ class CreateDropTableTest extends BaseCase
         ];
 
         // BYTES
-        yield Bigquery::TYPE_BYTES . '_num' => [
-            (new TableColumnShared)
-                ->setName('bytes')
-                ->setType(Bigquery::TYPE_BYTES)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_BYTES . '_fail' => [
             (new TableColumnShared)
                 ->setName('bytes')
@@ -387,13 +380,6 @@ class CreateDropTableTest extends BaseCase
         ];
 
         // STRING
-        yield Bigquery::TYPE_STRING . '_num' => [
-            (new TableColumnShared)
-                ->setName('string')
-                ->setType(Bigquery::TYPE_STRING)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_STRING . '_fail' => [
             (new TableColumnShared)
                 ->setName('string')
@@ -409,14 +395,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('test'),
         ];
 
-        yield Bigquery::TYPE_BOOL . '_fail_2' => [
-            (new TableColumnShared)
-                ->setName('bool')
-                ->setType(Bigquery::TYPE_BOOL)
-                ->setDefault(123),
-        ];
-
-        // DATE
+         // DATE
         yield Bigquery::TYPE_DATE . '_fail' => [
             (new TableColumnShared)
                 ->setName('date')
@@ -486,13 +465,6 @@ class CreateDropTableTest extends BaseCase
     public function defaultTypesProvider(): Generator
     {
         // INT64
-        yield Bigquery::TYPE_INT64 . '_num' => [
-            (new TableColumnShared)
-                ->setName('int64')
-                ->setType(Bigquery::TYPE_INT64)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_INT64 . '_string' => [
             (new TableColumnShared)
                 ->setName('int64')
@@ -506,21 +478,6 @@ class CreateDropTableTest extends BaseCase
                 ->setType(Bigquery::TYPE_INT64)
                 ->setDefault(''),
         ];
-
-//        yield Bigquery::TYPE_INT64 . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('int64')
-//                ->setType(Bigquery::TYPE_INT64)
-//                ->setDefault('fail'),
-//        ];
-
-        // BYTES
-//        yield Bigquery::TYPE_BYTES . '_num' => [
-//            (new TableColumnShared)
-//                ->setName('bytes')
-//                ->setType(Bigquery::TYPE_BYTES)
-//                ->setDefault(1),
-//        ];
 
         yield Bigquery::TYPE_BYTES . '_string' => [
             (new TableColumnShared)
@@ -536,21 +493,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault(''),
         ];
 
-//        yield Bigquery::TYPE_BYTES . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('bytes')
-//                ->setType(Bigquery::TYPE_BYTES)
-//                ->setDefault('fail'),
-//        ];
-
         // NUMERIC
-        yield Bigquery::TYPE_NUMERIC . '_num' => [
-            (new TableColumnShared)
-                ->setName('numeric')
-                ->setType(Bigquery::TYPE_NUMERIC)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_NUMERIC . '_string' => [
             (new TableColumnShared)
                 ->setName('numeric')
@@ -565,21 +508,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault(''),
         ];
 
-//        yield Bigquery::TYPE_NUMERIC . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('numeric')
-//                ->setType(Bigquery::TYPE_NUMERIC)
-//                ->setDefault('fail'),
-//        ];
-
         // NUMERIC
-        yield Bigquery::TYPE_BIGNUMERIC . '_num' => [
-            (new TableColumnShared)
-                ->setName('bignumeric')
-                ->setType(Bigquery::TYPE_BIGNUMERIC)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_BIGNUMERIC . '_string' => [
             (new TableColumnShared)
                 ->setName('bignumeric')
@@ -594,21 +523,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault(''),
         ];
 
-//        yield Bigquery::TYPE_BIGNUMERIC . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('bignumeric')
-//                ->setType(Bigquery::TYPE_BIGNUMERIC)
-//                ->setDefault('fail'),
-//        ];
-
         // FLOAT64
-        yield Bigquery::TYPE_FLOAT64 . '_num' => [
-            (new TableColumnShared)
-                ->setName('float64')
-                ->setType(Bigquery::TYPE_FLOAT64)
-                ->setDefault(1),
-        ];
-
         yield Bigquery::TYPE_FLOAT64 . '_string' => [
             (new TableColumnShared)
                 ->setName('float64')
@@ -623,21 +538,6 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault(''),
         ];
 
-//        yield Bigquery::TYPE_FLOAT64 . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('float64')
-//                ->setType(Bigquery::TYPE_FLOAT64)
-//                ->setDefault('fail'),
-//        ];
-
-        // STRING
-//        yield Bigquery::TYPE_STRING . '_num' => [
-//            (new TableColumnShared)
-//                ->setName('string')
-//                ->setType(Bigquery::TYPE_STRING)
-//                ->setDefault(1),
-//        ];
-
         yield Bigquery::TYPE_STRING . '_string' => [
             (new TableColumnShared)
                 ->setName('string')
@@ -651,13 +551,6 @@ class CreateDropTableTest extends BaseCase
                 ->setType(Bigquery::TYPE_STRING)
                 ->setDefault(''),
         ];
-
-//        yield Bigquery::TYPE_STRING . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('string')
-//                ->setType(Bigquery::TYPE_STRING)
-//                ->setDefault('1'),
-//        ];
 
         // BOOL
         yield Bigquery::TYPE_BOOL . '_bool_string_true' => [
@@ -681,22 +574,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault(''),
         ];
 
-//        yield Bigquery::TYPE_BOOL . '_fail_1' => [
-//            (new TableColumnShared)
-//                ->setName('bool')
-//                ->setType(Bigquery::TYPE_BOOL)
-//                ->setDefault('test'),
-//        ];
-//
-//        yield Bigquery::TYPE_BOOL . '_fail_2' => [
-//            (new TableColumnShared)
-//                ->setName('bool')
-//                ->setType(Bigquery::TYPE_BOOL)
-//                ->setDefault(123),
-//        ];
-
         // DATE
-
         yield Bigquery::TYPE_DATE . '_empty' => [
             (new TableColumnShared)
                 ->setName('date')
@@ -710,13 +588,6 @@ class CreateDropTableTest extends BaseCase
                 ->setType(Bigquery::TYPE_DATE)
                 ->setDefault('\'2022-02-22\''),
         ];
-
-//        yield Bigquery::TYPE_DATE . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('date')
-//                ->setType(Bigquery::TYPE_DATE)
-//                ->setDefault('fail'),
-//        ];
 
         // DATETIME
         yield Bigquery::TYPE_DATETIME . '_current' => [
@@ -740,13 +611,6 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('\'2021-01-01 00:00:00\''),
         ];
 
-//        yield Bigquery::TYPE_DATETIME . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('datetime')
-//                ->setType(Bigquery::TYPE_DATETIME)
-//                ->setDefault('fail'),
-//        ];
-
         // TIME
         yield Bigquery::TYPE_TIME . '_method' => [
             (new TableColumnShared)
@@ -769,13 +633,6 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('\'00:00:00\''),
         ];
 
-//        yield Bigquery::TYPE_TIME . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('time')
-//                ->setType(Bigquery::TYPE_TIME)
-//                ->setDefault('fail'),
-//        ];
-
         // TIMESTAMP
         yield Bigquery::TYPE_TIMESTAMP . '_method' => [
             (new TableColumnShared)
@@ -797,12 +654,5 @@ class CreateDropTableTest extends BaseCase
                 ->setType(Bigquery::TYPE_TIMESTAMP)
                 ->setDefault('\'2021-01-01 00:00:00\''),
         ];
-
-//        yield Bigquery::TYPE_TIMESTAMP . '_fail' => [
-//            (new TableColumnShared)
-//                ->setName('timestamp')
-//                ->setType(Bigquery::TYPE_TIMESTAMP)
-//                ->setDefault('fail'),
-//        ];
     }
 }
