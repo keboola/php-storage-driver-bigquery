@@ -335,7 +335,6 @@ class CreateDropTableTest extends BaseCase
         } catch (BadTableDefinitionException $e) {
             $this->assertStringContainsString('Invalid default value expression for column', $e->getMessage());
         }
-
     }
 
     public function failsDefaultTypesProvider(): Generator
@@ -482,7 +481,6 @@ class CreateDropTableTest extends BaseCase
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::TABLE, $response->getObjectType());
         $this->assertNotNull($response->getTableInfo());
-
     }
 
     public function defaultTypesProvider(): Generator
