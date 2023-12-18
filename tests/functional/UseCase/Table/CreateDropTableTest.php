@@ -426,6 +426,14 @@ class CreateDropTableTest extends BaseCase
                 ->setType(Bigquery::TYPE_TIMESTAMP)
                 ->setDefault('fail'),
         ];
+
+        // INTERVAL - default value is not supported
+        yield Bigquery::TYPE_INTERVAL . '_fail' => [
+            (new TableColumnShared)
+                ->setName('interval')
+                ->setType(Bigquery::TYPE_INTERVAL)
+                ->setDefault('1 YEAR'),
+        ];
     }
 
     /** @dataProvider defaultTypesProvider */
@@ -472,25 +480,12 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('1'),
         ];
 
-        yield Bigquery::TYPE_INT64 . '_empty' => [
-            (new TableColumnShared)
-                ->setName('int64')
-                ->setType(Bigquery::TYPE_INT64)
-                ->setDefault(''),
-        ];
-
+        // BYTES
         yield Bigquery::TYPE_BYTES . '_string' => [
             (new TableColumnShared)
                 ->setName('bytes')
                 ->setType(Bigquery::TYPE_BYTES)
                 ->setDefault('B"abc"'),
-        ];
-
-        yield Bigquery::TYPE_BYTES . '_empty' => [
-            (new TableColumnShared)
-                ->setName('bytes')
-                ->setType(Bigquery::TYPE_BYTES)
-                ->setDefault(''),
         ];
 
         // NUMERIC
@@ -501,26 +496,12 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('1'),
         ];
 
-        yield Bigquery::TYPE_NUMERIC . '_empty' => [
-            (new TableColumnShared)
-                ->setName('numeric')
-                ->setType(Bigquery::TYPE_NUMERIC)
-                ->setDefault(''),
-        ];
-
-        // NUMERIC
+        // BIGNUMERIC
         yield Bigquery::TYPE_BIGNUMERIC . '_string' => [
             (new TableColumnShared)
                 ->setName('bignumeric')
                 ->setType(Bigquery::TYPE_BIGNUMERIC)
                 ->setDefault('1'),
-        ];
-
-        yield Bigquery::TYPE_BIGNUMERIC . '_empty' => [
-            (new TableColumnShared)
-                ->setName('bignumeric')
-                ->setType(Bigquery::TYPE_BIGNUMERIC)
-                ->setDefault(''),
         ];
 
         // FLOAT64
@@ -531,25 +512,12 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('1'),
         ];
 
-        yield Bigquery::TYPE_FLOAT64 . '_empty' => [
-            (new TableColumnShared)
-                ->setName('float64')
-                ->setType(Bigquery::TYPE_FLOAT64)
-                ->setDefault(''),
-        ];
-
+        // STRING
         yield Bigquery::TYPE_STRING . '_string' => [
             (new TableColumnShared)
                 ->setName('string')
                 ->setType(Bigquery::TYPE_STRING)
                 ->setDefault('\'roman\''),
-        ];
-
-        yield Bigquery::TYPE_STRING . '_empty' => [
-            (new TableColumnShared)
-                ->setName('string')
-                ->setType(Bigquery::TYPE_STRING)
-                ->setDefault(''),
         ];
 
         // BOOL
@@ -567,21 +535,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('false'),
         ];
 
-        yield Bigquery::TYPE_BOOL . '_bool_empty' => [
-            (new TableColumnShared)
-                ->setName('bool')
-                ->setType(Bigquery::TYPE_BOOL)
-                ->setDefault(''),
-        ];
-
         // DATE
-        yield Bigquery::TYPE_DATE . '_empty' => [
-            (new TableColumnShared)
-                ->setName('date')
-                ->setType(Bigquery::TYPE_DATE)
-                ->setDefault(''),
-        ];
-
         yield Bigquery::TYPE_DATE . '_qouted' => [
             (new TableColumnShared)
                 ->setName('date')
@@ -595,13 +549,6 @@ class CreateDropTableTest extends BaseCase
                 ->setName('datetime')
                 ->setType(Bigquery::TYPE_DATETIME)
                 ->setDefault('CURRENT_DATETIME()'),
-        ];
-
-        yield Bigquery::TYPE_DATETIME . '_empty' => [
-            (new TableColumnShared)
-                ->setName('datetime')
-                ->setType(Bigquery::TYPE_DATETIME)
-                ->setDefault(''),
         ];
 
         yield Bigquery::TYPE_DATETIME . '_quoted' => [
@@ -619,13 +566,6 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('current_time()'),
         ];
 
-        yield Bigquery::TYPE_TIME . '_empty' => [
-            (new TableColumnShared)
-                ->setName('time')
-                ->setType(Bigquery::TYPE_TIME)
-                ->setDefault(''),
-        ];
-
         yield Bigquery::TYPE_TIME . '_quoted' => [
             (new TableColumnShared)
                 ->setName('time')
@@ -641,18 +581,53 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('current_timestamp()'),
         ];
 
-        yield Bigquery::TYPE_TIMESTAMP . '_empty' => [
-            (new TableColumnShared)
-                ->setName('timestamp')
-                ->setType(Bigquery::TYPE_TIMESTAMP)
-                ->setDefault(''),
-        ];
-
         yield Bigquery::TYPE_TIMESTAMP . '_quoted' => [
             (new TableColumnShared)
                 ->setName('timestamp')
                 ->setType(Bigquery::TYPE_TIMESTAMP)
                 ->setDefault('\'2021-01-01 00:00:00\''),
+        ];
+
+        // ARRAY
+        yield Bigquery::TYPE_ARRAY . '_int64' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_ARRAY)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('[1,2,3]'),
+        ];
+
+        yield Bigquery::TYPE_ARRAY . '_empty_array' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_ARRAY)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('[]'),
+        ];
+
+        // GEOGRAPHY
+        yield Bigquery::TYPE_GEOGRAPHY . '_ST_GEOGPOINT' => [
+            (new TableColumnShared)
+                ->setName('geography')
+                ->setType(Bigquery::TYPE_GEOGRAPHY)
+                ->setDefault('ST_GEOGPOINT(-122.4194, 37.7749)'),
+        ];
+
+        // JSON
+        yield Bigquery::TYPE_JSON . '_full' => [
+            (new TableColumnShared)
+                ->setName('interval')
+                ->setType(Bigquery::TYPE_JSON)
+                ->setDefault('JSON\'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}\''),
+        ];
+
+        // STRUCT
+        yield Bigquery::TYPE_STRUCT . '_number' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_STRUCT)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('STRUCT(1)'),
         ];
     }
 }
