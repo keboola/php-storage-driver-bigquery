@@ -72,4 +72,15 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             );
         }
     }
+
+    public static function createUnsupportedDatatypeInWhereFilter(string $columnName, string $columnType): self
+    {
+        return new self(
+            sprintf(
+                'Filtering by column "%s" of type "%s" is not supported by the backend "bigquery".',
+                $columnName,
+                $columnType,
+            ),
+        );
+    }
 }
