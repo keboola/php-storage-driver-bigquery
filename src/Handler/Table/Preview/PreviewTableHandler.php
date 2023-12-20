@@ -62,12 +62,12 @@ final class PreviewTableHandler extends BaseHandler
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
+            ->getColumnsDefinitions();
         $this->validateFilters($command);
 
         // build sql
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
-        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
-            ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
             ExportQueryBuilder::MODE_SELECT,
             $command->getFilters(),
