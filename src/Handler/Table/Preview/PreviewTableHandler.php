@@ -34,6 +34,16 @@ final class PreviewTableHandler extends BaseHandler
     public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
 
+    /** @var array<int, Bigquery::TYPE_*> */
+    public const TYPES_UNSUPPORTED_IN_FILTERS = [
+        Bigquery::TYPE_ARRAY,
+        Bigquery::TYPE_STRUCT,
+        Bigquery::TYPE_BYTES,
+        Bigquery::TYPE_GEOGRAPHY,
+        Bigquery::TYPE_INTERVAL,
+        Bigquery::TYPE_JSON,
+    ];
+
     private GCPClientManager $manager;
 
     public function __construct(
@@ -189,15 +199,13 @@ final class PreviewTableHandler extends BaseHandler
             return;
         }
 
-        $unsupportedFilterTypes = $this->getTypesUnsupportedInFilters();
-
         /** @var TableWhereFilter $filter */
         foreach ($whereFilters as $filter) {
             foreach ($tableColumnsDefinitions as $col) {
                 /** @var Common $columnDefinition */
                 $columnDefinition = $col->getColumnDefinition();
                 $isSameCol = $filter->getColumnsName() === $col->getColumnName();
-                if ($isSameCol && in_array($columnDefinition->getType(), $unsupportedFilterTypes, true)) {
+                if ($isSameCol && in_array($columnDefinition->getType(), self::TYPES_UNSUPPORTED_IN_FILTERS, true)) {
                     throw BadExportFilterParametersException::createUnsupportedDatatypeInWhereFilter(
                         $filter->getColumnsName(),
                         $columnDefinition->getType(),
@@ -205,20 +213,5 @@ final class PreviewTableHandler extends BaseHandler
                 }
             }
         }
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function getTypesUnsupportedInFilters(): array
-    {
-        return [
-            Bigquery::TYPE_ARRAY,
-            Bigquery::TYPE_STRUCT,
-            Bigquery::TYPE_BYTES,
-            Bigquery::TYPE_GEOGRAPHY,
-            Bigquery::TYPE_INTERVAL,
-            Bigquery::TYPE_JSON,
-        ];
     }
 }
