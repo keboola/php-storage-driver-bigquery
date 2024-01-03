@@ -11,22 +11,38 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
+use Keboola\Connection\Storage\Request\Table\DataPreviewRequest;
+use Keboola\Connection\Storage\Service\Table\Preview\PreviewValidationException;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\Datatype\Definition\Common;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 final class PreviewTableHandler extends BaseHandler
 {
     public const DEFAULT_LIMIT = 100;
     public const MAX_LIMIT = 1000;
+
+    /** @var array<int, Bigquery::TYPE_*> */
+    public const TYPES_UNSUPPORTED_IN_FILTERS = [
+        Bigquery::TYPE_ARRAY,
+        Bigquery::TYPE_STRUCT,
+        Bigquery::TYPE_BYTES,
+        Bigquery::TYPE_GEOGRAPHY,
+        Bigquery::TYPE_INTERVAL,
+        Bigquery::TYPE_JSON,
+    ];
 
     private GCPClientManager $manager;
 
@@ -62,12 +78,12 @@ final class PreviewTableHandler extends BaseHandler
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 
-        $this->validateFilters($command);
+        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
+            ->getColumnsDefinitions();
+        $this->validateFilters($command, $tableColumnsDefinitions);
 
         // build sql
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
-        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
-            ->getColumnsDefinitions();
         $queryData = $queryBuilder->buildQueryFromCommand(
             ExportQueryBuilder::MODE_SELECT,
             $command->getFilters(),
@@ -131,7 +147,7 @@ final class PreviewTableHandler extends BaseHandler
         return $response;
     }
 
-    private function validateFilters(PreviewTableCommand $command): void
+    private function validateFilters(PreviewTableCommand $command, ColumnCollection $tableColumnsDefinitions): void
     {
         // build sql
         $columns = ProtobufHelper::repeatedStringToArray($command->getColumns());
@@ -156,6 +172,10 @@ final class PreviewTableHandler extends BaseHandler
                     'PreviewTableCommand.changeUntil must be numeric timestamp',
                 );
             }
+
+            if ($filters->getWhereFilters() !== null) {
+                $this->assertBackendSupportedFilterTypes($command, $tableColumnsDefinitions);
+            }
         }
 
         /**
@@ -167,6 +187,31 @@ final class PreviewTableHandler extends BaseHandler
                 'PreviewTableCommand.orderBy.%d.columnName is required',
                 $index,
             ));
+        }
+    }
+
+    private function assertBackendSupportedFilterTypes(
+        PreviewTableCommand $command,
+        ColumnCollection $tableColumnsDefinitions,
+    ): void {
+        $whereFilters = $command->getFilters()?->getWhereFilters();
+        if ($whereFilters === null || count($whereFilters) === 0) {
+            return;
+        }
+
+        /** @var TableWhereFilter $filter */
+        foreach ($whereFilters as $filter) {
+            foreach ($tableColumnsDefinitions as $col) {
+                /** @var Common $columnDefinition */
+                $columnDefinition = $col->getColumnDefinition();
+                $isSameCol = $filter->getColumnsName() === $col->getColumnName();
+                if ($isSameCol && in_array($columnDefinition->getType(), self::TYPES_UNSUPPORTED_IN_FILTERS, true)) {
+                    throw BadExportFilterParametersException::createUnsupportedDatatypeInWhereFilter(
+                        $filter->getColumnsName(),
+                        $columnDefinition->getType(),
+                    );
+                }
+            }
         }
     }
 }

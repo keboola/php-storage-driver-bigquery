@@ -1415,6 +1415,32 @@ class PreviewTableTest extends BaseCase
                     'length' => '',
                     'nullable' => false,
                 ],
+                'col_array' => [
+                    'type' => Bigquery::TYPE_ARRAY,
+                    'length' => 'INT64',
+                    'nullable' => true,
+                ],
+                'col_struct' => [
+                    'type' => Bigquery::TYPE_STRUCT,
+                    'length' => 'a INT64, b INT64',
+                    'nullable' => true,
+                ],
+                'col_bytes' => [
+                    'type' => Bigquery::TYPE_BYTES,
+                    'nullable' => true,
+                ],
+                'col_geography' => [
+                    'type' => Bigquery::TYPE_GEOGRAPHY,
+                    'nullable' => true,
+                ],
+                'col_interval' => [
+                    'type' => Bigquery::TYPE_INTERVAL,
+                    'nullable' => true,
+                ],
+                'col_json' => [
+                    'type' => Bigquery::TYPE_JSON,
+                    'nullable' => true,
+                ],
             ],
             'primaryKeysNames' => [],
         ];
@@ -1471,7 +1497,7 @@ class PreviewTableTest extends BaseCase
                 ]),
             ],
             // non-existing date
-            'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'; Column \'date\'',
+            'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'',
         ];
 
         yield 'wrong time' => [
@@ -1487,7 +1513,7 @@ class PreviewTableTest extends BaseCase
                     ],
                 ]),
             ],
-            'Invalid time string "25:59:59.999999"; while executing the filter on column \'time\'; Column \'time\'',
+            'Invalid time string "25:59:59.999999"; while executing the filter on column \'time\'',
         ];
 
         yield 'wrong timestamp' => [
@@ -1504,7 +1530,7 @@ class PreviewTableTest extends BaseCase
                 ]),
             ],
             //phpcs:ignore
-            "Invalid timestamp: '25:59:59.999999'; while executing the filter on column 'timestamp'; Column 'timestamp'",
+            "Invalid timestamp: '25:59:59.999999'; while executing the filter on column 'timestamp'",
         ];
 
         yield 'wrong more filters' => [
@@ -1532,6 +1558,36 @@ class PreviewTableTest extends BaseCase
             ],
             'Invalid filter value, expected:"INT64", actual:"STRING".',
         ];
+
+        foreach ([
+                     'ARRAY',
+                     'STRUCT',
+                     'BYTES',
+                     'GEOGRAPHY',
+                     'INTERVAL',
+                     'JSON',
+                 ] as $unfilterableType) {
+            $columnName = 'col_' . strtolower($unfilterableType);
+            yield $unfilterableType . ' is not filterable' => [
+                [
+                    'columns' => [$columnName],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => $columnName,
+                                'operator' => Operator::eq,
+                                'values' => ['aaa'],
+                            ]),
+                        ],
+                    ]),
+                ],
+                sprintf(
+                    'Filtering by column "%s" of type "%s" is not supported by the backend "bigquery".',
+                    $columnName,
+                    $unfilterableType,
+                ),
+            ];
+        }
     }
 
     private function dropTable(string $databaseName, string $tableName): void
