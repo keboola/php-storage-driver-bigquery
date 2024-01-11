@@ -14,7 +14,7 @@ class RemoveTest extends BaseCase
     /**
      * @doesNotPerformAssertions
      */
-    public function testInitBackend(): void
+    public function testRemoveBackend(): void
     {
         $handler = new RemoveBackendHandler();
         $handler->setInternalLogger($this->log);
