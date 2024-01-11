@@ -139,11 +139,20 @@ resource "google_project_iam_member" "prj_service_acc_objAdm" {
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
-resource "google_service_account_key" "service_account" {
+resource "google_service_account_key" "key_principal" {
   service_account_id = google_service_account.service_account.name
 }
 
-resource "local_file" "service_account" {
-  content  = base64decode(google_service_account_key.service_account.private_key)
+resource "local_file" "key_principal" {
+  content  = base64decode(google_service_account_key.key_principal.private_key)
+  filename = "principal_key.json"
+}
+
+resource "google_service_account_key" "big_query_key" {
+  service_account_id = google_service_account.service_account.name
+}
+
+resource "local_file" "big_query_key" {
+  content  = base64decode(google_service_account_key.big_query_key.private_key)
   filename = "big_query_key.json"
 }

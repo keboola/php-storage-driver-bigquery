@@ -8,3 +8,4 @@ tests/generated/*
 phpunit-retry.xml
 .phpunit.result.cache
 /logs/
+terraform.tfvars
