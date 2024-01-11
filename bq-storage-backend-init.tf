@@ -42,40 +42,40 @@ variable services {
   ]
 }
 
-data "google_folder" "existing_folder" {
+data "google_folder" "folder" {
   folder = "folders/${var.folder_id}"
 }
 
-resource "google_project" "service_project_in_a_folder" {
+resource "google_project" "service_project" {
   name            = local.service_project_name
   project_id      = local.service_project_id
-  folder_id       = data.google_folder.existing_folder.folder_id
+  folder_id       = data.google_folder.folder.folder_id
   billing_account = var.billing_account_id
 }
 
 resource "google_project_service" "services" {
   for_each = toset(var.services)
-  project                    = google_project.service_project_in_a_folder.project_id
+  project                    = google_project.service_project.project_id
   service                    = each.key
   disable_dependent_services = false
   disable_on_destroy         = false
-  depends_on = [google_project.service_project_in_a_folder]
+  depends_on = [google_project.service_project]
 }
 
 resource "google_service_account" "service_account" {
   account_id = local.service_account_id
   description = "Service account to managing keboola backend projects"
-  project = google_project.service_project_in_a_folder.project_id
+  project = google_project.service_project.project_id
 }
 
 resource "google_folder_iam_member" "folder_service_acc_project_creator_role" {
-  folder  = data.google_folder.existing_folder.name
+  folder  = data.google_folder.folder.name
   role    = "roles/resourcemanager.projectCreator"
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 resource "google_folder_iam_member" "folder_service_acc_project_list_role" {
-  folder  = data.google_folder.existing_folder.name
+  folder  = data.google_folder.folder.name
   role    = "roles/browser"
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
@@ -88,12 +88,12 @@ resource "google_billing_account_iam_member" "billing_acc_binding" {
 }
 
 output "service_project_id" {
-  value = google_project.service_project_in_a_folder.project_id
+  value = google_project.service_project.project_id
 }
 
 resource "google_storage_bucket" "kbc_file_storage_backend" {
   name = "${var.backend_prefix}-files-bq-driver"
-  project = google_project.service_project_in_a_folder.project_id
+  project = google_project.service_project.project_id
   location = "US"
   storage_class = "STANDARD"
   force_destroy = true
@@ -128,13 +128,22 @@ output "file_storage_bucket_id" {
 }
 
 resource "google_project_iam_member" "prj_service_acc_owner" {
-  project = google_project.service_project_in_a_folder.project_id
+  project = google_project.service_project.project_id
   role    = "roles/owner"
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 resource "google_project_iam_member" "prj_service_acc_objAdm" {
-  project = google_project.service_project_in_a_folder.project_id
+  project = google_project.service_project.project_id
   role    = "roles/storage.objectAdmin"
   member  = "serviceAccount:${google_service_account.service_account.email}"
+}
+
+resource "google_service_account_key" "service_account" {
+  service_account_id = google_service_account.service_account.name
+}
+
+resource "local_file" "service_account" {
+  content  = base64decode(google_service_account_key.service_account.private_key)
+  filename = "big_query_key.json"
 }
