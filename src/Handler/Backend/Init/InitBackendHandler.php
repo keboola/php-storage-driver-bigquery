@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Backend\Init;
 use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
 use Google\Cloud\Iam\V1\Binding;
+use Google\Cloud\Iam\V1\Policy;
 use Google\Cloud\Iam\V1\TestIamPermissionsResponse;
 use Google\Protobuf\Internal\Message;
 use JsonException;
@@ -20,15 +21,7 @@ use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 final class InitBackendHandler extends BaseHandler
 {
     private const EXPECTED_PROJECT_ROLES = ['roles/owner', 'roles/storage.objectAdmin'];
-    private const EXPECTED_BILLING_ACCOUNT_PERMISSIONS = [
-        // roles/billing.user
-        'billing.accounts.get',
-        'billing.accounts.getIamPolicy',
-        'billing.accounts.list',
-        'billing.accounts.redeemPromotion',
-        'billing.credits.list',
-        'billing.resourceAssociations.create',
-    ];
+    private const EXPECTED_BILLING_ROLES = ['roles/billing.user'];
     private const EXPECTED_FOLDER_PERMISSIONS = [
         // roles/resourcemanager.projectCreator
         'resourcemanager.projects.create',
@@ -79,50 +72,64 @@ final class InitBackendHandler extends BaseHandler
         $foldersClient->getFolder($foldersClient::folderName($folderId));
 
         // check folder and permissions
+        // we can't use getIamPolicy we are missing resourcemanager.folders.getIamPolicy
         $folderName = $foldersClient::folderName($folderId);
         try {
             $folderPermissions = $foldersClient->testIamPermissions(
                 $folderName,
                 self::EXPECTED_FOLDER_PERMISSIONS,
             );
+        } catch (ApiException $e) {
+            throw new Exception(sprintf(
+                'Cannot get permissions for folder "%s" expected permission "%s" was not probably assigned. "%s"',
+                $folderName,
+                implode(', ', self::EXPECTED_FOLDER_PERMISSIONS),
+                $e->getReason()
+            ));
         } finally {
             $foldersClient->close();
         }
         $this->assertPermissions(self::EXPECTED_FOLDER_PERMISSIONS, $folderPermissions);
 
-        // check root project permissions
+        // check root project roles
         $projectsClient = $this->clientManager->getProjectClient($credentials);
         /** @var array<string, string> $principal */
         $principal = (array) json_decode($credentials->getPrincipal(), true, 512, JSON_THROW_ON_ERROR);
         $projectNameFormatted = $projectsClient::projectName($principal['project_id']);
 
         try {
-            $roles = $projectsClient->getIamPolicy($projectNameFormatted);
+            $policies = $projectsClient->getIamPolicy($projectNameFormatted);
+        } catch (ApiException $e) {
+            throw new Exception(sprintf(
+                'Cannot get roles for project "%s" expected roles "%s" was not probably assigned. "%s"',
+                $projectNameFormatted,
+                implode(', ', self::EXPECTED_PROJECT_ROLES),
+                $e->getReason()
+            ));
         } finally {
             $projectsClient->close();
         }
-        /** @var Binding[] $bindings */
-        $bindings = iterator_to_array($roles->getBindings());
-        $roles = array_map(
-            fn(Binding $b) => $b->getRole(),
-            $bindings
-        );
+        $roles = $this->getRolesFromPolicy($policies);
         $this->assertRoles(self::EXPECTED_PROJECT_ROLES, $roles);
 
-        // check billing account permissions
+        // check billing account roles
         $billingClient = $this->clientManager->getBillingClient($credentials);
         $billingInfo = $billingClient->getProjectBillingInfo($projectNameFormatted);
         $mainBillingAccount = $billingInfo->getBillingAccountName();
         try {
-            $billingPermissions = $billingClient->testIamPermissions(
+            $policies = $billingClient->getIamPolicy($mainBillingAccount);
+        } catch (ApiException $e) {
+            throw new Exception(sprintf(
+                'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
                 $mainBillingAccount,
-                self::EXPECTED_BILLING_ACCOUNT_PERMISSIONS,
-            );
+                implode(', ', self::EXPECTED_BILLING_ROLES),
+                $e->getReason()
+            ));
         } finally {
             $billingClient->close();
         }
-
-        $this->assertPermissions(self::EXPECTED_BILLING_ACCOUNT_PERMISSIONS, $billingPermissions);
+        $roles = $this->getRolesFromPolicy($policies);
+        $this->assertRoles(self::EXPECTED_BILLING_ROLES, $roles);
 
         return new InitBackendResponse();
     }
@@ -146,7 +153,6 @@ final class InitBackendHandler extends BaseHandler
         }
     }
 
-
     /**
      * @param string[] $expectedRoles
      * @param string[] $roles
@@ -165,5 +171,18 @@ final class InitBackendHandler extends BaseHandler
                 implode(', ', $missingRoles),
             ));
         }
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getRolesFromPolicy(Policy $policies): array
+    {
+        /** @var Binding[] $bindings */
+        $bindings = iterator_to_array($policies->getBindings());
+        return array_map(
+            fn(Binding $b) => $b->getRole(),
+            $bindings
+        );
     }
 }
