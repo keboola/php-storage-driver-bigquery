@@ -84,7 +84,7 @@ final class InitBackendHandler extends BaseHandler
                 'Cannot get permissions for folder "%s" expected permission "%s" was not probably assigned. "%s"',
                 $folderName,
                 implode(', ', self::EXPECTED_FOLDER_PERMISSIONS),
-                $e->getReason()
+                $e->getReason(),
             ));
         } finally {
             $foldersClient->close();
@@ -104,7 +104,7 @@ final class InitBackendHandler extends BaseHandler
                 'Cannot get roles for project "%s" expected roles "%s" was not probably assigned. "%s"',
                 $projectNameFormatted,
                 implode(', ', self::EXPECTED_PROJECT_ROLES),
-                $e->getReason()
+                $e->getReason(),
             ));
         } finally {
             $projectsClient->close();
@@ -123,7 +123,7 @@ final class InitBackendHandler extends BaseHandler
                 'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
                 $mainBillingAccount,
                 implode(', ', self::EXPECTED_BILLING_ROLES),
-                $e->getReason()
+                $e->getReason(),
             ));
         } finally {
             $billingClient->close();
@@ -182,7 +182,7 @@ final class InitBackendHandler extends BaseHandler
         $bindings = iterator_to_array($policies->getBindings());
         return array_map(
             fn(Binding $b) => $b->getRole(),
-            $bindings
+            $bindings,
         );
     }
 }
