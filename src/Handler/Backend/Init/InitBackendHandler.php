@@ -143,7 +143,7 @@ final class InitBackendHandler extends BaseHandler
             try {
                 $policies = $billingClient->getIamPolicy($mainBillingAccount);
             } catch (ApiException $e) {
-                throw new Exception(sprintf(
+                $exceptions[] = new Exception(sprintf(
                     'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
                     $mainBillingAccount,
                     implode(', ', self::EXPECTED_BILLING_ROLES),
