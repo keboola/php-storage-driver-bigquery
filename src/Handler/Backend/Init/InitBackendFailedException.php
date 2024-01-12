@@ -19,7 +19,7 @@ class InitBackendFailedException extends Exception implements NonRetryableExcept
     }
 
     /**
-     * @param Throwable[] $exceptions
+     * @param InitExceptionDTO[] $exceptions
      * @throws self
      */
     public static function handleExceptions(array $exceptions): void
@@ -34,7 +34,7 @@ class InitBackendFailedException extends Exception implements NonRetryableExcept
 EOD,
             implode(
                 PHP_EOL,
-                array_map(fn(Throwable $e) => $e->getMessage(), $exceptions),
+                array_map(fn(InitExceptionDTO $e) => $e->getMessage(), $exceptions),
             ),
         ));
     }

@@ -70,6 +70,7 @@ final class InitBackendHandler extends BaseHandler
             throw new Exception('BigQueryCredentialsMeta is required.');
         }
 
+        /** @var InitExceptionDTO[] $exceptions */
         $exceptions = [];
 
         $foldersClient = $this->clientManager->getFoldersClient($credentials);
@@ -77,11 +78,13 @@ final class InitBackendHandler extends BaseHandler
         try {
             $foldersClient->getFolder($folderName);
         } catch (ApiException $e) {
-            $exceptions[] = new Exception(sprintf(
-                'Cannot fetch folder "%s" detail. "%s"',
-                $folderName,
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Cannot fetch folder "%s" detail.',
+                    $folderName,
+                ),
                 $e->getReason(),
-            ));
+            );
         }
 
         // check folder and permissions
@@ -93,12 +96,14 @@ final class InitBackendHandler extends BaseHandler
                 self::EXPECTED_FOLDER_PERMISSIONS,
             );
         } catch (ApiException $e) {
-            $exceptions[] = new Exception(sprintf(
-                'Cannot get permissions for folder "%s" expected permission "%s" was not probably assigned. "%s"',
-                $folderName,
-                implode(', ', self::EXPECTED_FOLDER_PERMISSIONS),
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Cannot get permissions for folder "%s" expected permission "%s" was not probably assigned.',
+                    $folderName,
+                    implode(', ', self::EXPECTED_FOLDER_PERMISSIONS),
+                ),
                 $e->getReason(),
-            ));
+            );
         } finally {
             $foldersClient->close();
         }
@@ -114,12 +119,14 @@ final class InitBackendHandler extends BaseHandler
         try {
             $policies = $projectsClient->getIamPolicy($projectNameFormatted);
         } catch (ApiException $e) {
-            $exceptions[] = new Exception(sprintf(
-                'Cannot get roles for project "%s" expected roles "%s" was not probably assigned. "%s"',
-                $projectNameFormatted,
-                implode(', ', self::EXPECTED_PROJECT_ROLES),
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Cannot get roles for project "%s" expected roles "%s" was not probably assigned.',
+                    $projectNameFormatted,
+                    implode(', ', self::EXPECTED_PROJECT_ROLES),
+                ),
                 $e->getReason(),
-            ));
+            );
         } finally {
             $projectsClient->close();
         }
@@ -132,23 +139,27 @@ final class InitBackendHandler extends BaseHandler
         try {
             $billingInfo = $billingClient->getProjectBillingInfo($projectNameFormatted);
         } catch (ApiException $e) {
-            $exceptions[] = new Exception(sprintf(
-                'Cannot fetch project "%s" billing info. "%s"',
-                $projectNameFormatted,
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Cannot fetch project "%s" billing info.',
+                    $projectNameFormatted,
+                ),
                 $e->getReason(),
-            ));
+            );
         }
         if ($billingInfo !== null) {
             $mainBillingAccount = $billingInfo->getBillingAccountName();
             try {
                 $policies = $billingClient->getIamPolicy($mainBillingAccount);
             } catch (ApiException $e) {
-                $exceptions[] = new Exception(sprintf(
-                    'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
-                    $mainBillingAccount,
-                    implode(', ', self::EXPECTED_BILLING_ROLES),
+                $exceptions[] = new InitExceptionDTO(
+                    sprintf(
+                        'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned.',
+                        $mainBillingAccount,
+                        implode(', ', self::EXPECTED_BILLING_ROLES),
+                    ),
                     $e->getReason(),
-                ));
+                );
             } finally {
                 $billingClient->close();
             }
@@ -163,7 +174,7 @@ final class InitBackendHandler extends BaseHandler
 
     /**
      * @param string[] $expectedPermissions
-     * @param Throwable[] $exceptions
+     * @param InitExceptionDTO[] $exceptions
      */
     private function assertPermissions(
         array &$exceptions,
@@ -180,17 +191,20 @@ final class InitBackendHandler extends BaseHandler
         }
 
         if (count($missingPermissions) !== 0) {
-            $exceptions[] = new Exception(sprintf(
-                'Missing permissions "%s" for service account.',
-                implode(', ', $missingPermissions),
-            ));
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Missing permissions "%s" for service account.',
+                    implode(', ', $missingPermissions),
+                ),
+                null,
+            );
         }
     }
 
     /**
      * @param string[] $expectedRoles
      * @param string[] $roles
-     * @param Throwable[] $exceptions
+     * @param InitExceptionDTO[] $exceptions
      */
     private function assertRoles(array &$exceptions, array $expectedRoles, array $roles): void
     {
@@ -200,10 +214,13 @@ final class InitBackendHandler extends BaseHandler
         );
 
         if (count($missingRoles) !== 0) {
-            $exceptions[] = new Exception(sprintf(
-                'Missing roles "%s" for service account.',
-                implode(', ', $missingRoles),
-            ));
+            $exceptions[] = new InitExceptionDTO(
+                sprintf(
+                    'Missing roles "%s" for service account.',
+                    implode(', ', $missingRoles),
+                ),
+                null,
+            );
         }
     }
 
