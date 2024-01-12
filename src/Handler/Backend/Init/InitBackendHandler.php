@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\InitBackendResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
+use Throwable;
 
 final class InitBackendHandler extends BaseHandler
 {
@@ -68,19 +69,31 @@ final class InitBackendHandler extends BaseHandler
         } else {
             throw new Exception('BigQueryCredentialsMeta is required.');
         }
+
+        $exceptions = [];
+
         $foldersClient = $this->clientManager->getFoldersClient($credentials);
-        $foldersClient->getFolder($foldersClient::folderName($folderId));
+        $folderName = $foldersClient::folderName($folderId);
+        try {
+            $foldersClient->getFolder($folderName);
+        } catch (ApiException $e) {
+            $exceptions[] = new Exception(sprintf(
+                'Cannot fetch folder "%s" detail. "%s"',
+                $folderName,
+                $e->getReason(),
+            ));
+        }
 
         // check folder and permissions
         // we can't use getIamPolicy we are missing resourcemanager.folders.getIamPolicy
-        $folderName = $foldersClient::folderName($folderId);
+        $folderPermissions = null;
         try {
             $folderPermissions = $foldersClient->testIamPermissions(
                 $folderName,
                 self::EXPECTED_FOLDER_PERMISSIONS,
             );
         } catch (ApiException $e) {
-            throw new Exception(sprintf(
+            $exceptions[] = new Exception(sprintf(
                 'Cannot get permissions for folder "%s" expected permission "%s" was not probably assigned. "%s"',
                 $folderName,
                 implode(', ', self::EXPECTED_FOLDER_PERMISSIONS),
@@ -89,7 +102,7 @@ final class InitBackendHandler extends BaseHandler
         } finally {
             $foldersClient->close();
         }
-        $this->assertPermissions(self::EXPECTED_FOLDER_PERMISSIONS, $folderPermissions);
+        $this->assertPermissions($exceptions, self::EXPECTED_FOLDER_PERMISSIONS, $folderPermissions);
 
         // check root project roles
         $projectsClient = $this->clientManager->getProjectClient($credentials);
@@ -97,10 +110,11 @@ final class InitBackendHandler extends BaseHandler
         $principal = (array) json_decode($credentials->getPrincipal(), true, 512, JSON_THROW_ON_ERROR);
         $projectNameFormatted = $projectsClient::projectName($principal['project_id']);
 
+        $policies = null;
         try {
             $policies = $projectsClient->getIamPolicy($projectNameFormatted);
         } catch (ApiException $e) {
-            throw new Exception(sprintf(
+            $exceptions[] = new Exception(sprintf(
                 'Cannot get roles for project "%s" expected roles "%s" was not probably assigned. "%s"',
                 $projectNameFormatted,
                 implode(', ', self::EXPECTED_PROJECT_ROLES),
@@ -110,43 +124,63 @@ final class InitBackendHandler extends BaseHandler
             $projectsClient->close();
         }
         $roles = $this->getRolesFromPolicy($policies);
-        $this->assertRoles(self::EXPECTED_PROJECT_ROLES, $roles);
+        $this->assertRoles($exceptions, self::EXPECTED_PROJECT_ROLES, $roles);
 
         // check billing account roles
         $billingClient = $this->clientManager->getBillingClient($credentials);
-        $billingInfo = $billingClient->getProjectBillingInfo($projectNameFormatted);
-        $mainBillingAccount = $billingInfo->getBillingAccountName();
+        $billingInfo = null;
         try {
-            $policies = $billingClient->getIamPolicy($mainBillingAccount);
+            $billingInfo = $billingClient->getProjectBillingInfo($projectNameFormatted);
         } catch (ApiException $e) {
-            throw new Exception(sprintf(
-                'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
-                $mainBillingAccount,
-                implode(', ', self::EXPECTED_BILLING_ROLES),
+            $exceptions[] = new Exception(sprintf(
+                'Cannot fetch project "%s" billing info. "%s"',
+                $projectNameFormatted,
                 $e->getReason(),
             ));
-        } finally {
-            $billingClient->close();
         }
-        $roles = $this->getRolesFromPolicy($policies);
-        $this->assertRoles(self::EXPECTED_BILLING_ROLES, $roles);
+        if ($billingInfo !== null) {
+            $mainBillingAccount = $billingInfo->getBillingAccountName();
+            try {
+                $policies = $billingClient->getIamPolicy($mainBillingAccount);
+            } catch (ApiException $e) {
+                throw new Exception(sprintf(
+                    'Cannot get roles for billing account "%s" expected roles "%s" was not probably assigned. "%s"',
+                    $mainBillingAccount,
+                    implode(', ', self::EXPECTED_BILLING_ROLES),
+                    $e->getReason(),
+                ));
+            } finally {
+                $billingClient->close();
+            }
+            $roles = $this->getRolesFromPolicy($policies);
+            $this->assertRoles($exceptions, self::EXPECTED_BILLING_ROLES, $roles);
+        }
+
+        InitBackendFailedException::handleExceptions($exceptions);
 
         return new InitBackendResponse();
     }
 
     /**
      * @param string[] $expectedPermissions
-     * @throws Exception
+     * @param Throwable[] $exceptions
      */
-    private function assertPermissions(array $expectedPermissions, TestIamPermissionsResponse $billingPermissions): void
-    {
-        $missingPermissions = array_diff(
-            $expectedPermissions,
-            iterator_to_array($billingPermissions->getPermissions()),
-        );
+    private function assertPermissions(
+        array &$exceptions,
+        array $expectedPermissions,
+        TestIamPermissionsResponse|null $billingPermissions,
+    ): void {
+        if ($billingPermissions === null) {
+            $missingPermissions = $expectedPermissions;
+        } else {
+            $missingPermissions = array_diff(
+                $expectedPermissions,
+                iterator_to_array($billingPermissions->getPermissions()),
+            );
+        }
 
         if (count($missingPermissions) !== 0) {
-            throw new Exception(sprintf(
+            $exceptions[] = new Exception(sprintf(
                 'Missing permissions "%s" for service account.',
                 implode(', ', $missingPermissions),
             ));
@@ -156,9 +190,9 @@ final class InitBackendHandler extends BaseHandler
     /**
      * @param string[] $expectedRoles
      * @param string[] $roles
-     * @throws Exception
+     * @param Throwable[] $exceptions
      */
-    private function assertRoles(array $expectedRoles, array $roles): void
+    private function assertRoles(array &$exceptions, array $expectedRoles, array $roles): void
     {
         $missingRoles = array_diff(
             $expectedRoles,
@@ -166,7 +200,7 @@ final class InitBackendHandler extends BaseHandler
         );
 
         if (count($missingRoles) !== 0) {
-            throw new Exception(sprintf(
+            $exceptions[] = new Exception(sprintf(
                 'Missing roles "%s" for service account.',
                 implode(', ', $missingRoles),
             ));
@@ -176,8 +210,11 @@ final class InitBackendHandler extends BaseHandler
     /**
      * @return string[]
      */
-    private function getRolesFromPolicy(Policy $policies): array
+    private function getRolesFromPolicy(Policy|null $policies): array
     {
+        if ($policies === null) {
+            return [];
+        }
         /** @var Binding[] $bindings */
         $bindings = iterator_to_array($policies->getBindings());
         return array_map(
