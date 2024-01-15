@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
+use Generator;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -695,7 +696,16 @@ class ImportTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(): void
+    public function importTypeProvide(): Generator
+    {
+        yield 'full' => [ImportOptions\ImportType::FULL];
+        yield 'incremental' => [ImportOptions\ImportType::INCREMENTAL];
+    }
+
+    /**
+     * @dataProvider importTypeProvide
+     */
+    public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -784,7 +794,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType($importType)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
