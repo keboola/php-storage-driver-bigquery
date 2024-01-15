@@ -726,7 +726,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         foreach ([['1', 'too expensive'], ['2', 'cheap'], ['3', 'way too expensive']] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
-                $quotedValues[] = is_null($item) ? 'null' : BigqueryQuote::quote($item);
+                $quotedValues[] = BigqueryQuote::quote($item);
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
@@ -803,7 +803,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
             );
             $this->fail('should fail because of columns mismatch');
         } catch (ColumnMismatchException $e) {
-            $this->assertSame('Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"', $e->getMessage());
+            $this->assertSame(
+                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
+                $e->getMessage(),
+            );
         }
     }
 }
