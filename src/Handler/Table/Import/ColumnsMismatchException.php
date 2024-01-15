@@ -8,7 +8,7 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class ColumnMismatchException extends Exception implements NonRetryableExceptionInterface
+class ColumnsMismatchException extends Exception implements NonRetryableExceptionInterface
 {
     public function __construct(string $message, int $code = self::ERR_VALIDATION, ?Throwable $previous = null)
     {

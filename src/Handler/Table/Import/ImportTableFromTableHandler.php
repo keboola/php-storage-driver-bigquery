@@ -24,6 +24,7 @@ use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
@@ -213,7 +214,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                     $importOptions,
                 );
             } catch (ColumnsMismatchException $e) {
-                throw new ColumnMismatchException($e->getMessage());
+                throw new DriverColumnsMismatchException($e->getMessage());
             }
             return [null, $importState->getResult()];
         }
@@ -228,7 +229,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $importOptions,
             );
         } catch (ColumnsMismatchException $e) {
-            throw new ColumnMismatchException($e->getMessage());
+            throw new DriverColumnsMismatchException($e->getMessage());
         } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;

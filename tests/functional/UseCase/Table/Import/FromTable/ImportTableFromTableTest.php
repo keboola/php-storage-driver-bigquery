@@ -13,7 +13,7 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
@@ -812,7 +812,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('should fail because of columns mismatch');
-        } catch (ColumnMismatchException $e) {
+        } catch (ColumnsMismatchException $e) {
             $this->assertSame(
                 'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
                 $e->getMessage(),
