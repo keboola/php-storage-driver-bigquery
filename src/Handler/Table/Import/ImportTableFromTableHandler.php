@@ -227,6 +227,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable,
                 $importOptions,
             );
+        } catch (ColumnsMismatchException $e) {
+            throw new ColumnMismatchException($e->getMessage());
         } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
