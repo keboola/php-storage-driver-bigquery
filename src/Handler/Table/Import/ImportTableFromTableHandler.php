@@ -17,6 +17,7 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -205,11 +206,15 @@ final class ImportTableFromTableHandler extends BaseHandler
             // this will skip moving data to stage table
             // this is used on full load into workspace where data are deduplicated already
             $toStageImporter = new ToStageImporter($bqClient);
-            $importState = $toStageImporter->importToStagingTable(
-                $source,
-                $destinationDefinition,
-                $importOptions,
-            );
+            try {
+                $importState = $toStageImporter->importToStagingTable(
+                    $source,
+                    $destinationDefinition,
+                    $importOptions,
+                );
+            } catch (ColumnsMismatchException $e) {
+                throw new ColumnMismatchException($e->getMessage());
+            }
             return [null, $importState->getResult()];
         }
 
