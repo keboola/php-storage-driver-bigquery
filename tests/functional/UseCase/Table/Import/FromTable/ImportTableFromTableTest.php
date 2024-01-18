@@ -732,7 +732,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
         $bqClient->runQuery($bqClient->query($sql));
         $insert = [];
-        // data in source table have nulls -> should fail, because we are trying to fit null value in to required field
         foreach ([['1', 'too expensive'], ['2', 'cheap'], ['3', 'way too expensive']] as $i) {
             $quotedValues = [];
             foreach ($i as $item) {
