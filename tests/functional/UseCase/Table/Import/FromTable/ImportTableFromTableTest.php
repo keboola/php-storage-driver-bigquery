@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
+use Generator;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -12,10 +13,12 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
@@ -28,6 +31,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use LogicException;
 use Throwable;
 
 /**
@@ -689,6 +693,129 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $bqClient->runQuery($bqClient->query(
                 $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
             ));
+        }
+    }
+
+    public function importTypeProvide(): Generator
+    {
+        yield 'full' => [ImportOptions\ImportType::FULL];
+        yield 'incremental' => [ImportOptions\ImportType::INCREMENTAL];
+    }
+
+    /**
+     * @dataProvider importTypeProvide
+     */
+    public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(int $importType): void
+    {
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // create tables
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('price'),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
+        foreach ([['1', 'too expensive'], ['2', 'cheap'], ['3', 'way too expensive']] as $i) {
+            $quotedValues = [];
+            foreach ($i as $item) {
+                $quotedValues[] = BigqueryQuote::quote($item);
+            }
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
+        }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert),
+        )));
+
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                new BigqueryColumn('price', new Bigquery(
+                    Bigquery::TYPE_NUMERIC,
+                )),
+            ]),
+            [],
+        );
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('id')
+            ->setDestinationColumnName('id');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('price')
+            ->setDestinationColumnName('price');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportType($importType)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(0)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('should fail because of columns mismatch');
+        } catch (ColumnsMismatchException $e) {
+            $this->assertSame(
+                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
+                $e->getMessage(),
+            );
         }
     }
 }

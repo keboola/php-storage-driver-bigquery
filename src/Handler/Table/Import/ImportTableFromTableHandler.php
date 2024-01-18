@@ -17,12 +17,14 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
@@ -205,11 +207,15 @@ final class ImportTableFromTableHandler extends BaseHandler
             // this will skip moving data to stage table
             // this is used on full load into workspace where data are deduplicated already
             $toStageImporter = new ToStageImporter($bqClient);
-            $importState = $toStageImporter->importToStagingTable(
-                $source,
-                $destinationDefinition,
-                $importOptions,
-            );
+            try {
+                $importState = $toStageImporter->importToStagingTable(
+                    $source,
+                    $destinationDefinition,
+                    $importOptions,
+                );
+            } catch (ColumnsMismatchException $e) {
+                throw new DriverColumnsMismatchException($e->getMessage());
+            }
             return [null, $importState->getResult()];
         }
 
@@ -222,6 +228,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable,
                 $importOptions,
             );
+        } catch (ColumnsMismatchException $e) {
+            throw new DriverColumnsMismatchException($e->getMessage());
         } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
