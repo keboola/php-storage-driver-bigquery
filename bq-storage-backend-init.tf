@@ -23,6 +23,10 @@ variable "billing_account_id" {
   type = string
 }
 
+variable "file_storage_backend_region" {
+  type = string
+}
+
 locals {
   backend_folder_display_name = "${var.backend_prefix}-bq-driver-folder"
   service_project_name = "main-${var.backend_prefix}-bq-driver"
@@ -94,7 +98,7 @@ output "service_project_id" {
 resource "google_storage_bucket" "kbc_file_storage_backend" {
   name = "${var.backend_prefix}-files-bq-driver"
   project = google_project.service_project.project_id
-  location = "US"
+  location = var.file_storage_backend_region
   storage_class = "STANDARD"
   force_destroy = true
   public_access_prevention = "enforced"
