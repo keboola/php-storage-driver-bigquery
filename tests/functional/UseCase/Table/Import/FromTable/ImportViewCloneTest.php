@@ -445,7 +445,7 @@ class ImportViewCloneTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         /** @var ShareBucketResponse $result */
@@ -476,7 +476,7 @@ class ImportViewCloneTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $handler(

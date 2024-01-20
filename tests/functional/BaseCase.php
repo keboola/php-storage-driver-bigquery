@@ -48,6 +48,8 @@ class BaseCase extends TestCase
 {
     use RetryTrait;
 
+    public const DEFAULT_LOCATION = 'US';
+
     protected string $testRunId;
 
     /**
@@ -193,7 +195,7 @@ class BaseCase extends TestCase
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
                 ->setGcsFileBucketName((string) getenv('BQ_BUCKET_NAME'))
-                ->setRegion('us'),
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
         );
 
         $command->setStackPrefix($this->getStackPrefix());
@@ -365,7 +367,7 @@ class BaseCase extends TestCase
 
         $meta = new Any();
         $meta->pack((new CreateBucketCommand\CreateBucketBigqueryMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
 
@@ -495,7 +497,7 @@ class BaseCase extends TestCase
 
         $meta = new Any();
         $meta->pack((new CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $response = $handler(

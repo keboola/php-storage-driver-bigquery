@@ -74,7 +74,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion('us'),
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
         );
         $command->setMeta($meta);
 
@@ -132,7 +132,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion('us'),
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
         );
         $command->setMeta($meta);
         try {
@@ -316,7 +316,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion('us'),
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
         );
         $command->setMeta($meta);
 
@@ -366,7 +366,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
     private function prepareExternalBucketForRegistration(
         AnalyticsHubServiceClient $externalAnalyticHubClient,
         string $bucketDatabaseName,
-        string $location = GCPClientManager::DEFAULT_LOCATION,
+        string $location = BaseCase::DEFAULT_LOCATION,
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];

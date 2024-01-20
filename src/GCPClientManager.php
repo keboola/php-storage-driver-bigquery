@@ -43,7 +43,6 @@ class GCPClientManager
         52 => Runner::TASK_RETRY_ALWAYS,  // CURLE_GOT_NOTHING
         'lighthouseError' => Runner::TASK_RETRY_NEVER,
     ];
-    public const DEFAULT_LOCATION = 'US';
     public const SCOPES_CLOUD_PLATFORM = 'https://www.googleapis.com/auth/cloud-platform';
 
     /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */

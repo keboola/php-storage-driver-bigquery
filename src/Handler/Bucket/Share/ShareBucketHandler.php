@@ -13,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Throwable;
 
 final class ShareBucketHandler extends BaseHandler
@@ -77,7 +78,7 @@ final class ShareBucketHandler extends BaseHandler
 
         $formattedParent = $analyticHubClient::dataExchangeName(
             $projectStringId,
-            GCPClientManager::DEFAULT_LOCATION,
+            $region,
             $dataExchangeId,
         );
         // we are using bucketId which is integer id of bucket in connection

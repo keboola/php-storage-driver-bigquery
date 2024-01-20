@@ -116,7 +116,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $result = $handler(
@@ -148,7 +148,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         // root credentials and creating grants
@@ -239,7 +239,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $handler(
@@ -253,7 +253,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
-            GCPClientManager::DEFAULT_LOCATION,
+            BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
             '1234',
         );
@@ -304,7 +304,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $handler(
@@ -345,7 +345,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
-            GCPClientManager::DEFAULT_LOCATION,
+            BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
             '12345',
         );
@@ -372,7 +372,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $meta = new Any();
         $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            'us',
+            BaseCase::DEFAULT_LOCATION,
         ));
         $command->setMeta($meta);
         $handler(
