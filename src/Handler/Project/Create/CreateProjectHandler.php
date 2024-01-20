@@ -89,6 +89,7 @@ final class CreateProjectHandler extends BaseHandler
             $commandMeta = $commandMeta->unpack();
             assert($commandMeta instanceof CreateProjectCommand\CreateProjectBigqueryMeta);
             $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
+            $region = $commandMeta->getRegion();
         } else {
             throw new Exception('CreateProjectBigqueryMeta is required.');
         }
@@ -146,8 +147,7 @@ final class CreateProjectHandler extends BaseHandler
         [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($projectServiceAccount);
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
-        $location = GCPClientManager::DEFAULT_LOCATION;
-        $formattedParent = $analyticHubClient::locationName($projectCreateResult->getProjectId(), $location);
+        $formattedParent = $analyticHubClient::locationName($projectCreateResult->getProjectId(), $region);
 
         $dataExchangeId = $nameGenerator->createDataExchangeId($command->getProjectId());
         $dataExchange = new DataExchange();

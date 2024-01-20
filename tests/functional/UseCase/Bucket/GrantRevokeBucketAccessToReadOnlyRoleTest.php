@@ -10,6 +10,7 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Cloud\Iam\V1\Binding;
+use Google\Protobuf\Any;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
@@ -70,6 +71,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
 
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion('us'),
+        );
+        $command->setMeta($meta);
+
         try {
             $handler(
                 $this->mainProjectCredentials,
@@ -121,6 +129,12 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion('us'),
+        );
+        $command->setMeta($meta);
         try {
             $handler(
                 $this->mainProjectCredentials,
@@ -298,6 +312,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
+
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion('us'),
+        );
+        $command->setMeta($meta);
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 

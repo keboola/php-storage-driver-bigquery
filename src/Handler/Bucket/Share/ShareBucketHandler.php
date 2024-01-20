@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Share;
 
+use Exception;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
@@ -60,6 +61,15 @@ final class ShareBucketHandler extends BaseHandler
             'ShareBucketCommand.sourceBucketObjectName cannot contain "/"',
         );
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('ShareBucketBigqueryCommandMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof ShareBucketCommand\ShareBucketBigqueryCommandMeta);
+        $region = $commandMeta->getRegion();
+
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $projectStringId = $command->getSourceProjectId();
 
@@ -84,7 +94,7 @@ final class ShareBucketHandler extends BaseHandler
 
         $listingName = $analyticHubClient::listingName(
             $projectStringId,
-            GCPClientManager::DEFAULT_LOCATION,
+            $region,
             $dataExchangeId,
             $listingId,
         );

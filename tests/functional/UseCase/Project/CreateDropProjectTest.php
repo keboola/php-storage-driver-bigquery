@@ -55,9 +55,11 @@ class CreateDropProjectTest extends BaseCase
 
         $meta = new Any();
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
-        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName,
-        ));
+        $meta->pack(
+            (new CreateProjectCommand\CreateProjectBigqueryMeta())
+                ->setGcsFileBucketName($fileStorageBucketName)
+            ->setRegion('us'),
+        );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
         $command->setMeta($meta);
@@ -161,9 +163,11 @@ class CreateDropProjectTest extends BaseCase
         $handler->setInternalLogger($this->log);
 
         $meta = new Any();
-        $meta->pack((new DropProjectCommand\DropProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName,
-        ));
+        $meta->pack(
+            (new DropProjectCommand\DropProjectBigqueryMeta())
+                ->setGcsFileBucketName($fileStorageBucketName,)
+                ->setRegion('us'),
+        );
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
             ->setReadOnlyRoleName($response->getProjectReadOnlyRoleName())

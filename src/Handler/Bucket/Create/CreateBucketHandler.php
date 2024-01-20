@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
+use Exception;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -36,6 +37,15 @@ final class CreateBucketHandler extends BaseHandler
         assert($command instanceof CreateBucketCommand);
         assert($runtimeOptions->getMeta() === null);
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('CreateBucketBigqueryMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof CreateBucketCommand\CreateBucketBigqueryMeta);
+        $region = $commandMeta->getRegion();
+
         $nameGenerator = new NameGenerator($command->getStackPrefix());
 
         $newBucketDatabaseName = $nameGenerator->createObjectNameForBucketInProject(
@@ -45,7 +55,12 @@ final class CreateBucketHandler extends BaseHandler
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
-        $bigQueryClient->createDataset($newBucketDatabaseName);
+        $bigQueryClient->createDataset(
+            $newBucketDatabaseName,
+            [
+                'location' => $region,
+            ],
+        );
 
         return (new CreateBucketResponse())->setCreateBucketObjectName($newBucketDatabaseName);
     }
