@@ -46,6 +46,7 @@ final class DropProjectHandler extends BaseHandler
         $commandMeta = $commandMeta->unpack();
         assert($commandMeta instanceof DropProjectCommand\DropProjectBigqueryMeta);
         $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
+        $region = $commandMeta->getRegion();
 
         /** @var array<string, string>|false $publicPartKeyFile */
         $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
@@ -88,9 +89,8 @@ final class DropProjectHandler extends BaseHandler
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
 
-        $location = GCPClientManager::DEFAULT_LOCATION;
         $dataExchangeId = $command->getReadOnlyRoleName();
-        $formattedName = $analyticHubClient::dataExchangeName($projectId, $location, $dataExchangeId);
+        $formattedName = $analyticHubClient::dataExchangeName($projectId, $region, $dataExchangeId);
         $analyticHubClient->deleteDataExchange($formattedName);
 
         $formattedName = $projectsClient::projectName($projectId);

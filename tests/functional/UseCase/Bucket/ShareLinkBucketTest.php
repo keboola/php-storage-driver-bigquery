@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\ApiCore\ApiException;
 use Google\Cloud\Core\Exception\BadRequestException;
+use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
@@ -113,6 +114,11 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceBucketId('123456')
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
+        $meta = new Any();
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         $result = $handler(
             $this->getCredentials(),
             $command,
@@ -140,6 +146,11 @@ class ShareLinkBucketTest extends BaseCase
             ->setTargetBucketId($linkedBucketSchemaName)
             ->setSourceShareRoleName($listing); // listing
 
+        $meta = new Any();
+        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         // root credentials and creating grants
         $result = $handler(
             $this->getCredentials(),
@@ -226,6 +237,11 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceBucketId('1234')
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
+        $meta = new Any();
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
             $command,
@@ -237,7 +253,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
-            GCPClientManager::DEFAULT_LOCATION,
+            BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
             '1234',
         );
@@ -286,6 +302,11 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceBucketId('12345')
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
+        $meta = new Any();
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
             $command,
@@ -324,7 +345,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $formattedName = $analyticHubClient::listingName(
             $sourceProjectId,
-            GCPClientManager::DEFAULT_LOCATION,
+            BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
             '12345',
         );
@@ -349,6 +370,11 @@ class ShareLinkBucketTest extends BaseCase
             ->setTargetBucketId($linkedBucketSchemaName)
             ->setSourceShareRoleName($listing->getName()); // listing
 
+        $meta = new Any();
+        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
             $command,

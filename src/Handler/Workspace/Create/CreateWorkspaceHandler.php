@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
+use Exception;
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
@@ -66,6 +67,15 @@ final class CreateWorkspaceHandler extends BaseHandler
             'CreateWorkspaceCommand.projectReadOnlyRoleName is required',
         );
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('CreateWorkspaceBigqueryMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta);
+        $region = $commandMeta->getRegion();
+
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 
@@ -114,6 +124,7 @@ final class CreateWorkspaceHandler extends BaseHandler
                 'role' => IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
                 'userByEmail' => $wsServiceAcc->getEmail(),
             ],
+            'location' => $region,
         ]);
 
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc

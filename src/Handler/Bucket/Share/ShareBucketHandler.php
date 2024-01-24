@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Share;
 
+use Exception;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
@@ -12,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Throwable;
 
 final class ShareBucketHandler extends BaseHandler
@@ -60,6 +62,15 @@ final class ShareBucketHandler extends BaseHandler
             'ShareBucketCommand.sourceBucketObjectName cannot contain "/"',
         );
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('ShareBucketBigqueryCommandMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof ShareBucketCommand\ShareBucketBigqueryCommandMeta);
+        $region = $commandMeta->getRegion();
+
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $projectStringId = $command->getSourceProjectId();
 
@@ -67,7 +78,7 @@ final class ShareBucketHandler extends BaseHandler
 
         $formattedParent = $analyticHubClient::dataExchangeName(
             $projectStringId,
-            GCPClientManager::DEFAULT_LOCATION,
+            $region,
             $dataExchangeId,
         );
         // we are using bucketId which is integer id of bucket in connection
@@ -84,7 +95,7 @@ final class ShareBucketHandler extends BaseHandler
 
         $listingName = $analyticHubClient::listingName(
             $projectStringId,
-            GCPClientManager::DEFAULT_LOCATION,
+            $region,
             $dataExchangeId,
             $listingId,
         );

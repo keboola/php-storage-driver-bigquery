@@ -8,7 +8,6 @@ use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
-use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
@@ -55,9 +54,11 @@ class CreateDropProjectTest extends BaseCase
 
         $meta = new Any();
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
-        $meta->pack((new CreateProjectCommand\CreateProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName,
-        ));
+        $meta->pack(
+            (new CreateProjectCommand\CreateProjectBigqueryMeta())
+                ->setGcsFileBucketName($fileStorageBucketName)
+            ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
         $command->setMeta($meta);
@@ -137,7 +138,7 @@ class CreateDropProjectTest extends BaseCase
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
-        $location = GCPClientManager::DEFAULT_LOCATION;
+        $location = BaseCase::DEFAULT_LOCATION;
         $dataExchangeId = $response->getProjectReadOnlyRoleName();
         $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
         $readOnlyExchanger = $analyticHubClient->getDataExchange($formattedName);
@@ -161,9 +162,11 @@ class CreateDropProjectTest extends BaseCase
         $handler->setInternalLogger($this->log);
 
         $meta = new Any();
-        $meta->pack((new DropProjectCommand\DropProjectBigqueryMeta())->setGcsFileBucketName(
-            $fileStorageBucketName,
-        ));
+        $meta->pack(
+            (new DropProjectCommand\DropProjectBigqueryMeta())
+                ->setGcsFileBucketName($fileStorageBucketName,)
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
             ->setReadOnlyRoleName($response->getProjectReadOnlyRoleName())

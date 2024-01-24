@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Link;
 
+use Exception;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDataset;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDatasetReference;
 use Google\Protobuf\Internal\Message;
@@ -43,6 +44,15 @@ final class LinkBucketHandler extends BaseHandler
         assert($command->getTargetBucketId() !== '', 'LinkBucketCommand.targetBucketId must be filled in');
         assert($command->getSourceShareRoleName() !== '', 'LinkBucketCommand.sourceShareRoleName must be filled in');
 
+        $commandMeta = $command->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('LinkBucketBigqueryMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof LinkBucketCommand\LinkBucketBigqueryMeta);
+        $region = $commandMeta->getRegion();
+
         $listing = $command->getSourceShareRoleName();
         $targetProjectId = $command->getTargetProjectId();
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
@@ -60,7 +70,7 @@ final class LinkBucketHandler extends BaseHandler
 
         $destinationDataset = new DestinationDataset([
             'dataset_reference' => $datasetReference,
-            'location' => GCPClientManager::DEFAULT_LOCATION,
+            'location' => $region,
         ]);
         $analyticHubClient->subscribeListing($listing, [
             'destinationDataset' => $destinationDataset,

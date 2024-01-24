@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
@@ -442,6 +443,11 @@ class ImportViewCloneTest extends BaseCase
             ->setSourceBucketId('1234567')
             ->setSourceProjectReadOnlyRoleName($this->projects[0][1]->getProjectReadOnlyRoleName());
 
+        $meta = new Any();
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         /** @var ShareBucketResponse $result */
         $result = $handler(
             $this->getCredentials(),
@@ -467,6 +473,12 @@ class ImportViewCloneTest extends BaseCase
             ->setTargetProjectId($targetProjectId)
             ->setTargetBucketId($linkedBucketSchemaName)
             ->setSourceShareRoleName($listing); // listing
+
+        $meta = new Any();
+        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
+            BaseCase::DEFAULT_LOCATION,
+        ));
+        $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
             $command,

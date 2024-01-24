@@ -10,6 +10,7 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Cloud\Iam\V1\Binding;
+use Google\Protobuf\Any;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
@@ -70,6 +71,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
 
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
+        $command->setMeta($meta);
+
         try {
             $handler(
                 $this->mainProjectCredentials,
@@ -121,6 +129,12 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setDestinationObjectName('test_external')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
+        $command->setMeta($meta);
         try {
             $handler(
                 $this->mainProjectCredentials,
@@ -299,6 +313,13 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
 
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
+        $command->setMeta($meta);
+
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 
         try {
@@ -345,7 +366,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
     private function prepareExternalBucketForRegistration(
         AnalyticsHubServiceClient $externalAnalyticHubClient,
         string $bucketDatabaseName,
-        string $location = GCPClientManager::DEFAULT_LOCATION,
+        string $location = BaseCase::DEFAULT_LOCATION,
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];
