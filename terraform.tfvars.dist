@@ -1,3 +1,4 @@
 folder_id=""
 backend_prefix=""
 billing_account_id=""
+file_storage_backend_region=""
