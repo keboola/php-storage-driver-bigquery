@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery;
 
+use Exception;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Billing\V1\CloudBillingClient;
@@ -17,6 +18,7 @@ use Google_Service_CloudResourceManager;
 use GuzzleHttp\Client as GuzzleClient;
 use Keboola\StorageDriver\BigQuery\Client\BigQuery\Retry;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials\BigQueryCredentialsMeta;
 use Psr\Log\LoggerInterface;
 
 class GCPClientManager
@@ -130,12 +132,21 @@ class GCPClientManager
 
     public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
     {
+        $commandMeta = $credentials->getMeta();
+        if ($commandMeta === null) {
+            throw new Exception('GenericBackendCredentialsMeta is required.');
+        }
+
+        $commandMeta = $commandMeta->unpack();
+        assert($commandMeta instanceof BigQueryCredentialsMeta);
+        $region = $commandMeta->getRegion();
         // note: the close method is not used in this client
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'restRetryFunction' => Retry::getRetryDecider($this->logger),
             'requestTimeout' => self::TIMEOUT,
             'retries' => 20,
+            'location' => $region,
         ]);
     }
 
