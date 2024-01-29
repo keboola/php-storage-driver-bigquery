@@ -211,10 +211,17 @@ class BaseCase extends TestCase
 
         assert($response instanceof CreateProjectResponse);
 
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION)
+                ->setFolderId((string) getenv('BQ_FOLDER_ID')),
+        );
         return [
             (new GenericBackendCredentials())
                 ->setPrincipal($response->getProjectUserName())
-                ->setSecret($response->getProjectPassword()),
+                ->setSecret($response->getProjectPassword())
+                ->setMeta($meta),
             $response,
         ];
     }
