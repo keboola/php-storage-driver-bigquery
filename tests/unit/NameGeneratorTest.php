@@ -53,7 +53,7 @@ class NameGeneratorTest extends TestCase
     {
         $nameGenerator = new NameGenerator('KBC_prefix_');
 
-        $this->assertSame('kbc-prefix-workspace-123', $nameGenerator->createWorkspaceUserNameForWorkspaceId('123'));
+        $this->assertSame('kbc-prefix-ws-123', $nameGenerator->createWorkspaceUserNameForWorkspaceId('123'));
     }
 
     public function testCreateDataExchangeId(): void

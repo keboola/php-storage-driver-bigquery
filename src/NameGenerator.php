@@ -47,7 +47,7 @@ class NameGenerator
 
     private function createWorkspaceCredentialsPrefix(string $workspaceId): string
     {
-        return $this->stackPrefix . '-workspace-' . $workspaceId;
+        return $this->stackPrefix . '-ws-' . $workspaceId;
     }
 
     public function createDataExchangeId(string $projectId): string
