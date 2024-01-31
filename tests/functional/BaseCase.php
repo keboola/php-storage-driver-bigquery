@@ -149,11 +149,20 @@ class BaseCase extends TestCase
 
         $prj0Cred = new GenericBackendCredentials();
         $prj0Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj0-cred'));
+
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION),
+        );
+        $prj0Cred->setMeta($meta);
+
         $prj0Res = new CreateProjectResponse();
         $prj0Res->mergeFromJsonString((string) file_get_contents('/tmp/prj0-res'));
 
         $prj1Cred = new GenericBackendCredentials();
         $prj1Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj1-cred'));
+        $prj1Cred->setMeta($meta);
         $prj1Res = new CreateProjectResponse();
         $prj1Res->mergeFromJsonString((string) file_get_contents('/tmp/prj1-res'));
         $this->projects = [
@@ -211,10 +220,17 @@ class BaseCase extends TestCase
 
         assert($response instanceof CreateProjectResponse);
 
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION)
+                ->setFolderId((string) getenv('BQ_FOLDER_ID')),
+        );
         return [
             (new GenericBackendCredentials())
                 ->setPrincipal($response->getProjectUserName())
-                ->setSecret($response->getProjectPassword()),
+                ->setSecret($response->getProjectPassword())
+                ->setMeta($meta),
             $response,
         ];
     }
@@ -510,11 +526,18 @@ class BaseCase extends TestCase
         $this->log->add('Workspace created: ' . $response->getWorkspaceObjectName());
         $this->log->add('Workspace created: ' . $response->getWorkspacePassword());
 
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION),
+        );
+
         $credentials = (new GenericBackendCredentials())
             ->setHost($projectCredentials->getHost())
             ->setPrincipal($response->getWorkspaceUserName())
             ->setSecret($response->getWorkspacePassword())
             ->setPort($projectCredentials->getPort());
+        $credentials->setMeta($meta);
 
         $this->log->add('New workspace SA is: ' . $response->getWorkspaceUserName());
         return [$credentials, $response];
