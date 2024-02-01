@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 
+use Generator;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -299,5 +300,334 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame(ObjectType::TABLE, $response->getObjectType());
         $this->assertNotNull($response->getTableInfo());
         return $response->getTableInfo();
+    }
+
+    /** @dataProvider failsDefaultTypesProvider */
+    public function testFailsDefaultsCreateTable(TableColumnShared $column): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = $column;
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Should fail');
+        } catch (BadTableDefinitionException $e) {
+            $this->assertStringContainsString('Invalid default value expression for column', $e->getMessage());
+        }
+    }
+
+    public function failsDefaultTypesProvider(): Generator
+    {
+        // INT64
+        yield Bigquery::TYPE_INT64 . '_fail' => [
+            (new TableColumnShared)
+                ->setName('int64')
+                ->setType(Bigquery::TYPE_INT64)
+                ->setDefault('fail'),
+        ];
+
+        // BYTES
+        yield Bigquery::TYPE_BYTES . '_fail' => [
+            (new TableColumnShared)
+                ->setName('bytes')
+                ->setType(Bigquery::TYPE_BYTES)
+                ->setDefault('fail'),
+        ];
+
+        // NUMERIC
+        yield Bigquery::TYPE_NUMERIC . '_fail' => [
+            (new TableColumnShared)
+                ->setName('numeric')
+                ->setType(Bigquery::TYPE_NUMERIC)
+                ->setDefault('fail'),
+        ];
+
+        // NUMERIC
+        yield Bigquery::TYPE_BIGNUMERIC . '_fail' => [
+            (new TableColumnShared)
+                ->setName('bignumeric')
+                ->setType(Bigquery::TYPE_BIGNUMERIC)
+                ->setDefault('fail'),
+        ];
+
+        // FLOAT64
+        yield Bigquery::TYPE_FLOAT64 . '_fail' => [
+            (new TableColumnShared)
+                ->setName('float64')
+                ->setType(Bigquery::TYPE_FLOAT64)
+                ->setDefault('fail'),
+        ];
+
+        // STRING
+        yield Bigquery::TYPE_STRING . '_fail' => [
+            (new TableColumnShared)
+                ->setName('string')
+                ->setType(Bigquery::TYPE_STRING)
+                ->setDefault('1'),
+        ];
+
+        // BOOL
+        yield Bigquery::TYPE_BOOL . '_fail_1' => [
+            (new TableColumnShared)
+                ->setName('bool')
+                ->setType(Bigquery::TYPE_BOOL)
+                ->setDefault('test'),
+        ];
+
+         // DATE
+        yield Bigquery::TYPE_DATE . '_fail' => [
+            (new TableColumnShared)
+                ->setName('date')
+                ->setType(Bigquery::TYPE_DATE)
+                ->setDefault('fail'),
+        ];
+
+        // DATETIME
+        yield Bigquery::TYPE_DATETIME . '_fail' => [
+            (new TableColumnShared)
+                ->setName('datetime')
+                ->setType(Bigquery::TYPE_DATETIME)
+                ->setDefault('fail'),
+        ];
+
+        // TIME
+        yield Bigquery::TYPE_TIME . '_fail' => [
+            (new TableColumnShared)
+                ->setName('time')
+                ->setType(Bigquery::TYPE_TIME)
+                ->setDefault('fail'),
+        ];
+
+        // TIMESTAMP
+        yield Bigquery::TYPE_TIMESTAMP . '_fail' => [
+            (new TableColumnShared)
+                ->setName('timestamp')
+                ->setType(Bigquery::TYPE_TIMESTAMP)
+                ->setDefault('fail'),
+        ];
+
+        // INTERVAL - default value is not supported
+        yield Bigquery::TYPE_INTERVAL . '_fail' => [
+            (new TableColumnShared)
+                ->setName('interval')
+                ->setType(Bigquery::TYPE_INTERVAL)
+                ->setDefault('1 YEAR'),
+        ];
+    }
+
+    /** @dataProvider defaultTypesProvider */
+    public function testDefaultsCreateTable(TableColumnShared $column): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setType(Bigquery::TYPE_INT64);
+        $columns[] = $column;
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns);
+        /** @var ObjectInfoResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $this->assertSame(ObjectType::TABLE, $response->getObjectType());
+        $this->assertNotNull($response->getTableInfo());
+    }
+
+    public function defaultTypesProvider(): Generator
+    {
+        // INT64
+        yield Bigquery::TYPE_INT64 . '_string' => [
+            (new TableColumnShared)
+                ->setName('int64')
+                ->setType(Bigquery::TYPE_INT64)
+                ->setDefault('1'),
+        ];
+
+        // BYTES
+        yield Bigquery::TYPE_BYTES . '_string' => [
+            (new TableColumnShared)
+                ->setName('bytes')
+                ->setType(Bigquery::TYPE_BYTES)
+                ->setDefault('B"abc"'),
+        ];
+
+        // NUMERIC
+        yield Bigquery::TYPE_NUMERIC . '_string' => [
+            (new TableColumnShared)
+                ->setName('numeric')
+                ->setType(Bigquery::TYPE_NUMERIC)
+                ->setDefault('1'),
+        ];
+
+        // BIGNUMERIC
+        yield Bigquery::TYPE_BIGNUMERIC . '_string' => [
+            (new TableColumnShared)
+                ->setName('bignumeric')
+                ->setType(Bigquery::TYPE_BIGNUMERIC)
+                ->setDefault('1'),
+        ];
+
+        // FLOAT64
+        yield Bigquery::TYPE_FLOAT64 . '_string' => [
+            (new TableColumnShared)
+                ->setName('float64')
+                ->setType(Bigquery::TYPE_FLOAT64)
+                ->setDefault('1'),
+        ];
+
+        // STRING
+        yield Bigquery::TYPE_STRING . '_string' => [
+            (new TableColumnShared)
+                ->setName('string')
+                ->setType(Bigquery::TYPE_STRING)
+                ->setDefault('\'roman\''),
+        ];
+
+        // BOOL
+        yield Bigquery::TYPE_BOOL . '_bool_string_true' => [
+            (new TableColumnShared)
+                ->setName('bool')
+                ->setType(Bigquery::TYPE_BOOL)
+                ->setDefault('true'),
+        ];
+
+        yield Bigquery::TYPE_BOOL . '_bool_string_false' => [
+            (new TableColumnShared)
+                ->setName('bool')
+                ->setType(Bigquery::TYPE_BOOL)
+                ->setDefault('false'),
+        ];
+
+        // DATE
+        yield Bigquery::TYPE_DATE . '_qouted' => [
+            (new TableColumnShared)
+                ->setName('date')
+                ->setType(Bigquery::TYPE_DATE)
+                ->setDefault('\'2022-02-22\''),
+        ];
+
+        // DATETIME
+        yield Bigquery::TYPE_DATETIME . '_current' => [
+            (new TableColumnShared)
+                ->setName('datetime')
+                ->setType(Bigquery::TYPE_DATETIME)
+                ->setDefault('CURRENT_DATETIME()'),
+        ];
+
+        yield Bigquery::TYPE_DATETIME . '_quoted' => [
+            (new TableColumnShared)
+                ->setName('datetime')
+                ->setType(Bigquery::TYPE_DATETIME)
+                ->setDefault('\'2021-01-01 00:00:00\''),
+        ];
+
+        // TIME
+        yield Bigquery::TYPE_TIME . '_method' => [
+            (new TableColumnShared)
+                ->setName('time')
+                ->setType(Bigquery::TYPE_TIME)
+                ->setDefault('current_time()'),
+        ];
+
+        yield Bigquery::TYPE_TIME . '_quoted' => [
+            (new TableColumnShared)
+                ->setName('time')
+                ->setType(Bigquery::TYPE_TIME)
+                ->setDefault('\'00:00:00\''),
+        ];
+
+        // TIMESTAMP
+        yield Bigquery::TYPE_TIMESTAMP . '_method' => [
+            (new TableColumnShared)
+                ->setName('timestamp')
+                ->setType(Bigquery::TYPE_TIMESTAMP)
+                ->setDefault('current_timestamp()'),
+        ];
+
+        yield Bigquery::TYPE_TIMESTAMP . '_quoted' => [
+            (new TableColumnShared)
+                ->setName('timestamp')
+                ->setType(Bigquery::TYPE_TIMESTAMP)
+                ->setDefault('\'2021-01-01 00:00:00\''),
+        ];
+
+        // ARRAY
+        yield Bigquery::TYPE_ARRAY . '_int64' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_ARRAY)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('[1,2,3]'),
+        ];
+
+        yield Bigquery::TYPE_ARRAY . '_empty_array' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_ARRAY)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('[]'),
+        ];
+
+        // GEOGRAPHY
+        yield Bigquery::TYPE_GEOGRAPHY . '_ST_GEOGPOINT' => [
+            (new TableColumnShared)
+                ->setName('geography')
+                ->setType(Bigquery::TYPE_GEOGRAPHY)
+                ->setDefault('ST_GEOGPOINT(-122.4194, 37.7749)'),
+        ];
+
+        // JSON
+        yield Bigquery::TYPE_JSON . '_full' => [
+            (new TableColumnShared)
+                ->setName('interval')
+                ->setType(Bigquery::TYPE_JSON)
+                ->setDefault('JSON\'{\"name\": \"John\", \"age\": 30, \"city\": \"New York\"}\''),
+        ];
+
+        // STRUCT
+        yield Bigquery::TYPE_STRUCT . '_number' => [
+            (new TableColumnShared)
+                ->setName('array')
+                ->setType(Bigquery::TYPE_STRUCT)
+                ->setLength('x ARRAY<INT64>')
+                ->setDefault('STRUCT(1)'),
+        ];
     }
 }
