@@ -18,7 +18,8 @@ class NameGenerator
 
     public function createProjectId(string $projectId): string
     {
-        return sprintf('%s-%s', $this->stackPrefix, $projectId);
+        $rand = substr(md5(uniqid((string) mt_rand(), true)), 0, 4);
+        return sprintf('%s-%s-%s', $this->stackPrefix, $projectId, $rand);
     }
 
     public function createProjectServiceAccountId(string $projectId): string
