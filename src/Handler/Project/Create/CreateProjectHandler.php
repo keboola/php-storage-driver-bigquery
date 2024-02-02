@@ -103,7 +103,24 @@ final class CreateProjectHandler extends BaseHandler
         $billingInfo = $billingClient->getProjectBillingInfo($formattedName);
         $mainBillingAccount = $billingInfo->getBillingAccountName();
 
-        $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
+        try {
+            $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
+        } catch (Throwable $e) {
+            if ($e->getCode() === 6) {
+                throw new ProjectWithProjectIdAlreadyExists(
+                    sprintf('Project with project id "%s" already exists.', $projectId),
+                );
+            }
+
+            if ($e->getCode() === 3) {
+                if (str_contains($e->getMessage(), 'project_id must be at most 30 characters long')) {
+                    throw new ProjectIdTooLongException(sprintf('Project id "%s" is too long.', $projectId));
+                }
+            }
+
+            throw $e;
+        }
+
         $projectName = $projectCreateResult->getName();
 
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
