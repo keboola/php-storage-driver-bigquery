@@ -106,21 +106,24 @@ final class CreateProjectHandler extends BaseHandler
         try {
             $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
         } catch (Throwable $e) {
-            if ($e->getCode() === 6) {
+            if ($e->getCode() === 6 && str_contains($e->getMessage(), 'Requested entity already exists')) {
                 throw new ProjectWithProjectIdAlreadyExists(
-                    sprintf('Project with project id "%s" already exists.', $projectId),
+                    message: sprintf('Project with project id "%s" already exists.', $projectId),
+                    previous: $e,
                 );
             }
 
-            if ($e->getCode() === 3) {
-                if (str_contains($e->getMessage(), 'project_id must be at most 30 characters long')) {
-                    throw new ProjectIdTooLongException(sprintf('Project id "%s" is too long.', $projectId));
-                }
+            if ($e->getCode() === 3
+                && str_contains($e->getMessage(), 'project_id must be at most 30 characters long')
+            ) {
+                throw new ProjectIdTooLongException(
+                    message: sprintf('Project ID "%s" is too long. It must be at most 30 characters long.', $projectId),
+                    previous: $e,
+                );
             }
 
             throw $e;
         }
-
         $projectName = $projectCreateResult->getName();
 
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
