@@ -57,6 +57,8 @@ final class CreateProjectHandler extends BaseHandler
      * @throws ValidationException
      * @throws Exception
      * @throws ApiException
+     * @throws ProjectWithProjectIdAlreadyExists
+     * @throws ProjectIdTooLongException
      */
     public function __invoke(
         Message $credentials,
