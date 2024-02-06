@@ -10,6 +10,8 @@ use Google_Service_CloudResourceManager_GetIamPolicyRequest;
 use Google_Service_Iam_CreateServiceAccountRequest;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectIdTooLongException;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectWithProjectIdAlreadyExists;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
@@ -57,7 +59,7 @@ class CreateDropProjectTest extends BaseCase
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
                 ->setGcsFileBucketName($fileStorageBucketName)
-            ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
         );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
@@ -211,5 +213,67 @@ class CreateDropProjectTest extends BaseCase
             $projectId,
             $publicPart['client_email'],
         ));
+    }
+
+    public function testCreateProjectEdgeCases(): void
+    {
+        $handler = new CreateProjectHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new CreateProjectCommand();
+
+        $meta = new Any();
+        $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
+        $meta->pack(
+            (new CreateProjectCommand\CreateProjectBigqueryMeta())
+                ->setGcsFileBucketName($fileStorageBucketName)
+                ->setRegion(BaseCase::DEFAULT_LOCATION),
+        );
+        $command->setStackPrefix($this->getStackPrefix());
+        $command->setProjectId($this->getProjectId() . '1234567890123456789');
+        $command->setMeta($meta);
+
+        $this->log->add($command->serializeToJsonString());
+        $this->log->add(
+            (new NameGenerator($command->getStackPrefix()))
+                ->createProjectId($this->getProjectId() . '1234567890'),
+        );
+
+        // test long project id
+        try {
+            $handler(
+                $this->getCredentials(),
+                $command,
+                [],
+                new RuntimeOptions(),
+            );
+            $this->fail('Should fail because project id is too long.');
+        } catch (ProjectIdTooLongException $e) {
+            $this->assertStringContainsString('It must be at most 30 characters long.', $e->getMessage());
+            $this->assertSame(3000, $e->getCode());
+        }
+
+        // run twice to get ProjectWithProjectIdAlreadyExists
+        $command->setProjectId($this->getProjectId());
+        $this->log->add($command->serializeToJsonString());
+        $this->log->add((new NameGenerator($command->getStackPrefix()))->createProjectId($this->getProjectId()));
+
+        $handler(
+            $this->getCredentials(),
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        try {
+            $handler(
+                $this->getCredentials(),
+                $command,
+                [],
+                new RuntimeOptions(),
+            );
+        } catch (ProjectWithProjectIdAlreadyExists $e) {
+            $this->assertStringContainsString('already exists', $e->getMessage());
+            $this->assertSame(2006, $e->getCode());
+        }
     }
 }

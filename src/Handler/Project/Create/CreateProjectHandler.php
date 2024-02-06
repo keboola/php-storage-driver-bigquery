@@ -57,6 +57,8 @@ final class CreateProjectHandler extends BaseHandler
      * @throws ValidationException
      * @throws Exception
      * @throws ApiException
+     * @throws ProjectWithProjectIdAlreadyExists
+     * @throws ProjectIdTooLongException
      */
     public function __invoke(
         Message $credentials,
@@ -103,7 +105,27 @@ final class CreateProjectHandler extends BaseHandler
         $billingInfo = $billingClient->getProjectBillingInfo($formattedName);
         $mainBillingAccount = $billingInfo->getBillingAccountName();
 
-        $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
+        try {
+            $projectCreateResult = $this->createProject($projectsClient, $folderId, $projectId);
+        } catch (Throwable $e) {
+            if ($e->getCode() === 6 && str_contains($e->getMessage(), 'Requested entity already exists')) {
+                throw new ProjectWithProjectIdAlreadyExists(
+                    message: sprintf('Project with project id "%s" already exists.', $projectId),
+                    previous: $e,
+                );
+            }
+
+            if ($e->getCode() === 3
+                && str_contains($e->getMessage(), 'project_id must be at most 30 characters long')
+            ) {
+                throw new ProjectIdTooLongException(
+                    message: sprintf('Project ID "%s" is too long. It must be at most 30 characters long.', $projectId),
+                    previous: $e,
+                );
+            }
+
+            throw $e;
+        }
         $projectName = $projectCreateResult->getName();
 
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);

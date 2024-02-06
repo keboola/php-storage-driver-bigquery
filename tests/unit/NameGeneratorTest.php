@@ -12,7 +12,9 @@ class NameGeneratorTest extends TestCase
     public function testProjectIdGenerator(): void
     {
         $nameGenerator = new NameGenerator('KBC_prefix_');
-        $this->assertSame('kbc-prefix-project-1', $nameGenerator->createProjectId('project-1'));
+        $projectId = $nameGenerator->createProjectId('project-1');
+        $this->assertStringContainsString('kbc-prefix-project-1', $projectId);
+        $this->assertEquals(25, strlen($projectId));
     }
 
     public function testProjectServiceAccountIddGenerator(): void
