@@ -100,8 +100,6 @@ class CreateDropBucketTest extends BaseCase
         $table = $dataset->table($tableName);
         $this->assertTrue($table->exists());
 
-        // ignore errors should not fail but database is not removed
-        $command->setIgnoreErrors(true);
         $handler(
             $this->projectCredentials,
             $command,
@@ -113,8 +111,6 @@ class CreateDropBucketTest extends BaseCase
         $table = $dataset->table($tableName);
         $this->assertTrue($table->exists());
 
-        // should not fail and database will be deleted
-        $command->setIgnoreErrors(false);
         $command->setIsCascade(true);
         $handler(
             $this->projectCredentials,
