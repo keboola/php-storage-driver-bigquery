@@ -46,15 +46,7 @@ final class DropTableHandler extends BaseHandler
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bqClient->dataset($datasetName);
         $table = $dateset->table($command->getTableName());
-
-        // drop table
-        try {
-            $table->delete();
-        } catch (Throwable $e) {
-            if (!$command->getIgnoreErrors()) {
-                throw $e;
-            }
-        }
+        $table->delete();
 
         return null;
     }
