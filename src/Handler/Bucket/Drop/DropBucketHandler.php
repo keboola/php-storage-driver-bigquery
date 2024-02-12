@@ -35,19 +35,11 @@ final class DropBucketHandler extends BaseHandler
 
         assert($runtimeOptions->getMeta() === null);
 
-        $ignoreErrors = $command->getIgnoreErrors();
-
         $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
-        try {
-            $dataset->delete(['deleteContents' => $command->getIsCascade()]);
-        } catch (Throwable $e) {
-            if (!$ignoreErrors) {
-                throw $e;
-            }
-        }
+        $dataset->delete(['deleteContents' => $command->getIsCascade()]);
 
         return null;
     }
