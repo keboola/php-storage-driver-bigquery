@@ -103,6 +103,16 @@ class ObjectInfoTest extends BaseCase
         $this->assertSame(ObjectType::SCHEMA, $workspaceObject->getObjectType());
     }
 
+    public function testXXXX()
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+        )));
+
+    }
     public function testInfoSchema(): void
     {
         $this->createOtherTypesOfObjectsWhichCanBeRead();
