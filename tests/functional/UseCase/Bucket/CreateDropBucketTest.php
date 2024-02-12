@@ -100,17 +100,6 @@ class CreateDropBucketTest extends BaseCase
         $table = $dataset->table($tableName);
         $this->assertTrue($table->exists());
 
-        $handler(
-            $this->projectCredentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
-        );
-
-        $dataset = $bqClient->dataset($bucket->getCreateBucketObjectName());
-        $table = $dataset->table($tableName);
-        $this->assertTrue($table->exists());
-
         $command->setIsCascade(true);
         $handler(
             $this->projectCredentials,
