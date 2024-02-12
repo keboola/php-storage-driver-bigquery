@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\Cloud\BigQuery\Dataset;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -31,7 +31,7 @@ class CreateDropBucketTest extends BaseCase
     {
         $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
 
-        $handler = new DropBucketHandle($this->clientManager);
+        $handler = new DropBucketHandler($this->clientManager);
         $command = (new DropBucketCommand())
             ->setBucketObjectName($response->getCreateBucketObjectName());
 
@@ -74,7 +74,7 @@ class CreateDropBucketTest extends BaseCase
         $tableName = $this->getTestHash() . '_Test_table';
         $createdDataset->createTable($tableName);
 
-        $handler = new DropBucketHandle($this->clientManager);
+        $handler = new DropBucketHandler($this->clientManager);
         $command = (new DropBucketCommand())
             ->setBucketObjectName($bucket->getCreateBucketObjectName());
 
