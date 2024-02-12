@@ -11,7 +11,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Backend\Remove\RemoveBackendHandler;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandle;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
@@ -131,7 +131,7 @@ class BigQueryDriverClient implements ClientInterface
             case $command instanceof CreateBucketCommand:
                 return new CreateBucketHandler($manager);
             case $command instanceof DropBucketCommand:
-                return new DropBucketHandle($manager);
+                return new DropBucketHandler($manager);
             case $command instanceof ShareBucketCommand:
                 return new ShareBucketHandler($manager);
             case $command instanceof UnshareBucketCommand:

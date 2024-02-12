@@ -11,7 +11,7 @@ use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Throwable;
 
-final class DropBucketHandle extends BaseHandler
+final class DropBucketHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 
