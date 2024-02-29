@@ -172,18 +172,38 @@ final class ObjectInfoHandler extends BaseHandler
                 ));
 
                 try {
-                    $table->rows();
+                    $client->runQuery($client->query(sprintf(
+                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
+                    )));
                 } catch (Throwable $e) {
                     $message = DecodeErrorMessage::getErrorMessage($e);
-                    $this->userLogger->warning(sprintf(
-                        'Selecting data from view "%s" failed with error: "%s" View was ignored',
-                        $info['id'],
-                        $message,
-                    ), [
-                        'info' => $info,
-                        'message' => $e->getMessage(),
-                    ]);
-                    continue;
+                    if (str_contains($message, 'partition elimination')) {
+                        // view from table which have requirePartitionFilter has not set this property
+                        // we will let query fail and if message contains:
+                        // Cannot query over table x without a filter over column(s) colX
+                        //that can be used for partition elimination
+                        // view is not ignored but message is logged
+                        $this->userLogger->info(sprintf(
+                            'View "%s" has enabled partitionFilter we are not able to check if it\'s readable.',
+                            $info['id'],
+                        ), [
+                            'info' => $info,
+                        ]);
+                    } else {
+                        // other error is failure and view is ignored
+                        $this->userLogger->warning(sprintf(
+                            'Selecting data from view "%s" failed with error: "%s" View was ignored',
+                            $info['id'],
+                            $message,
+                        ), [
+                            'info' => $info,
+                            'message' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
                 }
                 yield (new ObjectInfo())
                     ->setObjectType(ObjectType::VIEW)
@@ -196,7 +216,7 @@ final class ObjectInfoHandler extends BaseHandler
             ));
 
             try {
-                $table->rows();
+                $table->rows()->current();
             } catch (Throwable $e) {
                 $message = DecodeErrorMessage::getErrorMessage($e);
                 $this->userLogger->warning(sprintf(

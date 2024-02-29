@@ -133,6 +133,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertNotNull($response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
+
         $this->assertCount(6, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
@@ -167,15 +168,35 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(1, $logs);
+//        $this->assertCount(3, $logs);
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Informational,
+            sprintf(
+                'View "%s:%s.partitionedView" has enabled partitionFilter we are not able to check if it\'s readable.',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'External tables are not supported. Table "%s:%s.%s" was ignored',
+                'Selecting data from view "%s:%s.table2View" failed with error: '.
+                '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
-                'externalTable',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'External tables are not supported. Table "%s:%s.externalTable" was ignored',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
             ),
         );
 
@@ -234,7 +255,28 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(1, $logs);
+        $this->assertCount(3, $logs);
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Informational,
+            sprintf(
+                'View "%s:%s.partitionedView" has enabled partitionFilter we are not able to check if it\'s readable.',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'Selecting data from view "%s:%s.table2View" failed with error: '.
+                '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Warning,
@@ -264,11 +306,11 @@ class ObjectInfoTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
         )));
-        $bqClient->runQuery($bqClient->query(sprintf(
-            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
-            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
-        )));
+//        $bqClient->runQuery($bqClient->query(sprintf(
+//            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
+//            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+//            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+//        )));
 
         $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
@@ -285,6 +327,13 @@ SQL,
 
         $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
+INSERT INTO %s.partitionedTable (transaction_id) VALUES (1)
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
 CREATE VIEW %s.partitionedView AS ( 
     SELECT
       *
@@ -293,6 +342,40 @@ CREATE VIEW %s.partitionedView AS (
 )
 SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+CREATE TABLE
+  %s.table2 (transaction_id INT64)
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+INSERT INTO %s.table2 (transaction_id) VALUES (1)
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+CREATE VIEW %s.table2View AS ( 
+    SELECT
+      *
+    FROM
+      %s.table2
+)
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+DROP TABLE %s.table2
+SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
     }
