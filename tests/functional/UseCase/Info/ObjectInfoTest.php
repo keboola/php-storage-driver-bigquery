@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\LogMessage;
@@ -105,7 +106,7 @@ class ObjectInfoTest extends BaseCase
 
     public function testInfoSchema(): void
     {
-        $this->createOtherTypesOfObjectsWhichCanBeRead();
+        $this->createObjectsInSchema();
         // Run object info cmd
         $handler = new ObjectInfoHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -118,6 +119,7 @@ class ObjectInfoTest extends BaseCase
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
+
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $this->assertSame(ObjectType::SCHEMA, $response->getObjectType());
         $this->assertSame(
@@ -131,7 +133,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertNotNull($response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
-        $this->assertCount(4, $objects);
+        $this->assertCount(6, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -147,17 +149,35 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
-        $view = $this->getObjectByNameAndType(
+        $materializedView = $this->getObjectByNameAndType(
             $objects,
             'materialized_view',
         );
-        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $this->assertSame(ObjectType::VIEW, $materializedView->getObjectType());
+        $partitionedTable = $this->getObjectByNameAndType(
+            $objects,
+            'partitionedTable',
+        );
+        $this->assertSame(ObjectType::TABLE, $partitionedTable->getObjectType());
+        $partitionedView = $this->getObjectByNameAndType(
+            $objects,
+            'partitionedView',
+        );
+        $this->assertSame(ObjectType::VIEW, $partitionedView->getObjectType());
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
         $this->assertCount(1, $logs);
-        $this->assertSame(LogMessage\Level::Warning, $logs[0]->getLevel());
-        $this->assertStringContainsString('External tables are not supported.', $logs[0]->getMessage());
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'External tables are not supported. Table "%s:%s.%s" was ignored',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                'externalTable',
+            ),
+        );
 
         // Create workspace
         [
@@ -180,7 +200,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertInstanceOf(SchemaInfo::class, $response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
-        $this->assertCount(4, $objects);
+        $this->assertCount(6, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -201,15 +221,33 @@ class ObjectInfoTest extends BaseCase
             'materialized_view',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'partitionedTable',
+        );
+        $this->assertSame(ObjectType::TABLE, $view->getObjectType());
+        $view = $this->getObjectByNameAndType(
+            $objects,
+            'partitionedView',
+        );
+        $this->assertSame(ObjectType::VIEW, $view->getObjectType());
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
         $this->assertCount(1, $logs);
-        $this->assertSame(LogMessage\Level::Warning, $logs[0]->getLevel());
-        $this->assertStringContainsString('External tables are not supported.', $logs[0]->getMessage());
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'External tables are not supported. Table "%s:%s.%s" was ignored',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                'externalTable',
+            ),
+        );
     }
 
-    private function createOtherTypesOfObjectsWhichCanBeRead(): void
+    private function createObjectsInSchema(): void
     {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bqClient->runQuery($bqClient->query(sprintf(
@@ -230,6 +268,32 @@ class ObjectInfoTest extends BaseCase
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+CREATE TABLE
+  %s.partitionedTable (transaction_id INT64)
+PARTITION BY
+  _PARTITIONDATE
+  OPTIONS (
+    PARTITION_EXPIRATION_DAYS = 3,
+    REQUIRE_PARTITION_FILTER = TRUE);
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+        /** @lang BigQuery */<<<SQL
+CREATE VIEW %s.partitionedView AS ( 
+    SELECT
+      *
+    FROM
+      %s.partitionedTable
+)
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
     }
 
@@ -339,5 +403,30 @@ class ObjectInfoTest extends BaseCase
             }
         }
         $this->fail(sprintf('Expected object name "%s" not found.', $expectedName));
+    }
+
+    /**
+     * @param LogMessage[] $logs
+     */
+    private function assertLogsContainsMessage(array $logs, int $level, string $message): void
+    {
+        foreach ($logs as $log) {
+            if ($log->getLevel() === $level && str_contains($log->getMessage(), $message)) {
+                return;
+            }
+        }
+        $this->fail(sprintf(
+            'Expected log message "%s" not found. Messages were:%s %s',
+            $message,
+            PHP_EOL,
+            implode(PHP_EOL, array_map(
+                static fn(LogMessage $log) => sprintf(
+                    '%s: %s',
+                    LogMessage\Level::name($log->getLevel()),
+                    $log->getMessage(),
+                ),
+                $logs,
+            ),),
+        ));
     }
 }
