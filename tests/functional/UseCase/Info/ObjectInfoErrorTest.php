@@ -68,7 +68,7 @@ class ObjectInfoErrorTest extends BaseCase
         $handler = new ObjectInfoHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         $command = new ObjectInfoCommand();
-        // expect database
+        // expect table
         $command->setExpectedObjectType(ObjectType::TABLE);
         $command->setPath(ProtobufHelper::arrayToRepeatedString([
             $this->bucketResponse->getCreateBucketObjectName(),
@@ -86,18 +86,22 @@ class ObjectInfoErrorTest extends BaseCase
 
     public function testInfoViewNotExists(): void
     {
-        $this->markTestSkipped('View info is TODO');
-        //$handler = new ObjectInfoHandler($this->sessionManager);
-        //$command = new ObjectInfoCommand();
-        //// expect database
-        //$command->setExpectedObjectType(ObjectType::VIEW);
-        //$command->setPath(ProtobufHelper::arrayToRepeatedString(['databaseNotExists', 'iAmNotExist']));
-        //$this->expectException(ObjectNotFoundException::class);
-        //$this->expectExceptionMessage('Object "iAmNotExist" not found.');
-        //$handler(
-        //    $this->projectCredentials,
-        //    $command,
-        //    []
-        //);
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        // expect database
+        $command->setExpectedObjectType(ObjectType::VIEW);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+            'iAmNotExist',
+        ]));
+        $this->expectException(ObjectNotFoundException::class);
+        $this->expectExceptionMessage('Object "iAmNotExist" not found.');
+        $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
     }
 }

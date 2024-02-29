@@ -204,7 +204,7 @@ final class ObjectInfoHandler extends BaseHandler
                     $path[1],
                 ),
             ));
-        } catch (TableNotExistsReflectionException $e) {
+        } catch (TableNotExistsReflectionException) {
             throw new ObjectNotFoundException($path[1]);
         }
         return $response;
@@ -221,14 +221,18 @@ final class ObjectInfoHandler extends BaseHandler
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->getDataset($bqClient, $path[0]);
 
-        $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
-            $path[0],
-            new BigqueryTableReflection(
-                $bqClient,
+        try {
+            $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
                 $path[0],
-                $path[1],
-            ),
-        ));
+                new BigqueryTableReflection(
+                    $bqClient,
+                    $path[0],
+                    $path[1],
+                ),
+            ));
+        } catch (TableNotExistsReflectionException) {
+            throw new ObjectNotFoundException($path[1]);
+        }
         return $response;
     }
 
