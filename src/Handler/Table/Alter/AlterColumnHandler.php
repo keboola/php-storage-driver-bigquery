@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
 
 use Google\Cloud\BigQuery\Exception\JobException;
+use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -68,7 +69,6 @@ final class AlterColumnHandler extends BaseHandler
         $builder = new BigqueryTableQueryBuilder();
         /** @var string $databaseName */
         $databaseName = $command->getPath()[0];
-
         // TODO
 //        try {
             $alterColumnCommands = $builder->getUpdateColumnFromDefinitionQuery(
@@ -76,7 +76,7 @@ final class AlterColumnHandler extends BaseHandler
                 $databaseName,
                 $command->getTableName(),
                 $columnDefinition->getName(),
-                $command->getAttributesToUpdate(),
+                iterator_to_array($command->getAttributesToUpdate()->getIterator()),
             );
 //        } catch (\Exception $e) {
 //            throw AlterColumnException::buildFromFailedJobs($failedOperations, $command->getDesiredDefiniton()->getName(), $command->getTableName());
@@ -87,7 +87,7 @@ final class AlterColumnHandler extends BaseHandler
                 $bqClient->runQuery($bqClient->query($sqlCommand));
                 // logging info to add it to error message as partial success of the job
                 $this->userLogger->info($operation);
-            } catch (JobException $e) {
+            } catch (JobException|BadRequestException $e) {
                 // warnings will be handled then in connection for user error
                 $this->userLogger->error(sprintf('"%s": %s', $operation, $e->getMessage()));
             }
