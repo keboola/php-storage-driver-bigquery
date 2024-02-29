@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
 
+use Google\Cloud\BigQuery\Exception\JobException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -14,7 +15,6 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
@@ -44,43 +44,56 @@ final class AlterColumnHandler extends BaseHandler
 
         assert($runtimeOptions->getMeta() === null);
 
-        $column = $command->getColumnDefinition();
+        $columnDefinition = $command->getDesiredDefiniton();
         // validate
         assert($command->getPath()->count() === 1, 'AlterColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'AlterColumnCommand.tableName is required');
-        assert($column instanceof TableColumnShared, 'AlterColumnCommand.columnDefinition is required');
+        assert($columnDefinition instanceof TableColumnShared, 'AlterColumnCommand.desiredDefinition is required');
 
-        // TODO
-//        assert($column->getNullable() === false, 'You cannot add a REQUIRED column to an existing table schema.');
-//        assert($column->getDefault() === '', 'You cannot add a DEFAULT to column an existing table schema.');
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         // define columns
         // validate
-        assert($column->getName() !== '', 'TableColumnShared.name is required');
-        assert($column->getType() !== '', 'TableColumnShared.type is required');
+        assert($columnDefinition->getName() !== '', 'TableColumnShared.name is required');
+        assert($columnDefinition->getType() !== '', 'TableColumnShared.type is required');
 
-        $columnDefinition = new BigqueryColumn(
-            $column->getName(),
-            new Bigquery($column->getType(), [
-                'length' => $column->getLength() === '' ? null : $column->getLength(),
-                'nullable' => true,
-                'default' => null,
-            ]),
-        );
+        $bqColumn =
+            new Bigquery($columnDefinition->getType(), [
+                'length' => $columnDefinition->getLength(),
+                'nullable' => $columnDefinition->getNullable(),
+                'default' => $columnDefinition->getDefault(),
+            ]);
 
         // build sql
         $builder = new BigqueryTableQueryBuilder();
         /** @var string $databaseName */
         $databaseName = $command->getPath()[0];
-        $createTableSql = $builder->getAlterColumnCommand(
-            $databaseName,
-            $command->getTableName(),
-            $columnDefinition,
-        );
 
-        $bqClient->runQuery($bqClient->query($createTableSql));
+        // TODO
+//        try {
+            $alterColumnCommands = $builder->getUpdateColumnFromDefinitionQuery(
+                $bqColumn,
+                $databaseName,
+                $command->getTableName(),
+                $columnDefinition->getName(),
+                $command->getAttributesToUpdate(),
+            );
+//        } catch (\Exception $e) {
+//            throw AlterColumnException::buildFromFailedJobs($failedOperations, $command->getDesiredDefiniton()->getName(), $command->getTableName());
+//        }
 
+        foreach ($alterColumnCommands as $operation => $sqlCommand) {
+            try {
+                $bqClient->runQuery($bqClient->query($sqlCommand));
+                // logging info to add it to error message as partial success of the job
+                $this->userLogger->info($operation);
+            } catch (JobException $e) {
+                // warnings will be handled then in connection for user error
+                $this->userLogger->error(sprintf('"%s": %s', $operation, $e->getMessage()));
+            }
+        }
+
+        // at the end, it has to return objectInfo anyway, because connection has to update metadata
         return (new ObjectInfoResponse())
             ->setPath($command->getPath())
             ->setObjectType(ObjectType::TABLE)
