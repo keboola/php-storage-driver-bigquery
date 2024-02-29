@@ -26,27 +26,31 @@ use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\LogMessage;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
+use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
+use Psr\Log\LogLevel;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 use Throwable;
 
 class BaseCase extends TestCase
 {
-    use RetryTrait;
+//    use RetryTrait;
 
     public const DEFAULT_LOCATION = 'US';
 
@@ -704,5 +708,24 @@ class BaseCase extends TestCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         return $tableName;
+    }
+
+    public function getLogsOfLevel(DriverCommandHandlerInterface $handler, int $level): array
+    {
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        return array_filter($logs, fn(LogMessage $item) => $item->getLevel() === $level);
+    }
+
+    protected function extractColumnFromResponse($response, string $columnName): TableColumn
+    {
+        $checkedColumn = null;
+        foreach ($response->getTableInfo()->getColumns() as $column) {
+            if ($column->getName() === $columnName) {
+                $checkedColumn = $column;
+                break;
+            }
+        }
+        assert($checkedColumn !== null, 'Column not found');
+        return $checkedColumn;
     }
 }

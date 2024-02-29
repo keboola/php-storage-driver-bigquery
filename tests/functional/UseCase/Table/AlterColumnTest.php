@@ -85,14 +85,7 @@ class AlterColumnTest extends BaseCase
         $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Informational));
         $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
 
-        $checkedColumn = null;
-        foreach ($response->getTableInfo()->getColumns() as $column) {
-            if ($column->getName() === 'col2Required') {
-                $checkedColumn = $column;
-                break;
-            }
-        }
-        $this->assertNotNull($checkedColumn);
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
         $this->assertSame(false, $checkedColumn->getNullable());
 
         // required -> nullable
@@ -128,14 +121,7 @@ class AlterColumnTest extends BaseCase
         $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
         $this->assertEquals(Common::KBC_METADATA_KEY_NULLABLE, $infoLogs[0]->getMessage());
 
-        $checkedColumn = null;
-        foreach ($response->getTableInfo()?->getColumns() as $column) {
-            if ($column->getName() === 'col2Required') {
-                $checkedColumn = $column;
-                break;
-            }
-        }
-        $this->assertNotNull($checkedColumn);
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
         $this->assertSame(true, $checkedColumn->getNullable());
 
         // nullable -> nullable
@@ -171,14 +157,7 @@ class AlterColumnTest extends BaseCase
         $this->assertCount(0, $infoLogs);
         $this->assertCount(1, $errorLogs);
 
-        $checkedColumn = null;
-        foreach ($response->getTableInfo()->getColumns() as $column) {
-            if ($column->getName() === 'col1Nullable') {
-                $checkedColumn = $column;
-                break;
-            }
-        }
-        $this->assertNotNull($checkedColumn);
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col1Nullable');
         $this->assertSame(true, $checkedColumn->getNullable());
 
         // nullable -> required
@@ -214,19 +193,117 @@ class AlterColumnTest extends BaseCase
         $this->assertCount(0, $infoLogs);
         $this->assertCount(0, $errorLogs);
 
-        $checkedColumn = null;
-        foreach ($response->getTableInfo()->getColumns() as $column) {
-            if ($column->getName() === 'col1Nullable') {
-                $checkedColumn = $column;
-                break;
-            }
-        }
-        $this->assertNotNull($checkedColumn);
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col1Nullable');
         $this->assertSame(true, $checkedColumn->getNullable());
     }
 
     public function testDefault(): void
     {
+        $datasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $this->createRefTable($datasetName, $this->tableName);
+
+        // set 1234 on int
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $datasetName;
+
+        $fields = new RepeatedField(GPBType::STRING);
+        $fields[] = Common::KBC_METADATA_KEY_DEFAULT;
+
+        $command = (new AlterColumnCommand())
+            ->setPath($path)
+            ->setTableName($this->tableName)
+            ->setAttributesToUpdate($fields)
+            ->setDesiredDefiniton(
+                (new TableColumnShared())
+                    ->setType(Bigquery::TYPE_INT64)
+                    ->setName('col2Required')
+                    ->setDefault('1234'),
+            );
+        $handler = new AlterColumnHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        /** @var ObjectInfoResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Informational));
+        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
+
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
+        $this->assertSame('1234', $checkedColumn->getDefault());
+
+        // TODO
+        // set helloworld on int
+//        $path = new RepeatedField(GPBType::STRING);
+//        $path[] = $datasetName;
+//
+//        $fields = new RepeatedField(GPBType::STRING);
+//        $fields[] = Common::KBC_METADATA_KEY_DEFAULT;
+//
+//        $command = (new AlterColumnCommand())
+//            ->setPath($path)
+//            ->setTableName($this->tableName)
+//            ->setAttributesToUpdate($fields)
+//            ->setDesiredDefiniton(
+//                (new TableColumnShared())
+//                    ->setType(Bigquery::TYPE_INT64)
+//                    ->setName('col2Required')
+//                    ->setDefault('helloworld'),
+//            );
+//        $handler = new AlterColumnHandler($this->clientManager);
+//        $handler->setInternalLogger($this->log);
+//
+//        /** @var ObjectInfoResponse $response */
+//        $response = $handler(
+//            $this->projectCredentials,
+//            $command,
+//            [],
+//            new RuntimeOptions(['runId' => $this->testRunId]),
+//        );
+//
+//        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Informational));
+//        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Error));
+//
+//        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
+//        $this->assertSame(null, $checkedColumn->getDefault());
+
+        // set helloworld on string
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $datasetName;
+
+        $fields = new RepeatedField(GPBType::STRING);
+        $fields[] = Common::KBC_METADATA_KEY_DEFAULT;
+
+        $command = (new AlterColumnCommand())
+            ->setPath($path)
+            ->setTableName($this->tableName)
+            ->setAttributesToUpdate($fields)
+            ->setDesiredDefiniton(
+                (new TableColumnShared())
+                    ->setType(Bigquery::TYPE_STRING)
+                    ->setName('col3String')
+                    ->setDefault('helloworld'),
+            );
+        $handler = new AlterColumnHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        /** @var ObjectInfoResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Informational));
+        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
+
+        $checkedColumn = $this->extractColumnFromResponse($response, 'col3String');
+        $this->assertSame('\'helloworld\'', $checkedColumn->getDefault());
     }
 
     public function testLength(): void
@@ -249,6 +326,10 @@ class AlterColumnTest extends BaseCase
                 new BigqueryColumn(
                     'col2Required',
                     new Bigquery(Bigquery::TYPE_INT64, ['nullable' => false]),
+                ),
+                new BigqueryColumn(
+                    'col3String',
+                    new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false]),
                 ),
             ]),
             [],
