@@ -115,7 +115,16 @@ class CreateDropProjectTest extends BaseCase
             GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
         ];
 
-        $this->assertEqualsArrays($expectedEnabledServices, $enabledServices);
+        $this->assertSame(
+            array_diff($expectedEnabledServices, $enabledServices),
+            [],
+            sprintf(
+                'Services "%s" are missing in enabled services.' . PHP_EOL . 'Expected: %s' . PHP_EOL . 'Actual: %s',
+                implode(', ', array_diff($expectedEnabledServices, $enabledServices)),
+                implode(', ', $expectedEnabledServices),
+                implode(', ', $enabledServices),
+            ),
+        );
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
