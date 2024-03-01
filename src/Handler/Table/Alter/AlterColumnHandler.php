@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\TableBackendUtils\QueryBuilderException;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
@@ -70,8 +71,8 @@ final class AlterColumnHandler extends BaseHandler
         $builder = new BigqueryTableQueryBuilder();
         /** @var string $databaseName */
         $databaseName = $command->getPath()[0];
-        // TODO
-//        try {
+
+        try {
             $alterColumnCommands = $builder->getUpdateColumnFromDefinitionQuery(
                 $bqColumn,
                 $databaseName,
@@ -79,9 +80,9 @@ final class AlterColumnHandler extends BaseHandler
                 $columnDefinition->getName(),
                 iterator_to_array($command->getAttributesToUpdate()->getIterator()),
             );
-//        } catch (\Exception $e) {
-//            throw AlterColumnException::buildFromFailedJobs($failedOperations, $command->getDesiredDefiniton()->getName(), $command->getTableName());
-//        }
+        } catch (QueryBuilderException $e) {
+            throw new AlterColumnException($e->getMessage(), 0, $e);
+        }
 
         foreach ($alterColumnCommands as $operation => $sqlCommand) {
             try {

@@ -1,0 +1,22 @@
+<?php
+
+namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
+
+use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;
+use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
+use Throwable;
+
+class AlterColumnException extends Exception implements NonRetryableExceptionInterface
+{
+    public function __construct(
+        string $message,
+        int $code = self::ERR_VALIDATION,
+        ?Throwable $previous = null,
+    ) {
+        parent::__construct(
+            $message,
+            $code,
+            $previous,
+        );
+    }
+}
