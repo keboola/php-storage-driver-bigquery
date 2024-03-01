@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
 
 use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterface;

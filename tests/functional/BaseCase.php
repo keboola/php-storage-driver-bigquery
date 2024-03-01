@@ -18,6 +18,7 @@ use Google\Service\Exception as GoogleServiceException;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
@@ -34,6 +35,7 @@ use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\PreviewTableResponse\Row\Column;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
@@ -710,16 +712,29 @@ class BaseCase extends TestCase
         return $tableName;
     }
 
-    public function getLogsOfLevel(DriverCommandHandlerInterface $handler, int $level): array
+    /**
+     * @return LogMessage[]
+     */
+    public function getLogsOfLevel(BaseHandler $handler, int $level): array
     {
-        $logs = iterator_to_array($handler->getMessages()->getIterator());
-        return array_filter($logs, fn(LogMessage $item) => $item->getLevel() === $level);
+        /** @var LogMessage[] $out */
+        $out = [];
+        foreach ($handler->getMessages() as $message) {
+            /** @var LogMessage $message */
+            if ($message->getLevel() === $level) {
+                $out[] = $message;
+            }
+        }
+        return $out;
     }
 
-    protected function extractColumnFromResponse($response, string $columnName): TableColumn
+    protected function extractColumnFromResponse(ObjectInfoResponse $response, string $columnName): TableColumn
     {
         $checkedColumn = null;
-        foreach ($response->getTableInfo()->getColumns() as $column) {
+        $tableInfo = $response->getTableInfo();
+        assert($tableInfo !== null);
+        foreach ($tableInfo->getColumns() as $column) {
+            /** @var TableColumn $column */
             if ($column->getName() === $columnName) {
                 $checkedColumn = $column;
                 break;

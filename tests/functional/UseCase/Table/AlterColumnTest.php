@@ -99,6 +99,7 @@ class AlterColumnTest extends BaseCase
             true,
             true,
             [],
+            // phpcs:ignore
             ['"KBC.datatype.nullable": Cannot DROP NOT NULL constraint from column col1Nullable which does not have a NOT NULL constraint.'],
         ];
 
@@ -335,7 +336,6 @@ class AlterColumnTest extends BaseCase
     /**
      * @dataProvider lengthProvider
      * @param string[] $expectedSuccessLog
-     * @param string[] $expectedErrorLog
      */
     public function testLength(
         string $columnName,
