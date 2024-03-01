@@ -9,6 +9,7 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Common;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\LogMessage;
@@ -39,6 +40,40 @@ class AlterColumnTest extends BaseCase
 
         $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
         $this->tableName = $this->getTestHash() . '_Test_table';
+    }
+
+    public function invalidDefaultProvider(): Generator
+    {
+        yield 'set helloworld on int' => [
+            'col2Required',
+            Bigquery::TYPE_INT64,
+            'helloworld',
+            'Invalid default value for column "col2Required". Expected numeric value, got "helloworld".',
+        ];
+        yield 'set helloworld on boolean' => [
+            'col4Bool',
+            Bigquery::TYPE_BOOL,
+            'helloworld',
+            'Invalid default value for column "col4Bool". Allowed values are true, false, 0, 1, got "helloworld".',
+        ];
+    }
+
+    public function lengthProvider(): Generator
+    {
+        yield '200 -> 300' => [
+            'col5WithLength',
+            '300',
+            '300',
+            [Common::KBC_METADATA_KEY_LENGTH],
+            '',
+        ];
+        yield '200 -> 100' => [
+            'col5WithLength',
+            '100',
+            '200',
+            [],
+            'Narrowing type parameters is not compatible',
+        ];
     }
 
     public function nullabilityProvider(): Generator
@@ -72,6 +107,26 @@ class AlterColumnTest extends BaseCase
             false,
             true,
             [],
+            [],
+        ];
+    }
+
+    public function defaultProvider(): Generator
+    {
+        yield 'set 1234 on int' => [
+            'col1Nullable',
+            Bigquery::TYPE_INT64,
+            '1234',
+            '1234',
+            [Common::KBC_METADATA_KEY_DEFAULT],
+            [],
+        ];
+        yield 'set helloworld on string' => [
+            'col3String',
+            Bigquery::TYPE_STRING,
+            'helloworld',
+            '\'helloworld\'',
+            [Common::KBC_METADATA_KEY_DEFAULT],
             [],
         ];
     }
@@ -118,13 +173,14 @@ class AlterColumnTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
+        // check logs for success and error
         $infoLogs = array_map(
-            fn(LogMessage $log,) => $log->getMessage(),
+            fn(LogMessage $log) => $log->getMessage(),
             $this->getLogsOfLevel($handler, Level::Informational),
         );
         $errorLogs = array_map(
-            fn(LogMessage $log, ) => $log->getMessage(),
-            $this->getLogsOfLevel($handler, Level::Error)
+            fn(LogMessage $log) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Error),
         );
 
         $this->assertEqualsArrays($expectedSuccessLog, $infoLogs);
@@ -134,8 +190,19 @@ class AlterColumnTest extends BaseCase
         $this->assertSame($expectedNullable, $checkedColumn->getNullable());
     }
 
-    public function testDefault(): void
-    {
+    /**
+     * @dataProvider defaultProvider
+     * @param string[] $expectedSuccessLog
+     * @param string[] $expectedErrorLog
+     */
+    public function testDefault(
+        string $columnName,
+        string $type,
+        string $setDefault,
+        string $expectedDefault,
+        array $expectedSuccessLog,
+        array $expectedErrorLog,
+    ): void {
         $datasetName = $this->bucketResponse->getCreateBucketObjectName();
         $this->createRefTable($datasetName, $this->tableName);
 
@@ -152,9 +219,9 @@ class AlterColumnTest extends BaseCase
             ->setAttributesToUpdate($fields)
             ->setDesiredDefiniton(
                 (new TableColumnShared())
-                    ->setType(Bigquery::TYPE_INT64)
-                    ->setName('col2Required')
-                    ->setDefault('1234'),
+                    ->setType($type)
+                    ->setName($columnName)
+                    ->setDefault($setDefault),
             );
         $handler = new AlterColumnHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -167,48 +234,36 @@ class AlterColumnTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Informational));
-        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
+        $infoLogs = array_map(
+            fn(LogMessage $log) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Informational),
+        );
+        $errorLogs = array_map(
+            fn(LogMessage $log) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Error),
+        );
 
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
-        $this->assertSame('1234', $checkedColumn->getDefault());
+        $this->assertEqualsArrays($expectedSuccessLog, $infoLogs);
+        $this->assertEqualsArrays($expectedErrorLog, $errorLogs);
 
-        // TODO
-        // set helloworld on int
-//        $path = new RepeatedField(GPBType::STRING);
-//        $path[] = $datasetName;
-//
-//        $fields = new RepeatedField(GPBType::STRING);
-//        $fields[] = Common::KBC_METADATA_KEY_DEFAULT;
-//
-//        $command = (new AlterColumnCommand())
-//            ->setPath($path)
-//            ->setTableName($this->tableName)
-//            ->setAttributesToUpdate($fields)
-//            ->setDesiredDefiniton(
-//                (new TableColumnShared())
-//                    ->setType(Bigquery::TYPE_INT64)
-//                    ->setName('col2Required')
-//                    ->setDefault('helloworld'),
-//            );
-//        $handler = new AlterColumnHandler($this->clientManager);
-//        $handler->setInternalLogger($this->log);
-//
-//        /** @var ObjectInfoResponse $response */
-//        $response = $handler(
-//            $this->projectCredentials,
-//            $command,
-//            [],
-//            new RuntimeOptions(['runId' => $this->testRunId]),
-//        );
-//
-//        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Informational));
-//        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Error));
-//
-//        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
-//        $this->assertSame(null, $checkedColumn->getDefault());
+        $checkedColumn = $this->extractColumnFromResponse($response, $columnName);
+        $this->assertSame($expectedDefault, $checkedColumn->getDefault());
+    }
 
-        // set helloworld on string
+    /**
+     * usecases which fail even on input validation and won't even make it to execution
+     *
+     * @dataProvider invalidDefaultProvider
+     */
+    public function testInvalidDefaults(
+        string $columnName,
+        string $type,
+        string $setDefault,
+        string $expectedErrorMessage,
+    ): void {
+        $datasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $this->createRefTable($datasetName, $this->tableName);
+
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $datasetName;
 
@@ -221,9 +276,92 @@ class AlterColumnTest extends BaseCase
             ->setAttributesToUpdate($fields)
             ->setDesiredDefiniton(
                 (new TableColumnShared())
+                    ->setType($type)
+                    ->setName($columnName)
+                    ->setDefault($setDefault),
+            );
+        $handler = new AlterColumnHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('should fail');
+        } catch (AlterColumnException $e) {
+            $this->assertEquals($expectedErrorMessage, $e->getMessage());
+        }
+    }
+
+    public function testInvalidOperation(): void
+    {
+        $datasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $this->createRefTable($datasetName, $this->tableName);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $datasetName;
+
+        $fields = new RepeatedField(GPBType::STRING);
+        $fields[] = 'not-existing';
+
+        $command = (new AlterColumnCommand())
+            ->setPath($path)
+            ->setTableName($this->tableName)
+            ->setAttributesToUpdate($fields)
+            ->setDesiredDefiniton(
+                (new TableColumnShared())
+                    ->setType(Bigquery::TYPE_INT64)
+                    ->setName('col1Num'),
+            );
+        $handler = new AlterColumnHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('should fail');
+        } catch (AlterColumnException $e) {
+            $this->assertEquals('Unknown metadata key to "not-existing" to update.', $e->getMessage());
+        }
+    }
+
+    /**
+     * @dataProvider lengthProvider
+     * @param string[] $expectedSuccessLog
+     * @param string[] $expectedErrorLog
+     */
+    public function testLength(
+        string $columnName,
+        string $setLength,
+        string $expectedLength,
+        array $expectedSuccessLog,
+        string $expectedErrorLog,
+    ): void {
+        $datasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $this->createRefTable($datasetName, $this->tableName);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $datasetName;
+
+        $fields = new RepeatedField(GPBType::STRING);
+        $fields[] = Common::KBC_METADATA_KEY_LENGTH;
+
+        $command = (new AlterColumnCommand())
+            ->setPath($path)
+            ->setTableName($this->tableName)
+            ->setAttributesToUpdate($fields)
+            ->setDesiredDefiniton(
+                (new TableColumnShared())
                     ->setType(Bigquery::TYPE_STRING)
-                    ->setName('col3String')
-                    ->setDefault('helloworld'),
+                    ->setName($columnName)
+                    ->setLength($setLength),
             );
         $handler = new AlterColumnHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -236,15 +374,24 @@ class AlterColumnTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $this->assertCount(1, $this->getLogsOfLevel($handler, Level::Informational));
-        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
+        $infoLogs = array_map(
+            fn(LogMessage $log) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Informational),
+        );
+        $errorLogs = array_map(
+            fn(LogMessage $log) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Error),
+        );
 
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col3String');
-        $this->assertSame('\'helloworld\'', $checkedColumn->getDefault());
-    }
+        $this->assertEqualsArrays($expectedSuccessLog, $infoLogs);
+        // error message contains path to resource (generated dataset name)
+        if ($expectedErrorLog) {
+            $this->assertCount(1, $errorLogs);
+            $this->assertStringContainsString($expectedErrorLog, $errorLogs[0]);
+        }
 
-    public function testLength(): void
-    {
+        $checkedColumn = $this->extractColumnFromResponse($response, $columnName);
+        $this->assertSame($expectedLength, $checkedColumn->getLength());
     }
 
     protected function createRefTable(string $bucketDatabaseName, string $tableName): void
@@ -267,6 +414,14 @@ class AlterColumnTest extends BaseCase
                 new BigqueryColumn(
                     'col3String',
                     new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false]),
+                ),
+                new BigqueryColumn(
+                    'col4Bool',
+                    new Bigquery(Bigquery::TYPE_BOOL, ['nullable' => false]),
+                ),
+                new BigqueryColumn(
+                    'col5WithLength',
+                    new Bigquery(Bigquery::TYPE_STRING, ['length' => '200']),
                 ),
             ]),
             [],
