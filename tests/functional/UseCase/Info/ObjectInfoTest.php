@@ -173,7 +173,7 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Informational,
             sprintf(
-                'View "%s:%s.partitionedView" has enabled partitionFilter we are not able to check if it\'s readable.',
+                'The view "%s:%s.partitionedView" has a partition filter set, which stops us from verifying if it can be read.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
@@ -260,7 +260,7 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Informational,
             sprintf(
-                'View "%s:%s.partitionedView" has enabled partitionFilter we are not able to check if it\'s readable.',
+                'The view "%s:%s.partitionedView" has a partition filter set, which stops us from verifying if it can be read.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
@@ -306,11 +306,11 @@ class ObjectInfoTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
         )));
-//        $bqClient->runQuery($bqClient->query(sprintf(
-//            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
-//            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-//            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
-//        )));
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+        )));
 
         $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL

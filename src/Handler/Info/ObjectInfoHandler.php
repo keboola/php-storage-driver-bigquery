@@ -187,7 +187,7 @@ final class ObjectInfoHandler extends BaseHandler
                         //that can be used for partition elimination
                         // view is not ignored but message is logged
                         $this->userLogger->info(sprintf(
-                            'View "%s" has enabled partitionFilter we are not able to check if it\'s readable.',
+                            'The view "%s" has a partition filter set, which stops us from verifying if it can be read.', //phpcs:ignore
                             $info['id'],
                         ), [
                             'info' => $info,
