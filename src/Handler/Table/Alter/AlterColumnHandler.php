@@ -10,6 +10,7 @@ use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
@@ -89,7 +90,7 @@ final class AlterColumnHandler extends BaseHandler
                 $this->userLogger->info($operation);
             } catch (JobException|BadRequestException $e) {
                 // warnings will be handled then in connection for user error
-                $this->userLogger->error(sprintf('"%s": %s', $operation, $e->getMessage()));
+                $this->userLogger->error(sprintf('"%s": %s', $operation, DecodeErrorMessage::getErrorMessage($e)));
             }
         }
 

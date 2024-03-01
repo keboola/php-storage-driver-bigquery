@@ -4,33 +4,25 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table;
 
+use Generator;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
-use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Common;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\LogMessage;
 use Keboola\StorageDriver\Command\Common\LogMessage\Level;
-use Keboola\StorageDriver\Command\Common\LogMessage_Level;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
-use Keboola\StorageDriver\Command\Info\ObjectType;
-use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
-use Keboola\StorageDriver\Command\Table\AddColumnCommand;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
-use Keboola\StorageDriver\Command\Table\DropColumnCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
-use Keboola\TableBackendUtils\Column\ColumnInterface;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
-use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 class AlterColumnTest extends BaseCase
 {
@@ -49,12 +41,56 @@ class AlterColumnTest extends BaseCase
         $this->tableName = $this->getTestHash() . '_Test_table';
     }
 
-    public function testNullability(): void
+    public function nullabilityProvider(): Generator
     {
+        yield 'required -> required' => [
+            'col2Required',
+            false,
+            false,
+            [],
+            [],
+        ];
+
+        yield 'required -> nullable' => [
+            'col2Required',
+            true,
+            true,
+            [Common::KBC_METADATA_KEY_NULLABLE],
+            [],
+        ];
+
+        yield 'nullable -> nullable' => [
+            'col1Nullable',
+            true,
+            true,
+            [],
+            ['"KBC.datatype.nullable": Cannot DROP NOT NULL constraint from column col1Nullable which does not have a NOT NULL constraint.'],
+        ];
+
+        yield 'nullable -> required' => [
+            'col1Nullable',
+            false,
+            true,
+            [],
+            [],
+        ];
+    }
+
+    /**
+     * @dataProvider nullabilityProvider
+     * @param string[] $expectedSuccessLog
+     * @param string[] $expectedErrorLog
+     */
+    public function testNullability(
+        string $columnName,
+        bool $setNullable,
+        bool $expectedNullable,
+        array $expectedSuccessLog,
+        array $expectedErrorLog,
+    ): void {
         $datasetName = $this->bucketResponse->getCreateBucketObjectName();
         $this->createRefTable($datasetName, $this->tableName);
 
-        // required -> required
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $datasetName;
 
@@ -68,8 +104,8 @@ class AlterColumnTest extends BaseCase
             ->setDesiredDefiniton(
                 (new TableColumnShared())
                     ->setType(Bigquery::TYPE_INT64)
-                    ->setName('col2Required')
-                    ->setNullable(false),
+                    ->setName($columnName)
+                    ->setNullable($setNullable),
             );
         $handler = new AlterColumnHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -82,119 +118,20 @@ class AlterColumnTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Informational));
-        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
-
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
-        $this->assertSame(false, $checkedColumn->getNullable());
-
-        // required -> nullable
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $datasetName;
-
-        $fields = new RepeatedField(GPBType::STRING);
-        $fields[] = Common::KBC_METADATA_KEY_NULLABLE;
-
-        $command = (new AlterColumnCommand())
-            ->setPath($path)
-            ->setTableName($this->tableName)
-            ->setAttributesToUpdate($fields)
-            ->setDesiredDefiniton(
-                (new TableColumnShared())
-                    ->setType(Bigquery::TYPE_INT64)
-                    ->setName('col2Required')
-                    ->setNullable(true),
-            );
-        $handler = new AlterColumnHandler($this->clientManager);
-        $handler->setInternalLogger($this->log);
-
-        /** @var ObjectInfoResponse $response */
-        $response = $handler(
-            $this->projectCredentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
+        $infoLogs = array_map(
+            fn(LogMessage $log,) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Informational),
+        );
+        $errorLogs = array_map(
+            fn(LogMessage $log, ) => $log->getMessage(),
+            $this->getLogsOfLevel($handler, Level::Error)
         );
 
-        $infoLogs = $this->getLogsOfLevel($handler, Level::Informational);
-        $this->assertCount(1, $infoLogs);
-        $this->assertCount(0, $this->getLogsOfLevel($handler, Level::Error));
-        $this->assertEquals(Common::KBC_METADATA_KEY_NULLABLE, $infoLogs[0]->getMessage());
+        $this->assertEqualsArrays($expectedSuccessLog, $infoLogs);
+        $this->assertEqualsArrays($expectedErrorLog, $errorLogs);
 
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col2Required');
-        $this->assertSame(true, $checkedColumn->getNullable());
-
-        // nullable -> nullable
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $datasetName;
-
-        $fields = new RepeatedField(GPBType::STRING);
-        $fields[] = Common::KBC_METADATA_KEY_NULLABLE;
-
-        $command = (new AlterColumnCommand())
-            ->setPath($path)
-            ->setTableName($this->tableName)
-            ->setAttributesToUpdate($fields)
-            ->setDesiredDefiniton(
-                (new TableColumnShared())
-                    ->setType(Bigquery::TYPE_INT64)
-                    ->setName('col1Nullable')
-                    ->setNullable(true),
-            );
-        $handler = new AlterColumnHandler($this->clientManager);
-        $handler->setInternalLogger($this->log);
-
-        /** @var ObjectInfoResponse $response */
-        $response = $handler(
-            $this->projectCredentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
-        );
-
-        $infoLogs = $this->getLogsOfLevel($handler, Level::Informational);
-        $errorLogs = $this->getLogsOfLevel($handler, Level::Error);
-        $this->assertCount(0, $infoLogs);
-        $this->assertCount(1, $errorLogs);
-
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col1Nullable');
-        $this->assertSame(true, $checkedColumn->getNullable());
-
-        // nullable -> required
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $datasetName;
-
-        $fields = new RepeatedField(GPBType::STRING);
-        $fields[] = Common::KBC_METADATA_KEY_NULLABLE;
-
-        $command = (new AlterColumnCommand())
-            ->setPath($path)
-            ->setTableName($this->tableName)
-            ->setAttributesToUpdate($fields)
-            ->setDesiredDefiniton(
-                (new TableColumnShared())
-                    ->setType(Bigquery::TYPE_INT64)
-                    ->setName('col1Nullable')
-                    ->setNullable(false),
-            );
-        $handler = new AlterColumnHandler($this->clientManager);
-        $handler->setInternalLogger($this->log);
-
-        /** @var ObjectInfoResponse $response */
-        $response = $handler(
-            $this->projectCredentials,
-            $command,
-            [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
-        );
-
-        $infoLogs = $this->getLogsOfLevel($handler, Level::Informational);
-        $errorLogs = $this->getLogsOfLevel($handler, Level::Error);
-        $this->assertCount(0, $infoLogs);
-        $this->assertCount(0, $errorLogs);
-
-        $checkedColumn = $this->extractColumnFromResponse($response, 'col1Nullable');
-        $this->assertSame(true, $checkedColumn->getNullable());
+        $checkedColumn = $this->extractColumnFromResponse($response, $columnName);
+        $this->assertSame($expectedNullable, $checkedColumn->getNullable());
     }
 
     public function testDefault(): void
