@@ -52,7 +52,7 @@ use Throwable;
 
 class BaseCase extends TestCase
 {
-//    use RetryTrait;
+    use RetryTrait;
 
     public const DEFAULT_LOCATION = 'US';
 
