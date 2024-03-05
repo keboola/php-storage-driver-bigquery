@@ -153,6 +153,7 @@ final class ObjectInfoHandler extends BaseHandler
                 'Processing table "%s".',
                 $table->id(),
             ));
+            $table->reload(); // table has to be reload info from list is missing schema
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
                 $this->userLogger->warning(sprintf(
@@ -169,6 +170,41 @@ final class ObjectInfoHandler extends BaseHandler
                     'Found view "%s".',
                     $table->id(),
                 ));
+
+                try {
+                    $client->runQuery($client->query(sprintf(
+                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
+                    )));
+                } catch (Throwable $e) {
+                    $message = DecodeErrorMessage::getErrorMessage($e);
+                    if (str_contains($message, 'partition elimination')) {
+                        // view from table which have requirePartitionFilter has not set this property
+                        // we will let query fail and if message contains:
+                        // Cannot query over table x without a filter over column(s) colX
+                        //that can be used for partition elimination
+                        // view is not ignored but message is logged
+                        $this->userLogger->info(sprintf(
+                            'The view "%s" has a partition filter set, which stops us from verifying if it can be read.', //phpcs:ignore
+                            $info['id'],
+                        ), [
+                            'info' => $info,
+                        ]);
+                    } else {
+                        // other error is failure and view is ignored
+                        $this->userLogger->warning(sprintf(
+                            'Selecting data from view "%s" failed with error: "%s" View was ignored',
+                            $info['id'],
+                            $message,
+                        ), [
+                            'info' => $info,
+                            'message' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+                }
                 yield (new ObjectInfo())
                     ->setObjectType(ObjectType::VIEW)
                     ->setObjectName($table->id());
@@ -178,6 +214,21 @@ final class ObjectInfoHandler extends BaseHandler
                 'Found table "%s".',
                 $table->id(),
             ));
+
+            try {
+                $table->rows()->current();
+            } catch (Throwable $e) {
+                $message = DecodeErrorMessage::getErrorMessage($e);
+                $this->userLogger->warning(sprintf(
+                    'Selecting data from table "%s" failed with error: "%s" Table was ignored',
+                    $info['id'],
+                    $message,
+                ), [
+                    'info' => $info,
+                    'message' => $e->getMessage(),
+                ]);
+                continue;
+            }
             // TABLE,SNAPSHOT
             yield (new ObjectInfo())
                 ->setObjectType(ObjectType::TABLE)
@@ -204,7 +255,7 @@ final class ObjectInfoHandler extends BaseHandler
                     $path[1],
                 ),
             ));
-        } catch (TableNotExistsReflectionException $e) {
+        } catch (TableNotExistsReflectionException) {
             throw new ObjectNotFoundException($path[1]);
         }
         return $response;
@@ -221,14 +272,18 @@ final class ObjectInfoHandler extends BaseHandler
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->getDataset($bqClient, $path[0]);
 
-        $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
-            $path[0],
-            new BigqueryTableReflection(
-                $bqClient,
+        try {
+            $response->setViewInfo(ViewReflectionResponseTransformer::transformTableReflectionToResponse(
                 $path[0],
-                $path[1],
-            ),
-        ));
+                new BigqueryTableReflection(
+                    $bqClient,
+                    $path[0],
+                    $path[1],
+                ),
+            ));
+        } catch (TableNotExistsReflectionException) {
+            throw new ObjectNotFoundException($path[1]);
+        }
         return $response;
     }
 
