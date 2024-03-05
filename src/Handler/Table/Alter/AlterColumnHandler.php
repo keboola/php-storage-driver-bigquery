@@ -73,12 +73,14 @@ final class AlterColumnHandler extends BaseHandler
         $databaseName = $command->getPath()[0];
 
         try {
+            /** @var string[] $metadataKeysToUpdate */
+            $metadataKeysToUpdate = iterator_to_array($command->getAttributesToUpdate()->getIterator());
             $alterColumnCommands = $builder->getUpdateColumnFromDefinitionQuery(
                 $bqColumn,
                 $databaseName,
                 $command->getTableName(),
                 $columnDefinition->getName(),
-                iterator_to_array($command->getAttributesToUpdate()->getIterator()),
+                $metadataKeysToUpdate,
             );
         } catch (QueryBuilderException $e) {
             throw new AlterColumnException($e->getMessage(), 0, $e);
