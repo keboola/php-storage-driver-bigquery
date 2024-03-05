@@ -49,7 +49,7 @@
         "keboola/coding-standard": "^15.0",
         "php-parallel-lint/php-parallel-lint": "^1.3",
         "symfony/finder": "^5.4",
-        "keboola/phpunit-retry-annotations": "^0.4.0",
+        "keboola/phpunit-retry-annotations": "dev-CT-1306-fix-retry-config",
         "brianium/paratest": "^6.10",
         "symfony/lock": "^6.3"
     },
