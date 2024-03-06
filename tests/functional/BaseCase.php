@@ -18,6 +18,7 @@ use Google\Service\Exception as GoogleServiceException;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
@@ -26,20 +27,25 @@ use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Common\LogMessage;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
+use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\PreviewTableResponse\Row\Column;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
+use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
+use Psr\Log\LogLevel;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 use Throwable;
@@ -704,5 +710,37 @@ class BaseCase extends TestCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         return $tableName;
+    }
+
+    /**
+     * @return LogMessage[]
+     */
+    public function getLogsOfLevel(BaseHandler $handler, int $level): array
+    {
+        /** @var LogMessage[] $out */
+        $out = [];
+        foreach ($handler->getMessages() as $message) {
+            /** @var LogMessage $message */
+            if ($message->getLevel() === $level) {
+                $out[] = $message;
+            }
+        }
+        return $out;
+    }
+
+    protected function extractColumnFromResponse(ObjectInfoResponse $response, string $columnName): TableColumn
+    {
+        $checkedColumn = null;
+        $tableInfo = $response->getTableInfo();
+        assert($tableInfo !== null);
+        foreach ($tableInfo->getColumns() as $column) {
+            /** @var TableColumn $column */
+            if ($column->getName() === $columnName) {
+                $checkedColumn = $column;
+                break;
+            }
+        }
+        assert($checkedColumn !== null, 'Column not found');
+        return $checkedColumn;
     }
 }

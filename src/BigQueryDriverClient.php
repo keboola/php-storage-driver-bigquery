@@ -21,6 +21,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DeleteTableRowsHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
@@ -50,6 +51,7 @@ use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
+use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
@@ -146,6 +148,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new DropTableHandler($manager);
             case $command instanceof AddColumnCommand:
                 return new AddColumnHandler($manager);
+            case $command instanceof AlterColumnCommand:
+                return new AlterColumnHandler($manager);
             case $command instanceof DropColumnCommand:
                 return new DropColumnHandler($manager);
             case $command instanceof TableImportFromFileCommand:
