@@ -83,7 +83,10 @@ final class AlterColumnHandler extends BaseHandler
                 $metadataKeysToUpdate,
             );
         } catch (QueryBuilderException $e) {
-            throw new AlterColumnException($e->getMessage(), 0, $e);
+            throw new AlterColumnException(
+                message: $e->getMessage(),
+                previous: $e
+            );
         }
 
         foreach ($alterColumnCommands as $operation => $sqlCommand) {
