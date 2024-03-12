@@ -1,4 +1,4 @@
-FROM php:8.1-cli-buster
+FROM php:8.1-cli-bullseye
 
 ARG COMPOSER_FLAGS="--prefer-dist --no-interaction"
 ARG DEBIAN_FRONTEND=noninteractive
