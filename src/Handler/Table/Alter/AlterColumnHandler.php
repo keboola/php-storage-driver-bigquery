@@ -85,7 +85,7 @@ final class AlterColumnHandler extends BaseHandler
         } catch (QueryBuilderException $e) {
             throw new AlterColumnException(
                 message: $e->getMessage(),
-                previous: $e
+                previous: $e,
             );
         }
 

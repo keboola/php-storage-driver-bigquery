@@ -273,7 +273,7 @@ abstract class CommonFilterQueryBuilder
                 /** @var BigqueryColumn[] $def */
                 $def = array_values(array_filter(
                     iterator_to_array($tableColumnsDefinitions),
-                    fn(BigqueryColumn|ColumnInterface $c) => $c->getColumnName() === $column
+                    fn(BigqueryColumn|ColumnInterface $c) => $c->getColumnName() === $column,
                 ));
                 if (count($def) === 0) {
                     throw new QueryBuilderException(sprintf('Column "%s" not found in table definition.', $column));
