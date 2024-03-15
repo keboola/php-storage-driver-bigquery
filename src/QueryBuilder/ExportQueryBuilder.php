@@ -33,6 +33,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     /**
      * @param self::MODE_* $mode
      * @throws QueryBuilderException
+     * @throws ColumnNotFoundException
      */
     public function buildQueryFromCommand(
         string $mode,

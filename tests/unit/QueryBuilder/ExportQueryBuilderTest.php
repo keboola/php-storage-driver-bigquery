@@ -9,6 +9,7 @@ use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnNotFoundException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -393,7 +394,7 @@ class ExportQueryBuilderTest extends TestCase
                 'tableName' => 'some_table',
                 'columns' => ['non-existent', 'second-non-existent'],
             ]),
-            QueryBuilderException::class,
+            ColumnNotFoundException::class,
             'Column "non-existent" not found in table definition.',
         ];
 
