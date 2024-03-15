@@ -11,8 +11,6 @@ use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\NullValue;
 use Google\Protobuf\Value;
-use Keboola\Connection\Storage\Request\Table\DataPreviewRequest;
-use Keboola\Connection\Storage\Service\Table\Preview\PreviewValidationException;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Common;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
