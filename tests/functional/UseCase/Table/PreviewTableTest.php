@@ -18,6 +18,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnNotFoundException;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
@@ -1365,6 +1366,16 @@ class PreviewTableTest extends BaseCase
             $this->fail('This should never happen');
         } catch (Throwable $e) {
             $this->assertStringContainsString('PreviewTableCommand.orderBy.0.columnName is required', $e->getMessage());
+        }
+
+        try {
+            $this->previewTable($bucketDatabaseName, $tableName, [
+                'columns' => ['id', 'int', 'non-exist'],
+            ]);
+            $this->fail('This should never happen');
+        } catch (ColumnNotFoundException $e) {
+            $this->assertSame(2005, $e->getCode());
+            $this->assertSame('Column "non-exist" not found in table definition.', $e->getMessage());
         }
     }
 

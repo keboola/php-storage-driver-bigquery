@@ -276,7 +276,7 @@ abstract class CommonFilterQueryBuilder
                     fn(BigqueryColumn|ColumnInterface $c) => $c->getColumnName() === $column,
                 ));
                 if (count($def) === 0) {
-                    throw new QueryBuilderException(sprintf('Column "%s" not found in table definition.', $column));
+                    throw new ColumnNotFoundException($column);
                 }
                 $this->processSelectWithLargeColumnTruncation(
                     $query,
