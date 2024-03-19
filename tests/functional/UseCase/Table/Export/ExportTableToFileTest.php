@@ -16,6 +16,7 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ColumnNotFoundException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -612,13 +613,23 @@ class ExportTableToFileTest extends BaseCase
         try {
             $this->exportTable($bucketDatabaseName, $tableName, $params, $exportDir);
             $this->fail('This should never happen');
-        } catch (BadExportFilterParametersException $e) {
+        } catch (BadExportFilterParametersException|ColumnNotFoundException $e) {
             $this->assertStringContainsString($expectExceptionMessage, $e->getMessage());
         }
     }
 
     public function filterProvider(): Generator
     {
+        yield 'non exist columns' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['non-exist'],
+                ]),
+            ],
+            'Name non-exist not found inside ',
+        ];
+
         yield 'wrong int' => [
             [ // input
                 'exportOptions' => new ExportOptions([
