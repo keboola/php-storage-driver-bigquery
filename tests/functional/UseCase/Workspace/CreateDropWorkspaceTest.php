@@ -172,6 +172,31 @@ class CreateDropWorkspaceTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
+        $ws2BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials2);
+
+        try {
+            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+                'SELECT * FROM %s.`testTable`;',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            )));
+            $this->fail('Read from another workspace should fail');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('User does not have permission to query table', $e->getMessage());
+        }
+
+        try {
+            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+                'CREATE TABLE %s.`testTable` (`id` INTEGER);',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            )));
+
+            $this->fail('Write in another workspace should fail');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('Permission bigquery.tables.create denied on dataset', $e->getMessage());
+        }
+
         // try to drop view
         $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'DROP VIEW %s.`testView`;',
