@@ -90,8 +90,10 @@ class CreateDropWorkspaceTest extends BaseCase
         /** @var array<string, string> $datasets */
         $datasets = $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */
-            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA;',
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` IN (%s,%s) ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
+            BigqueryQuote::quote(strtoupper($wsResponse1->getWorkspaceObjectName())),
+            BigqueryQuote::quote(strtoupper($wsResponse2->getWorkspaceObjectName())),
         )));
 
         // two workspace datasets
