@@ -63,6 +63,12 @@ class CreateDropWorkspaceTest extends BaseCase
             $wsCredentials1,
             $wsResponse1,
         ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
+        [
+            $wsCredentials2,
+            $wsResponse2,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
         $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials1);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse1);
 
@@ -84,12 +90,12 @@ class CreateDropWorkspaceTest extends BaseCase
         /** @var array<string, string> $datasets */
         $datasets = $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */
-            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
-            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
         )));
 
-        $this->assertCount(1, $datasets);
+        // two workspace datasets
+        $this->assertCount(2, $datasets);
 
         // test ws service acc is owner of ws dataset
         $workspaceDataset = $bqClient->dataset($wsResponse1->getWorkspaceObjectName())->info();
