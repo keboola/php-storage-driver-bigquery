@@ -45,6 +45,9 @@ BQ_KEY_FILE=<big_query_key.json file owned by main service acc>
 ```
 
 All done. Now you can try `composer loadGcs` script and run tests.
+```bash
+docker-compose run --rm dev composer loadGcs
+```
 
 ## Build docker images
 
