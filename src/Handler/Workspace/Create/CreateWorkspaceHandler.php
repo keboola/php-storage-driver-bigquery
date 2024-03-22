@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 use Exception;
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\Expr;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\CloudResourceManager\GetPolicyOptions;
 use Google\Service\CloudResourceManager\Policy;
@@ -153,6 +154,17 @@ final class CreateWorkspaceHandler extends BaseHandler
                 $bigQueryJobUserBinding = new Binding();
                 $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
                 $bigQueryJobUserBinding->setRole($role);
+
+                if ($role === IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER) {
+                    $conditionExpression = new Expr();
+                    $conditionExpression->setTitle('ReadOnly Role');
+                    $conditionExpression->setDescription('Allow read only from buckets not from other ws');
+                    $conditionExpression->setExpression(sprintf(
+                        "!resource.name.startsWith('%s/datasets/WORKSPACE_')",
+                        $projectName,
+                    ));
+                    $bigQueryJobUserBinding->setCondition($conditionExpression);
+                }
                 $finalBinding[] = $bigQueryJobUserBinding;
             }
 
