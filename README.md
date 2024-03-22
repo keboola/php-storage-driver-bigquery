@@ -7,6 +7,12 @@ Keboola high level storage backend driver for Big Query
 Install [Google Cloud client](https://cloud.google.com/sdk/docs/install-sdk) (via [Brew](https://formulae.brew.sh/cask/google-cloud-sdk#default)), initialize it
 and log in to [generate default credentials](https://cloud.google.com/docs/authentication/application-default-credentials#personal).
 
+
+Install dependencies.
+```bash
+docker-compose run --rm dev composer install
+```
+
 To prepare the backend use [Terraform template](./bq-storage-backend-init.tf).
 Create a sub folder in the **KBC Team Dev** (id: [431160969986](https://console.cloud.google.com/cloud-resource-manager?folder=431160969986)) folder and fill the folder into the terraform command.
 1. get missing pieces (organization_id and billing_id) from [Connection repository](https://github.com/keboola/connection/blob/master/docs/DOCKER.md#bigquery).
