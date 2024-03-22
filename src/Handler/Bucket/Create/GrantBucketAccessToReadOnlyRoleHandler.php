@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
-use Exception;
 use Google\ApiCore\ApiException;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDataset;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDatasetReference;
@@ -56,15 +55,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
             'GrantBucketAccessToReadOnlyRoleCommand.getStackPrefix is required',
         );
 
-        $commandMeta = $command->getMeta();
-        if ($commandMeta === null) {
-            throw new Exception('GrantBucketAccessToReadOnlyRoleBigqueryMeta is required.');
-        }
-
-        $commandMeta = $commandMeta->unpack();
-        // phpcs:ignore
-        assert($commandMeta instanceof GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta);
-        $region = $commandMeta->getRegion();
+        $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 
         [
             $projectId,
@@ -103,7 +94,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
 
         $destinationDataset = new DestinationDataset([
             'dataset_reference' => $datasetReference,
-            'location' => $region,
+            'location' => $credentialsMeta->getRegion(),
         ]);
 
         try {

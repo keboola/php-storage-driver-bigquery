@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 use Exception;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -38,6 +39,10 @@ final class DropProjectHandler extends BaseHandler
 
         $iamService = $this->clientManager->getIamClient($credentials);
         $serviceAccountsService = $iamService->projects_serviceAccounts;
+
+        $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
+        $region = $credentialsMeta->getRegion();
+
         $commandMeta = $command->getMeta();
         if ($commandMeta === null) {
             throw new Exception('DropProjectBigqueryMeta is required.');
@@ -46,7 +51,6 @@ final class DropProjectHandler extends BaseHandler
         $commandMeta = $commandMeta->unpack();
         assert($commandMeta instanceof DropProjectCommand\DropProjectBigqueryMeta);
         $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
-        $region = $commandMeta->getRegion();
 
         /** @var array<string, string>|false $publicPartKeyFile */
         $publicPartKeyFile = json_decode($command->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);

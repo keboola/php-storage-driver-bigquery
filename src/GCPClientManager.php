@@ -130,23 +130,21 @@ class GCPClientManager
         return new Google_Service_CloudResourceManager($client);
     }
 
+    /**
+     * @throws CredentialsMetaRequiredException
+     * @throws \JsonException
+     */
     public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
     {
-        $commandMeta = $credentials->getMeta();
-        if ($commandMeta === null) {
-            throw new Exception('GenericBackendCredentialsMeta is required.');
-        }
+        $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 
-        $commandMeta = $commandMeta->unpack();
-        assert($commandMeta instanceof BigQueryCredentialsMeta);
-        $region = $commandMeta->getRegion();
         // note: the close method is not used in this client
         return new BigQueryClientWrapper($runId, [
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'restRetryFunction' => Retry::getRetryDecider($this->logger),
             'requestTimeout' => self::TIMEOUT,
             'retries' => 20,
-            'location' => $region,
+            'location' => $credentialsMeta->getRegion(),
         ]);
     }
 

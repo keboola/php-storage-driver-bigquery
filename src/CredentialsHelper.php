@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery;
 
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials\BigQueryCredentialsMeta;
 
 final class CredentialsHelper
 {
@@ -42,5 +43,21 @@ final class CredentialsHelper
         $credentialsArr['private_key'] = $credentials->getSecret();
 
         return $credentialsArr;
+    }
+
+    /**
+     * @throws CredentialsMetaRequiredException
+     */
+    public static function getBigQueryCredentialsMeta(GenericBackendCredentials $credentials): BigQueryCredentialsMeta
+    {
+        $credentialsMeta = $credentials->getMeta();
+        if ($credentialsMeta === null) {
+            throw new CredentialsMetaRequiredException('BigQueryCredentialsMeta is required.');
+        }
+        $credentialsMeta = $credentialsMeta->unpack();
+
+        assert($credentialsMeta instanceof BigQueryCredentialsMeta);
+
+        return $credentialsMeta;
     }
 }
