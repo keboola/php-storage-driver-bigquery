@@ -72,8 +72,8 @@
         "paratest-import": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --functional --verbose --debug --testsuite='Import'",
         "paratest-export": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --functional --verbose --debug --testsuite='Export'",
         "tests": [
-            "tests-unit",
-            "tests-functional"
+            "@tests-unit",
+            "@tests-functional"
         ],
         "loadGcs": "php ./tests/StubLoader/loader.php gcs",
         "load-data": [
