@@ -120,6 +120,7 @@ final class ExportTableToFileHandler extends BaseHandler
             );
         } catch (BadRequestException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
+            ColumnNotFoundException::handle($e);
             throw $e;
         }
 
