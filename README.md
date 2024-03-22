@@ -12,7 +12,7 @@ Create a sub folder in the **KBC Team Dev** (id: [431160969986](https://console.
 1. get missing pieces (organization_id and billing_id) from [Connection repository](https://github.com/keboola/connection/blob/master/docs/DOCKER.md#bigquery).
 2. (optional) move `bq-storage-backend-init.tf` out of project directory so new files would be out of git
 3. Run `terraform init` 
-4. Run `terraform apply -var folder_id=[folder_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. js-driver-bq> -var region=<desired region>`
+4. Run `terraform apply -var folder_id=[folder_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. kbc-js> -var region=<desired region>`
    1. Optionally set `terraform.tfvars` file with variables there is predefined `terraform.tfvars.dist` file 
 5. New key files was created `principal_key.json` and `big_query_key.json`
 6. open `principal_key.json` set content of `private_key` as variable `BQ_SECRET` and remove (the whole entry) it from json file
