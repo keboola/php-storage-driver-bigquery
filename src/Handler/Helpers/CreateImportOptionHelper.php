@@ -26,6 +26,8 @@ final class CreateImportOptionHelper
             $options->getTimestampColumn() === '_timestamp',
             $options->getNumberOfIgnoredLines(),
             $strategyMapping[$options->getImportStrategy()],
+            null,
+            ProtobufHelper::repeatedStringToArray($options->getImportAsNull()),
         );
     }
 }
