@@ -322,9 +322,11 @@ class BaseCase extends TestCase
         }
 
         $any = new Any();
-        $any->pack((new GenericBackendCredentials\BigQueryCredentialsMeta())->setFolderId(
-            $folderId,
-        ));
+        $any->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setFolderId($folderId,)
+                ->setRegion(BaseCase::DEFAULT_LOCATION)
+        );
         return (new GenericBackendCredentials())
             ->setPrincipal($principal)
             ->setSecret($secret)
