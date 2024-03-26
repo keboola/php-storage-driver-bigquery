@@ -173,7 +173,7 @@ abstract class CommonFilterQueryBuilder
                     $values,
                     $query,
                     $columnBaseType,
-                    $colDefinition->getType()
+                    $colDefinition->getType(),
                 );
             }
         }
@@ -188,9 +188,9 @@ abstract class CommonFilterQueryBuilder
         string $realDatatype,
     ): void {
         // scenarios (NUMERIC = everything but not string)
-        // 1. column's baseType = STRING; datatype = NUMERIC -> SAFE_CAST(column as datatype) = SAFE_CAST('3.14' as dataType)
-        // 2. column's baseType = STRING; datatype = STRING -> column = '3.14'
-        // 3. column's baseType = NUMERIC; datatype cannot matter -> column = SAFE_CAST('3.14' as $realDatatype)
+        // 1. baseType = STRING; datatype = NUMERIC -> SAFE_CAST(column as datatype) = SAFE_CAST('3.14' as dataType)
+        // 2. baseType = STRING; datatype = STRING -> column = '3.14'
+        // 3. baseType = NUMERIC; datatype cannot matter -> column = SAFE_CAST('3.14' as $realDatatype)
 
         if ($baseType !== BaseType::STRING) {
             // 3
