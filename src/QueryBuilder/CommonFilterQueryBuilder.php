@@ -127,9 +127,29 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|TableWhereFilter[] $filters
      */
-    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query, string $tableName): void
-    {
+    protected function processWhereFilters(
+        RepeatedField $filters,
+        QueryBuilder $query,
+        string $tableName,
+        ColumnCollection $tableColumnsDefinitions,
+    ): void {
+        $columnDefByName = [];
+        foreach ($tableColumnsDefinitions as $column) {
+            $columnDefByName[$column->getColumnName()] = $column;
+        }
+
         foreach ($filters as $whereFilter) {
+            $columnBaseType = $columnDefByName[$whereFilter->getColumnsName()]->getColumnDefinition()->getBasetype();
+            if ($whereFilter->getDataType() === DataType::STRING
+                && $columnBaseType !== BaseType::STRING) {
+                // default dataType but base type is not string
+                match ($columnBaseType) {
+                    BaseType::INTEGER => $convertedDatatype = DataType::INTEGER,
+                    BaseType::FLOAT, BaseType::NUMERIC => $convertedDatatype = DataType::DOUBLE,
+                };
+                $whereFilter->setDataType($convertedDatatype);
+            }
+
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
                 $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
