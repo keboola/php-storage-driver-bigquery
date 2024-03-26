@@ -162,7 +162,7 @@ class ExportQueryBuilderTest extends TestCase
             SQL,
             [
                 'dcValue1' => 'foo',
-                'dcValue2' => '1.23',
+                'dcValue2' => 1.23,
             ],
         ];
 
@@ -336,8 +336,8 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE (`some_table`.`id` IN UNNEST(@dcValue1)) AND (SAFE_CAST(`some_table`.`id` AS INTEGER) NOT IN UNNEST(@dcValue2)) 
-            AND (SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue3)
+            WHERE (`some_table`.`id` IN UNNEST(@dcValue1)) AND (`some_table`.`id` NOT IN UNNEST(@dcValue2)) 
+            AND (`some_table`.`height` <> @dcValue3)
             SQL,
             // @codingStandardsIgnoreEnd
             [
