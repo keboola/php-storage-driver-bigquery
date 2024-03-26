@@ -154,7 +154,7 @@ abstract class CommonFilterQueryBuilder
             if (count($values) === 1) {
                 $this->processSimpleValue($whereFilter, reset($values), $query, $tableName, $columnBaseType);
             } else {
-                $this->processMultipleValue($tableName, $whereFilter, $values, $query);
+                $this->processMultipleValue($tableName, $whereFilter, $values, $query, $columnBaseType);
             }
         }
     }
@@ -215,6 +215,7 @@ abstract class CommonFilterQueryBuilder
         TableWhereFilter $filter,
         array $values,
         QueryBuilder $query,
+        string $baseType,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -222,7 +223,16 @@ abstract class CommonFilterQueryBuilder
             );
         }
 
-        if ($filter->getDataType() !== DataType::STRING) {
+        if ($baseType !== BaseType::STRING) {
+            // 3
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
+            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
+            $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
+        } elseif ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
