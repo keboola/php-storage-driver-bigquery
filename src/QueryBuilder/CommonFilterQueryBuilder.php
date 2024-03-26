@@ -73,16 +73,22 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    private function convertNonStringValue(TableWhereFilter $filter, string $value): string|int|float
-    {
+    private function convertNonStringValue(
+        TableWhereFilter $filter,
+        string $value,
+        ColumnInterface $columnDefinition,
+    ): string|int|float {
         switch (true) {
             case $filter->getDataType() === DataType::INTEGER:
             case $filter->getDataType() === DataType::BIGINT:
+            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::INTEGER:
                 $value = (int) $value;
                 break;
             case $filter->getDataType() === DataType::REAL:
             case $filter->getDataType() === DataType::DECIMAL:
             case $filter->getDataType() === DataType::DOUBLE:
+            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::FLOAT:
+            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::NUMERIC:
                 $value = (float) $value;
                 break;
         }
@@ -127,14 +133,23 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|TableWhereFilter[] $filters
      */
-    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query, string $tableName): void
-    {
+    protected function processWhereFilters(
+        RepeatedField $filters,
+        QueryBuilder $query,
+        string $tableName,
+        ColumnCollection $tableColumnsDefinitions
+    ): void {
+        $columnDefinitionByName = [];
+        foreach ($tableColumnsDefinitions as $column) {
+            $columnDefinitionByName[$column->getColumnName()] = $column;
+        }
+
         foreach ($filters as $whereFilter) {
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
-                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
+                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName, $columnDefinitionByName[$whereFilter->getColumnsName()]);
             } else {
-                $this->processMultipleValue($tableName, $whereFilter, $values, $query);
+                $this->processMultipleValue($tableName, $whereFilter, $values, $query, $columnDefinitionByName[$whereFilter->getColumnsName()]);
             }
         }
     }
@@ -144,6 +159,7 @@ abstract class CommonFilterQueryBuilder
         string $value,
         QueryBuilder $query,
         string $tableName,
+        ColumnInterface $columnDefinition,
     ): void {
         if ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
@@ -151,7 +167,7 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $value = $this->convertNonStringValue($filter, $value);
+            $value = $this->convertNonStringValue($filter, $value, $columnDefinition);
         } else {
             $columnSql = sprintf(
                 '%s.%s',
@@ -178,6 +194,7 @@ abstract class CommonFilterQueryBuilder
         TableWhereFilter $filter,
         array $values,
         QueryBuilder $query,
+        ColumnInterface $columnDefinition,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -191,7 +208,11 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
+            // tady values portrebuju pretypovat na spravny typ
+            $values = array_map(
+                fn(string $value) => $this->convertNonStringValue($filter, $value, $columnDefinition),
+                $values,
+            );
             $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
         } else {
             $columnSql = sprintf(
