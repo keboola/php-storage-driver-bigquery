@@ -140,12 +140,12 @@ abstract class CommonFilterQueryBuilder
 
         foreach ($filters as $whereFilter) {
             $columnBaseType = $columnDefByName[$whereFilter->getColumnsName()]->getColumnDefinition()->getBasetype();
-            if ($whereFilter->getDataType() === DataType::STRING
-                && $columnBaseType !== BaseType::STRING) {
-                // default dataType but base type is not string
+            if ($whereFilter->getDataType() === DataType::STRING) {
+                // default dataType but base type might be not string
                 match ($columnBaseType) {
                     BaseType::INTEGER => $convertedDatatype = DataType::INTEGER,
                     BaseType::FLOAT, BaseType::NUMERIC => $convertedDatatype = DataType::DOUBLE,
+                    default => $convertedDatatype = DataType::STRING,
                 };
                 $whereFilter->setDataType($convertedDatatype);
             }
