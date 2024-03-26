@@ -1161,6 +1161,50 @@ class PreviewTableTest extends BaseCase
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
         $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
+        // CHECK: where filter withOUT datatype
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'decimal_varchar'],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'decimal_varchar',
+                            'operator' => Operator::eq,
+                            'values' => ['100.2'],
+                            'dataType' => DataType::DOUBLE,
+                            // here is datatype required, because the column is string
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'id',
+                            'operator' => Operator::eq,
+                            'values' => ['2'],
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'decimal_varchar'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'decimal_varchar' => [
+                        'value' => ['string_value' => '100.20'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
         // FILL DATA
         $insertGroups = [
             [
