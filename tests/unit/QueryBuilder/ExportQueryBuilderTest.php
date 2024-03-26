@@ -162,7 +162,7 @@ class ExportQueryBuilderTest extends TestCase
             SQL,
             [
                 'dcValue1' => 'foo',
-                'dcValue2' => 1.23,
+                'dcValue2' => "SAFE_CAST('1.23' AS DECIMAL)",
             ],
         ];
 
@@ -295,7 +295,7 @@ class ExportQueryBuilderTest extends TestCase
             SQL,
             // @codingStandardsIgnoreEnd
             [
-                'dcValue1' => 10.2,
+                'dcValue1' => "SAFE_CAST('10.20' AS DECIMAL)",
             ],
         ];
 
@@ -342,14 +342,14 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreEnd
             [
                 'dcValue1' => [
-                    'foo',
-                    'bar',
+                    "SAFE_CAST('foo' AS INT)",
+                    "SAFE_CAST('bar' AS INT)",
                 ],
                 'dcValue2' => [
-                    50,
-                    60,
+                    "SAFE_CAST('50' AS INT)",
+                    "SAFE_CAST('60' AS INT)",
                 ],
-                'dcValue3' => 10.20,
+                'dcValue3' => "SAFE_CAST('10.20' AS DECIMAL)",
             ],
         ];
     }
