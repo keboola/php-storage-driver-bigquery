@@ -290,7 +290,7 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE SAFE_CAST(`some_table`.`height` AS NUMERIC) <> @dcValue1 
+            WHERE `some_table`.`height` <> @dcValue1 
             ORDER BY SAFE_CAST(`some_table`.`id` AS NUMERIC) ASC
             SQL,
             // @codingStandardsIgnoreEnd

@@ -152,7 +152,7 @@ abstract class CommonFilterQueryBuilder
 
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
-                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
+                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName, $columnBaseType);
             } else {
                 $this->processMultipleValue($tableName, $whereFilter, $values, $query);
             }
@@ -164,8 +164,24 @@ abstract class CommonFilterQueryBuilder
         string $value,
         QueryBuilder $query,
         string $tableName,
+        string $baseType,
     ): void {
-        if ($filter->getDataType() !== DataType::STRING) {
+        // scenarios (NUMERIC = everything but not string)
+        // 1. column's baseType = STRING; datatype = NUMERIC -> SAFE_CAST(column as datatype) = 3.14
+        // 2. column's baseType = STRING; datatype = STRING -> column = '3.14'
+        // 3. column's baseType = NUMERIC; datatype cannot matter -> column = 3.14
+
+        if ($baseType !== BaseType::STRING) {
+            // 3
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
+            $value = $this->convertNonStringValue($filter, $value);
+        } elseif ($filter->getDataType() !== DataType::STRING) {
+            // && $baseType === BaseType::STRING
+            // 1
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
@@ -173,6 +189,7 @@ abstract class CommonFilterQueryBuilder
             );
             $value = $this->convertNonStringValue($filter, $value);
         } else {
+            // 2
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
