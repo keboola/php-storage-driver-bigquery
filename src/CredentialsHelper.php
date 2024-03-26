@@ -52,7 +52,7 @@ final class CredentialsHelper
     {
         $credentialsMeta = $credentials->getMeta();
         if ($credentialsMeta === null) {
-            throw new CredentialsMetaRequiredException('BigQueryCredentialsMeta is required.');
+            throw new CredentialsMetaRequiredException();
         }
         $credentialsMeta = $credentialsMeta->unpack();
 
