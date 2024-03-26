@@ -81,14 +81,11 @@ abstract class CommonFilterQueryBuilder
         switch (true) {
             case $filter->getDataType() === DataType::INTEGER:
             case $filter->getDataType() === DataType::BIGINT:
-            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::INTEGER:
                 $value = (int) $value;
                 break;
             case $filter->getDataType() === DataType::REAL:
             case $filter->getDataType() === DataType::DECIMAL:
             case $filter->getDataType() === DataType::DOUBLE:
-            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::FLOAT:
-            case $columnDefinition->getColumnDefinition()->getBasetype() === BaseType::NUMERIC:
                 $value = (float) $value;
                 break;
         }
@@ -137,7 +134,7 @@ abstract class CommonFilterQueryBuilder
         RepeatedField $filters,
         QueryBuilder $query,
         string $tableName,
-        ColumnCollection $tableColumnsDefinitions
+        ColumnCollection $tableColumnsDefinitions,
     ): void {
         $columnDefinitionByName = [];
         foreach ($tableColumnsDefinitions as $column) {
@@ -145,6 +142,15 @@ abstract class CommonFilterQueryBuilder
         }
 
         foreach ($filters as $whereFilter) {
+            $columnBaseType = $columnDefinitionByName[$whereFilter->getColumnsName()]->getColumnDefinition()->getBasetype();
+            if ($whereFilter->getDataType() === DataType::STRING && $columnBaseType !== BaseType::STRING) { // default dataType but base type is not string
+
+                match ($columnBaseType) {
+                    BaseType::INTEGER => $convertedDatatype = DataType::INTEGER,
+                    BaseType::FLOAT, BaseType::NUMERIC => $convertedDatatype = DataType::DOUBLE,
+                };
+                $whereFilter->setDataType($convertedDatatype);
+            }
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
                 $this->processSimpleValue($whereFilter, reset($values), $query, $tableName, $columnDefinitionByName[$whereFilter->getColumnsName()]);
@@ -154,7 +160,8 @@ abstract class CommonFilterQueryBuilder
         }
     }
 
-    private function processSimpleValue(
+    private
+    function processSimpleValue(
         TableWhereFilter $filter,
         string $value,
         QueryBuilder $query,
@@ -189,7 +196,8 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $values
      */
-    private function processMultipleValue(
+    private
+    function processMultipleValue(
         string $tableName,
         TableWhereFilter $filter,
         array $values,
@@ -236,8 +244,12 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|ExportOrderBy[] $sort
      */
-    protected function processOrderStatement(string $tableName, RepeatedField $sort, QueryBuilder $query): void
-    {
+    protected
+    function processOrderStatement(
+        string $tableName,
+        RepeatedField $sort,
+        QueryBuilder $query
+    ): void {
         try {
             foreach ($sort as $orderBy) {
                 if ($orderBy->getDataType() !== DataType::STRING) {
@@ -271,7 +283,8 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $columns
      */
-    protected function processSelectStatement(
+    protected
+    function processSelectStatement(
         array $columns,
         QueryBuilder $query,
         ColumnCollection $tableColumnsDefinitions,
@@ -312,7 +325,8 @@ abstract class CommonFilterQueryBuilder
         }
     }
 
-    private function processSelectWithLargeColumnTruncation(
+    private
+    function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
         string $selectColumn,
         string $column,
@@ -422,8 +436,11 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    protected function processLimitStatement(int $limit, QueryBuilder $query): void
-    {
+    protected
+    function processLimitStatement(
+        int $limit,
+        QueryBuilder $query
+    ): void {
         if ($limit > 0) {
             $query->setMaxResults($limit);
         }
