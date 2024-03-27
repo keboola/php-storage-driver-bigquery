@@ -197,7 +197,7 @@ abstract class CommonFilterQueryBuilder
         // SQL -> column = SAFE_CAST('3.14' as $realDatatype)
         //
         // *NOT_STRING = any type but STRING
-
+        $useNamedParameter = false;
         if ($baseType !== BaseType::STRING) {
             // 3
             $columnSql = sprintf(
@@ -222,6 +222,7 @@ abstract class CommonFilterQueryBuilder
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
+            $useNamedParameter = true;
         }
 
         $query->andWhere(
@@ -229,7 +230,7 @@ abstract class CommonFilterQueryBuilder
                 '%s %s %s',
                 $columnSql,
                 self::OPERATOR_SINGLE_VALUE[$filter->getOperator()],
-                $query->createNamedParameter($value, $filter->getDataType()),
+                $useNamedParameter ? $query->createNamedParameter($value, $filter->getDataType()) : $value,
             ),
         );
     }
