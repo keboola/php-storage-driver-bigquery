@@ -157,12 +157,12 @@ class ExportQueryBuilderTest extends TestCase
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name` FROM `some_schema`.`some_table` 
             WHERE (`some_table`.`name` <> @dcValue1) 
-            AND (`some_table`.`height` >= @dcValue2) 
+            AND (`some_table`.`height` >= SAFE_CAST(@dcValue2 AS DECIMAL)) 
             ORDER BY `some_table`.`id` ASC, `some_table`.`name` DESC
             SQL,
             [
                 'dcValue1' => 'foo',
-                'dcValue2' => "SAFE_CAST('1.23' AS DECIMAL)",
+                'dcValue2' => '1.23',
             ],
         ];
 
@@ -290,12 +290,12 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE `some_table`.`height` <> @dcValue1 
+            WHERE `some_table`.`height` <> SAFE_CAST(@dcValue1 AS DECIMAL) 
             ORDER BY SAFE_CAST(`some_table`.`id` AS NUMERIC) ASC
             SQL,
             // @codingStandardsIgnoreEnd
             [
-                'dcValue1' => "SAFE_CAST('10.20' AS DECIMAL)",
+                'dcValue1' => '10.20',
             ],
         ];
 
@@ -336,20 +336,16 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE (`some_table`.`id` IN UNNEST(@dcValue1)) AND (`some_table`.`id` NOT IN UNNEST(@dcValue2)) 
-            AND (`some_table`.`height` <> @dcValue3)
+            WHERE (`some_table`.`id` IN UNNEST(SAFE_CAST(@dcValue1 AS INT), SAFE_CAST(@dcValue2 AS INT))) AND (`some_table`.`id` NOT IN UNNEST(SAFE_CAST(@dcValue3 AS INT), SAFE_CAST(@dcValue4 AS INT))) 
+            AND (`some_table`.`height` <> SAFE_CAST(@dcValue5 AS DECIMAL))
             SQL,
             // @codingStandardsIgnoreEnd
             [
-                'dcValue1' => [
-                    "SAFE_CAST('foo' AS INT)",
-                    "SAFE_CAST('bar' AS INT)",
-                ],
-                'dcValue2' => [
-                    "SAFE_CAST('50' AS INT)",
-                    "SAFE_CAST('60' AS INT)",
-                ],
-                'dcValue3' => "SAFE_CAST('10.20' AS DECIMAL)",
+                'dcValue1' => 'foo',
+                'dcValue2' => 'bar',
+                'dcValue3' => '50',
+                'dcValue4' => '60',
+                'dcValue5' => '10.20',
             ],
         ];
     }
