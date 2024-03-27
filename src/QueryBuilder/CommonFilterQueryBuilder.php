@@ -187,10 +187,16 @@ abstract class CommonFilterQueryBuilder
         string $baseType,
         string $realDatatype,
     ): void {
-        // scenarios (NUMERIC = everything but not string)
-        // 1. baseType = STRING; datatype = NUMERIC -> SAFE_CAST(column as datatype) = SAFE_CAST('3.14' as dataType)
-        // 2. baseType = STRING; datatype = STRING -> column = '3.14'
-        // 3. baseType = NUMERIC; datatype cannot matter -> column = SAFE_CAST('3.14' as $realDatatype)
+        // Scenarios:
+        //
+        // 1. baseType = STRING; realDatatype = *NOT_STRING
+        // SQL -> SAFE_CAST(column as datatype) = SAFE_CAST('3.14' as dataType)
+        // 2. baseType = STRING; realDatatype = STRING
+        // SQL -> column = '3.14'
+        // 3. baseType = *NOT_STRING; realDatatype = (doesn't matter)
+        // SQL -> column = SAFE_CAST('3.14' as $realDatatype)
+        //
+        // *NOT_STRING = any type but STRING
 
         if ($baseType !== BaseType::STRING) {
             // 3
