@@ -263,18 +263,18 @@ abstract class CommonFilterQueryBuilder
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
             $values = array_map(
-                fn(string $value) => $this->convertNonStringValue($filter, $value, $realDatatype),
+                fn(string $value) => $this->convertNonStringValue($filter, $value, $query, $realDatatype),
                 $values,
             );
-            $param = $query->createNamedParameter($values, Connection::PARAM_STR_ARRAY);
+            $param = implode(', ', $values);
         } elseif ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
-            $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
+            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value, $query), $values);
+            $param = implode(', ', $values);
         } else {
             $columnSql = sprintf(
                 '%s.%s',
