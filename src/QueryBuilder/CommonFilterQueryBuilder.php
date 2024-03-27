@@ -226,6 +226,7 @@ abstract class CommonFilterQueryBuilder
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
+            $value = $query->createNamedParameter($value, $filter->getDataType());
         }
 
         $query->andWhere(
