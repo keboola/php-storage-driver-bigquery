@@ -54,7 +54,10 @@ class BaseCase extends TestCase
 {
     use RetryTrait;
 
-    public const DEFAULT_LOCATION = 'US';
+    public const EU_LOCATION = 'EU';
+    public const US_LOCATION = 'US';
+
+    public const DEFAULT_LOCATION = self::US_LOCATION;
 
     protected string $testRunId;
 
@@ -303,7 +306,7 @@ class BaseCase extends TestCase
     /**
      * Get credentials from envs
      */
-    protected function getCredentials(): GenericBackendCredentials
+    protected function getCredentials(string $region = BaseCase::DEFAULT_LOCATION): GenericBackendCredentials
     {
         $principal = getenv('BQ_PRINCIPAL');
         if ($principal === false) {
@@ -325,7 +328,7 @@ class BaseCase extends TestCase
         $any->pack(
             (new GenericBackendCredentials\BigQueryCredentialsMeta())
                 ->setFolderId($folderId)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setRegion($region),
         );
         return (new GenericBackendCredentials())
             ->setPrincipal($principal)
