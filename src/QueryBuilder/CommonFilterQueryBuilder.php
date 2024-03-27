@@ -267,7 +267,7 @@ abstract class CommonFilterQueryBuilder
                 fn(string $value) => $this->convertNonStringValue($filter, $value, $query, $realDatatype),
                 $values,
             );
-            $param = implode(', ', $values);
+            $param = '[' . implode(', ', $values) . ']';
         } elseif ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
@@ -275,7 +275,7 @@ abstract class CommonFilterQueryBuilder
                 $filter->getDataType(),
             );
             $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value, $query), $values);
-            $param = implode(', ', $values);
+            $param = '[' . implode(', ', $values) . ']';
         } else {
             $columnSql = sprintf(
                 '%s.%s',
