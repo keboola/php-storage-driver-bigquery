@@ -336,7 +336,7 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE (`some_table`.`id` IN UNNEST(SAFE_CAST(@dcValue1 AS INT), SAFE_CAST(@dcValue2 AS INT))) AND (`some_table`.`id` NOT IN UNNEST(SAFE_CAST(@dcValue3 AS INT), SAFE_CAST(@dcValue4 AS INT))) 
+            WHERE (`some_table`.`id` IN UNNEST([SAFE_CAST(@dcValue1 AS INT), SAFE_CAST(@dcValue2 AS INT)])) AND (`some_table`.`id` NOT IN UNNEST([SAFE_CAST(@dcValue3 AS INT), SAFE_CAST(@dcValue4 AS INT)])) 
             AND (`some_table`.`height` <> SAFE_CAST(@dcValue5 AS DECIMAL))
             SQL,
             // @codingStandardsIgnoreEnd
