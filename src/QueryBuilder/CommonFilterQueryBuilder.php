@@ -76,6 +76,7 @@ abstract class CommonFilterQueryBuilder
     private function convertNonStringValue(
         TableWhereFilter $filter,
         string $value,
+        QueryBuilder $query,
         ?string $realDatatype = null,
     ): string {
         if ($realDatatype === null) {
@@ -91,7 +92,11 @@ abstract class CommonFilterQueryBuilder
                     break;
             }
         }
-        return sprintf('SAFE_CAST(%s AS %s)', BigqueryQuote::quote($value), $realDatatype);
+        return sprintf(
+            'SAFE_CAST(%s AS %s)',
+            $query->createNamedParameter($value, $filter->getDataType()),
+            $realDatatype,
+        );
     }
 
     protected function processChangedConditions(
@@ -197,7 +202,6 @@ abstract class CommonFilterQueryBuilder
         // SQL -> column = SAFE_CAST('3.14' as $realDatatype)
         //
         // *NOT_STRING = any type but STRING
-        $useNamedParameter = false;
         if ($baseType !== BaseType::STRING) {
             // 3
             $columnSql = sprintf(
@@ -205,7 +209,7 @@ abstract class CommonFilterQueryBuilder
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
-            $value = $this->convertNonStringValue($filter, $value, $realDatatype);
+            $value = $this->convertNonStringValue($filter, $value, $query, $realDatatype);
         } elseif ($filter->getDataType() !== DataType::STRING) {
             // && $baseType === BaseType::STRING
             // 1
@@ -214,7 +218,7 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $value = $this->convertNonStringValue($filter, $value);
+            $value = $this->convertNonStringValue($filter, $value, $query);
         } else {
             // 2
             $columnSql = sprintf(
@@ -222,7 +226,6 @@ abstract class CommonFilterQueryBuilder
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
-            $useNamedParameter = true;
         }
 
         $query->andWhere(
@@ -230,7 +233,7 @@ abstract class CommonFilterQueryBuilder
                 '%s %s %s',
                 $columnSql,
                 self::OPERATOR_SINGLE_VALUE[$filter->getOperator()],
-                $useNamedParameter ? $query->createNamedParameter($value, $filter->getDataType()) : $value,
+                $value,
             ),
         );
     }
