@@ -47,7 +47,7 @@ class CreateDropBucketTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
         $this->assertFalse($dataset->exists());
 
