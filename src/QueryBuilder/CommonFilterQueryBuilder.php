@@ -73,8 +73,11 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    private function convertNonStringValue(TableWhereFilter $filter, string $value): string|int|float
-    {
+    private function convertNonStringValue(
+        TableWhereFilter $filter,
+        string $value,
+        ColumnInterface $columnDefinition,
+    ): string|int|float {
         switch (true) {
             case $filter->getDataType() === DataType::INTEGER:
             case $filter->getDataType() === DataType::BIGINT:
@@ -127,23 +130,43 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|TableWhereFilter[] $filters
      */
-    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query, string $tableName): void
-    {
+    protected function processWhereFilters(
+        RepeatedField $filters,
+        QueryBuilder $query,
+        string $tableName,
+        ColumnCollection $tableColumnsDefinitions,
+    ): void {
+        $columnDefinitionByName = [];
+        foreach ($tableColumnsDefinitions as $column) {
+            $columnDefinitionByName[$column->getColumnName()] = $column;
+        }
+
         foreach ($filters as $whereFilter) {
+            $columnBaseType = $columnDefinitionByName[$whereFilter->getColumnsName()]->getColumnDefinition()->getBasetype();
+            if ($whereFilter->getDataType() === DataType::STRING && $columnBaseType !== BaseType::STRING) { // default dataType but base type is not string
+
+                match ($columnBaseType) {
+                    BaseType::INTEGER => $convertedDatatype = DataType::INTEGER,
+                    BaseType::FLOAT, BaseType::NUMERIC => $convertedDatatype = DataType::DOUBLE,
+                };
+                $whereFilter->setDataType($convertedDatatype);
+            }
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
-                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
+                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName, $columnDefinitionByName[$whereFilter->getColumnsName()]);
             } else {
-                $this->processMultipleValue($tableName, $whereFilter, $values, $query);
+                $this->processMultipleValue($tableName, $whereFilter, $values, $query, $columnDefinitionByName[$whereFilter->getColumnsName()]);
             }
         }
     }
 
-    private function processSimpleValue(
+    private
+    function processSimpleValue(
         TableWhereFilter $filter,
         string $value,
         QueryBuilder $query,
         string $tableName,
+        ColumnInterface $columnDefinition,
     ): void {
         if ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
@@ -151,7 +174,7 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $value = $this->convertNonStringValue($filter, $value);
+            $value = $this->convertNonStringValue($filter, $value, $columnDefinition);
         } else {
             $columnSql = sprintf(
                 '%s.%s',
@@ -173,11 +196,13 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $values
      */
-    private function processMultipleValue(
+    private
+    function processMultipleValue(
         string $tableName,
         TableWhereFilter $filter,
         array $values,
         QueryBuilder $query,
+        ColumnInterface $columnDefinition,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -191,7 +216,11 @@ abstract class CommonFilterQueryBuilder
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
+            // tady values portrebuju pretypovat na spravny typ
+            $values = array_map(
+                fn(string $value) => $this->convertNonStringValue($filter, $value, $columnDefinition),
+                $values,
+            );
             $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
         } else {
             $columnSql = sprintf(
@@ -215,8 +244,12 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|ExportOrderBy[] $sort
      */
-    protected function processOrderStatement(string $tableName, RepeatedField $sort, QueryBuilder $query): void
-    {
+    protected
+    function processOrderStatement(
+        string $tableName,
+        RepeatedField $sort,
+        QueryBuilder $query
+    ): void {
         try {
             foreach ($sort as $orderBy) {
                 if ($orderBy->getDataType() !== DataType::STRING) {
@@ -250,7 +283,8 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param string[] $columns
      */
-    protected function processSelectStatement(
+    protected
+    function processSelectStatement(
         array $columns,
         QueryBuilder $query,
         ColumnCollection $tableColumnsDefinitions,
@@ -291,7 +325,8 @@ abstract class CommonFilterQueryBuilder
         }
     }
 
-    private function processSelectWithLargeColumnTruncation(
+    private
+    function processSelectWithLargeColumnTruncation(
         QueryBuilder $query,
         string $selectColumn,
         string $column,
@@ -401,8 +436,11 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    protected function processLimitStatement(int $limit, QueryBuilder $query): void
-    {
+    protected
+    function processLimitStatement(
+        int $limit,
+        QueryBuilder $query
+    ): void {
         if ($limit > 0) {
             $query->setMaxResults($limit);
         }

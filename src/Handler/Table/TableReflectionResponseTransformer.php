@@ -14,6 +14,7 @@ use Keboola\StorageDriver\Backend\BigQuery\TimePartitioning;
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use Keboola\TableBackendUtils\Table\TableDefinitionInterface;
 
 class TableReflectionResponseTransformer
 {
@@ -21,40 +22,8 @@ class TableReflectionResponseTransformer
         string $dataset,
         BigqueryTableReflection $ref,
     ): TableInfo {
-        $res = new TableInfo();
         $def = $ref->getTableDefinition();
-
-        $columns = new RepeatedField(GPBType::MESSAGE, TableInfo\TableColumn::class);
-        /** @var BigqueryColumn $col */
-        foreach ($def->getColumnsDefinitions() as $col) {
-            /** @var Bigquery $colDef */
-            $colDef = $col->getColumnDefinition();
-
-            $colInternal = (new TableInfo\TableColumn())
-                ->setName($col->getColumnName())
-                ->setType($colDef->getType())
-                ->setNullable($colDef->isNullable());
-
-            if ($colDef->getLength() !== null) {
-                $colInternal->setLength($colDef->getLength());
-            }
-
-            if ($colDef->getDefault() !== null) {
-                $colInternal->setDefault($colDef->getDefault());
-            }
-
-            $columns[] = $colInternal;
-        }
-        $res->setColumns($columns);
-        $path = new RepeatedField(GPBType::STRING);
-        $path[] = $dataset;
-        $res->setPath($path);
-        $res->setTableName($def->getTableName());
-        $pk = new RepeatedField(GPBType::STRING);
-        foreach ($def->getPrimaryKeysNames() as $col) {
-            $pk[] = $col;
-        }
-        $res->setPrimaryKeysNames($pk);
+        $res = self::transformTableDefinitionToTableInfo($dataset, $def);
 
         $meta = new TableInfo\BigQueryTableMeta();
         $partitioning = $ref->getPartitioningConfiguration();
@@ -103,6 +72,46 @@ class TableReflectionResponseTransformer
         $any = new Any();
         $any->pack($meta);
         $res->setMeta($any);
+
+        return $res;
+    }
+
+    public static function transformTableDefinitionToTableInfo(
+        string $dataset,
+        TableDefinitionInterface $tableDefinition,
+    ): TableInfo {
+        $res = new TableInfo();
+        $columns = new RepeatedField(GPBType::MESSAGE, TableInfo\TableColumn::class);
+        /** @var BigqueryColumn $col */
+        foreach ($tableDefinition->getColumnsDefinitions() as $col) {
+            /** @var Bigquery $colDef */
+            $colDef = $col->getColumnDefinition();
+
+            $colInternal = (new TableInfo\TableColumn())
+                ->setName($col->getColumnName())
+                ->setType($colDef->getType())
+                ->setNullable($colDef->isNullable());
+
+            if ($colDef->getLength() !== null) {
+                $colInternal->setLength($colDef->getLength());
+            }
+
+            if ($colDef->getDefault() !== null) {
+                $colInternal->setDefault($colDef->getDefault());
+            }
+
+            $columns[] = $colInternal;
+        }
+        $res->setColumns($columns);
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $dataset;
+        $res->setPath($path);
+        $res->setTableName($tableDefinition->getTableName());
+        $pk = new RepeatedField(GPBType::STRING);
+        foreach ($tableDefinition->getPrimaryKeysNames() as $col) {
+            $pk[] = $col;
+        }
+        $res->setPrimaryKeysNames($pk);
 
         return $res;
     }
