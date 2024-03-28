@@ -212,8 +212,7 @@ class BaseCase extends TestCase
         $meta = new Any();
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName((string) getenv('BQ_BUCKET_NAME'))
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName((string) getenv('BQ_BUCKET_NAME')),
         );
 
         $command->setStackPrefix($this->getStackPrefix());
@@ -393,9 +392,7 @@ class BaseCase extends TestCase
             ->setBucketId($bucket);
 
         $meta = new Any();
-        $meta->pack((new CreateBucketCommand\CreateBucketBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
         $command->setMeta($meta);
 
         if ($branchId !== null) {
@@ -523,9 +520,7 @@ class BaseCase extends TestCase
             ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta());
         $command->setMeta($meta);
         $response = $handler(
             $projectCredentials,
