@@ -28,6 +28,19 @@ Create a sub folder in the **KBC Team Dev** (id: [431160969986](https://console.
 8. remove line breaks from the `big_query_key.json` key file and set this string as variable `BQ_KEY_FILE` to `.env`
    1. You can convert the key to string with `awk -v RS= '{$1=$1}1' big_query_key.json`
 
+With setting of the env variables you can use following PHP script
+```php
+<?php
+
+$principalKey = json_decode(file_get_contents('./principal_key.json'), true);
+$bqKey = json_decode(file_get_contents('./big_query_key.json'), true);
+
+echo sprintf("BQ_SECRET=\"%s\"\n", str_replace("\n", "\\n", $principalKey['private_key']));
+unset($principalKey['private_key']);
+echo sprintf("BQ_PRINCIPAL=%s\n", json_encode($principalKey));
+echo sprintf("BQ_KEY_FILE=%s\n", json_encode($bqKey));
+```
+
 At the end, your `.env` file should look like...
 ```bash
 # the id is printed by terraform at the end and it is just the numbers after `folders/`
