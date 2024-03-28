@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
 
+use Generator;
 use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
@@ -48,7 +49,10 @@ class CreateDropProjectTest extends BaseCase
         $this->dropProjects($this->getCurrentProjectFullId());
     }
 
-    public function testCreateProject(): void
+    /**
+     * @dataProvider regionsProvider
+     */
+    public function testCreateProject(string $region): void
     {
         $handler = new CreateProjectHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -58,8 +62,7 @@ class CreateDropProjectTest extends BaseCase
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName($fileStorageBucketName),
         );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
@@ -69,7 +72,7 @@ class CreateDropProjectTest extends BaseCase
         $this->log->add((new NameGenerator($command->getStackPrefix()))->createProjectId($command->getProjectId()));
         /** @var CreateProjectResponse $response */
         $response = $handler(
-            $this->getCredentials(),
+            $this->getCredentials($region),
             $command,
             [],
             new RuntimeOptions(),
@@ -77,13 +80,20 @@ class CreateDropProjectTest extends BaseCase
 
         $this->assertInstanceOf(CreateProjectResponse::class, $response);
 
-        $credentials = $this->getCredentials();
+        $credentials = $this->getCredentials($region);
         $serviceUsageClient = $this->clientManager->getServiceUsageClient($credentials);
 
         /** @var array<string, string> $publicPart */
         $publicPart = (array) json_decode($response->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
 
         $projectId = $publicPart['project_id'];
+
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+        $resourcePath = $analyticHubClient::locationName($projectId, $region);
+        $pathParts = explode('/', $resourcePath);
+        $this->assertSame($region, array_pop($pathParts));
+        $this->assertSame('locations', array_pop($pathParts));
+        $this->assertSame($projectId, array_pop($pathParts));
 
         $billingClient = $this->clientManager->getBillingClient($credentials);
         $billingInfo = $billingClient->getProjectBillingInfo('projects/' . $projectId);
@@ -149,14 +159,14 @@ class CreateDropProjectTest extends BaseCase
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
-        $location = BaseCase::DEFAULT_LOCATION;
         $dataExchangeId = $response->getProjectReadOnlyRoleName();
-        $formattedName = $analyticHubClient->dataExchangeName($projectId, $location, $dataExchangeId);
+        $formattedName = $analyticHubClient->dataExchangeName($projectId, $region, $dataExchangeId);
         $readOnlyExchanger = $analyticHubClient->getDataExchange($formattedName);
         $this->assertNotNull($readOnlyExchanger);
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+
         $policy = $fileStorageBucket->iam()->policy();
         $hasStorageObjAdminRole = false;
         foreach ($policy['bindings'] as $binding) {
@@ -175,8 +185,7 @@ class CreateDropProjectTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new DropProjectCommand\DropProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName,)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName($fileStorageBucketName,),
         );
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
@@ -184,13 +193,13 @@ class CreateDropProjectTest extends BaseCase
             ->setMeta($meta);
 
         $handler(
-            $this->getCredentials(),
+            $this->getCredentials($region),
             $command,
             [],
             new RuntimeOptions(),
         );
 
-        $projectsClient = $this->clientManager->getProjectClient($this->getCredentials());
+        $projectsClient = $this->clientManager->getProjectClient($this->getCredentials($region));
         $formattedName = $projectsClient->projectName($projectId);
         $removedProject = $projectsClient->getProject($formattedName);
         $this->assertTrue($removedProject->hasDeleteTime());
@@ -234,8 +243,7 @@ class CreateDropProjectTest extends BaseCase
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName($fileStorageBucketName),
         );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId() . '1234567890123456789');

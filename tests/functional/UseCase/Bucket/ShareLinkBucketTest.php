@@ -115,9 +115,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta()));
         $command->setMeta($meta);
         $result = $handler(
             $this->getCredentials(),
@@ -147,9 +145,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceShareRoleName($listing); // listing
 
         $meta = new Any();
-        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new LinkBucketCommand\LinkBucketBigqueryMeta());
         $command->setMeta($meta);
         // root credentials and creating grants
         $result = $handler(
@@ -238,9 +234,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta()));
         $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
@@ -303,9 +297,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new ShareBucketCommand\ShareBucketBigqueryCommandMeta());
         $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
@@ -371,9 +363,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setSourceShareRoleName($listing->getName()); // listing
 
         $meta = new Any();
-        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new LinkBucketCommand\LinkBucketBigqueryMeta());
         $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
