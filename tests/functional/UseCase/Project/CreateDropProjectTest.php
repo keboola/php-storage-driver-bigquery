@@ -68,8 +68,7 @@ class CreateDropProjectTest extends BaseCase
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName)
-                ->setRegion($region),
+                ->setGcsFileBucketName($fileStorageBucketName),
         );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId());
@@ -185,8 +184,7 @@ class CreateDropProjectTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new DropProjectCommand\DropProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName,)
-                ->setRegion($region),
+                ->setGcsFileBucketName($fileStorageBucketName,),
         );
         $command = (new DropProjectCommand())
             ->setProjectUserName($response->getProjectUserName())
@@ -244,8 +242,7 @@ class CreateDropProjectTest extends BaseCase
         $fileStorageBucketName = (string) getenv('BQ_BUCKET_NAME');
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName($fileStorageBucketName)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName($fileStorageBucketName),
         );
         $command->setStackPrefix($this->getStackPrefix());
         $command->setProjectId($this->getProjectId() . '1234567890123456789');

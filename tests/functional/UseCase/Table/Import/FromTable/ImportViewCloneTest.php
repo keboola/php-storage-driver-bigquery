@@ -444,9 +444,7 @@ class ImportViewCloneTest extends BaseCase
             ->setSourceProjectReadOnlyRoleName($this->projects[0][1]->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new ShareBucketCommand\ShareBucketBigqueryCommandMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new ShareBucketCommand\ShareBucketBigqueryCommandMeta());
         $command->setMeta($meta);
         /** @var ShareBucketResponse $result */
         $result = $handler(
@@ -475,9 +473,7 @@ class ImportViewCloneTest extends BaseCase
             ->setSourceShareRoleName($listing); // listing
 
         $meta = new Any();
-        $meta->pack((new LinkBucketCommand\LinkBucketBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new LinkBucketCommand\LinkBucketBigqueryMeta());
         $command->setMeta($meta);
         $handler(
             $this->getCredentials(),
