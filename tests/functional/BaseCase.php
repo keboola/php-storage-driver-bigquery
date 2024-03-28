@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests;
 
 use Exception;
+use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
@@ -742,5 +743,11 @@ class BaseCase extends TestCase
         }
         assert($checkedColumn !== null, 'Column not found');
         return $checkedColumn;
+    }
+
+    public function regionsProvider(): Generator
+    {
+        yield [BaseCase::DEFAULT_LOCATION];
+        yield [BaseCase::EU_LOCATION];
     }
 }

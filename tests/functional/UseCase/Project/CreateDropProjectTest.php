@@ -49,12 +49,6 @@ class CreateDropProjectTest extends BaseCase
         $this->dropProjects($this->getCurrentProjectFullId());
     }
 
-    public function regionsProvider(): Generator
-    {
-        yield [BaseCase::DEFAULT_LOCATION];
-        yield [BaseCase::EU_LOCATION];
-    }
-
     /**
      * @dataProvider regionsProvider
      */
@@ -93,6 +87,13 @@ class CreateDropProjectTest extends BaseCase
         $publicPart = (array) json_decode($response->getProjectUserName(), true, 512, JSON_THROW_ON_ERROR);
 
         $projectId = $publicPart['project_id'];
+
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
+        $resourcePath = $analyticHubClient::locationName($projectId, $region);
+        $pathParts = explode('/', $resourcePath);
+        $this->assertSame($region, array_pop($pathParts));
+        $this->assertSame('locations', array_pop($pathParts));
+        $this->assertSame($projectId, array_pop($pathParts));
 
         $billingClient = $this->clientManager->getBillingClient($credentials);
         $billingInfo = $billingClient->getProjectBillingInfo('projects/' . $projectId);
