@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
-use Exception;
 use Google\Protobuf\Internal\Message;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
-
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 
 final class CreateBucketHandler extends BaseHandler
@@ -37,14 +36,7 @@ final class CreateBucketHandler extends BaseHandler
         assert($command instanceof CreateBucketCommand);
         assert($runtimeOptions->getMeta() === null);
 
-        $commandMeta = $command->getMeta();
-        if ($commandMeta === null) {
-            throw new Exception('CreateBucketBigqueryMeta is required.');
-        }
-
-        $commandMeta = $commandMeta->unpack();
-        assert($commandMeta instanceof CreateBucketCommand\CreateBucketBigqueryMeta);
-        $region = $commandMeta->getRegion();
+        $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());
 
@@ -58,7 +50,7 @@ final class CreateBucketHandler extends BaseHandler
         $bigQueryClient->createDataset(
             $newBucketDatabaseName,
             [
-                'location' => $region,
+                'location' => $credentialsMeta->getRegion(),
             ],
         );
 

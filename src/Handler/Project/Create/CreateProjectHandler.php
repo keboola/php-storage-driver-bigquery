@@ -18,6 +18,7 @@ use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Iam\ServiceAccount;
 use Google_Service_CloudResourceManager;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\GCPServiceIds;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -75,15 +76,9 @@ final class CreateProjectHandler extends BaseHandler
 
         $projectId = $nameGenerator->createProjectId($command->getProjectId());
 
-        $meta = $credentials->getMeta();
-        if ($meta !== null) {
-            // override root user and use other database as root
-            $meta = $meta->unpack();
-            assert($meta instanceof GenericBackendCredentials\BigQueryCredentialsMeta);
-            $folderId = $meta->getFolderId();
-        } else {
-            throw new Exception('BigQueryCredentialsMeta is required.');
-        }
+        $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
+        $folderId = $credentialsMeta->getFolderId();
+        $region = $credentialsMeta->getRegion();
 
         $commandMeta = $command->getMeta();
         if ($commandMeta !== null) {
@@ -91,7 +86,6 @@ final class CreateProjectHandler extends BaseHandler
             $commandMeta = $commandMeta->unpack();
             assert($commandMeta instanceof CreateProjectCommand\CreateProjectBigqueryMeta);
             $fileStorageBucketName = $commandMeta->getGcsFileBucketName();
-            $region = $commandMeta->getRegion();
         } else {
             throw new Exception('CreateProjectBigqueryMeta is required.');
         }

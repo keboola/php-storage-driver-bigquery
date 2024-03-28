@@ -9,3 +9,8 @@ phpunit-retry.xml
 .phpunit.result.cache
 /logs/
 terraform.tfvars
+terraform.tfstate
+.terraform.lock.hcl
+.terraform/*
+big_query_key.json
+principal_key.json

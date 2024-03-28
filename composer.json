@@ -27,7 +27,7 @@
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
         "google/cloud-resource-manager": "^0.3.5",
-        "keboola/storage-driver-common": "^6.7",
+        "keboola/storage-driver-common": "^6.8",
         "google/cloud-service-usage": "^0.2.7",
         "google/apiclient": "^2.12.1",
         "google/cloud-bigquery": "^1.23",
@@ -72,8 +72,8 @@
         "paratest-import": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --functional --verbose --debug --testsuite='Import'",
         "paratest-export": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --functional --verbose --debug --testsuite='Export'",
         "tests": [
-            "tests-unit",
-            "tests-functional"
+            "@tests-unit",
+            "@tests-functional"
         ],
         "loadGcs": "php ./tests/StubLoader/loader.php gcs",
         "load-data": [
