@@ -322,47 +322,14 @@ class ObjectInfoTest extends BaseCase
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
-        $externalCredentialsArray = CredentialsHelper::getCredentialsArray($this->projectCredentials);
-        $client = new ConnectionServiceClient([
-            'credentials' => $externalCredentialsArray,
-        ]);
-
-        $parent = $client->locationName($externalCredentialsArray['project_id'], 'US');
-        $cloudSqlProperties = (new CloudResourceProperties());
-        $connection = (new Connection())
-            ->setFriendlyName('externalTableConnection')
-            ->setCloudResource($cloudSqlProperties);
-
-        $request = (new CreateConnectionRequest())
-            ->setParent($parent)
-            ->setConnectionId('externalTableConnection')
-            ->setConnection($connection);
-
-        $response = $client->createConnection($request);
-        $connectionServiceAccountEmail = $response->getCloudResource()->getServiceAccountId();
-
-        $mainCreds = $this->getCredentials();
-
-        $storageClient = $this->clientManager->getStorageClient($mainCreds);
-        $bucket = $storageClient->bucket(getenv('BQ_BUCKET_NAME'));
-        $object = $bucket->object('/import/a_b_c-3row.csv');
-
-        $policy = $bucket->iam()->policy();
-        $role = 'roles/storage.objectViewer';
-        $policy['bindings'][] = [
-            'role' => $role,
-            'members' => [
-                'serviceAccount:' . $connectionServiceAccountEmail,
-            ],
-        ];
-
-        $bucket->iam()->setPolicy($policy);
-
+        $connection = $this->prepareConnectionForExternalBucket();
 
         $bqClient->runQuery($bqClient->query(sprintf(
-            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnection WITH CONNECTION %s OPTIONS (format = 'CSV',uris = [%s]);",
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnection 
+            WITH CONNECTION %s 
+            OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($response->getName()),
+            BigqueryQuote::quoteSingleIdentifier($connection->getName()),
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
@@ -432,6 +399,53 @@ DROP TABLE %s.table2
 SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
+    }
+
+    /**
+     * @throws \Google\ApiCore\ApiException
+     * @throws \Google\ApiCore\ValidationException
+     * @throws \JsonException
+     */
+    public function prepareConnectionForExternalBucket(): Connection
+    {
+        $externalCredentialsArray = CredentialsHelper::getCredentialsArray($this->projectCredentials);
+        $connectionClient = new ConnectionServiceClient([
+            'credentials' => $externalCredentialsArray,
+        ]);
+
+        // 1. create connection to be able to read from external bucket
+        $parent = $connectionClient->locationName($externalCredentialsArray['project_id'], 'US');
+        $cloudSqlProperties = (new CloudResourceProperties());
+        $connection = (new Connection())
+            ->setFriendlyName('externalTableConnection')
+            ->setCloudResource($cloudSqlProperties);
+
+        $request = (new CreateConnectionRequest())
+            ->setParent($parent)
+            ->setConnectionId('externalTableConnection')
+            ->setConnection($connection);
+
+        $response = $connectionClient->createConnection($request);
+        // when connection is created, new service account is created for connection automatically
+        $connectionServiceAccountEmail = $response->getCloudResource()?->getServiceAccountId();
+
+        // 2. connection was created, now we need to grant access to service account created for connection
+        $storageClient = $this->clientManager->getStorageClient($this->getCredentials());
+        $bqBucketName = getenv('BQ_BUCKET_NAME');
+        assert($bqBucketName !== false, 'BQ_BUCKET_NAME env var is not set');
+        $bucket = $storageClient->bucket($bqBucketName);
+
+        $policy = $bucket->iam()->policy();
+        $role = 'roles/storage.objectViewer';
+        $policy['bindings'][] = [
+            'role' => $role,
+            'members' => [
+                'serviceAccount:' . $connectionServiceAccountEmail,
+            ],
+        ];
+
+        $bucket->iam()->setPolicy($policy);
+        return $response;
     }
 
     public function testInfoTable(): void
