@@ -156,13 +156,27 @@ final class ObjectInfoHandler extends BaseHandler
             $table->reload(); // table has to be reload info from list is missing schema
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
-                $this->userLogger->warning(sprintf(
-                    'External tables are not supported. Table "%s" was ignored',
-                    $info['id'],
-                ), [
-                    'info' => $info,
-                ]);
-                continue;
+                try {
+                    $client->runQuery($client->query(sprintf(
+                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
+                    )));
+
+                    yield (new ObjectInfo())
+                        ->setObjectType(ObjectType::TABLE)
+                        ->setObjectName($table->id());
+                    continue;
+                } catch (Throwable $e) {
+                    $this->userLogger->warning(sprintf(
+                        'External tables are not supported. Table "%s" was ignored',
+                        $info['id'],
+                    ), [
+                        'info' => $info,
+                    ]);
+                    continue;
+                }
             }
 
             if ($info['type'] === 'VIEW' || $info['type'] === 'MATERIALIZED_VIEW') {

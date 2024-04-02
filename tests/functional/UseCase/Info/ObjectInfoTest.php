@@ -134,7 +134,7 @@ class ObjectInfoTest extends BaseCase
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
 
-        $this->assertCount(6, $objects);
+        $this->assertCount(7, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -168,7 +168,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(3, $logs);
+        $this->assertCount(2, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -186,15 +186,6 @@ class ObjectInfoTest extends BaseCase
                 '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
-                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
-                $this->bucketResponse->getCreateBucketObjectName(),
-            ),
-        );
-        $this->assertLogsContainsMessage(
-            $logs,
-            LogMessage\Level::Warning,
-            sprintf(
-                'External tables are not supported. Table "%s:%s.externalTable" was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),

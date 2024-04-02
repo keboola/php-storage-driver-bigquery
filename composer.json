@@ -51,7 +51,8 @@
         "symfony/finder": "^5.4",
         "keboola/phpunit-retry-annotations": "^0.5.0",
         "brianium/paratest": "^6.10",
-        "symfony/lock": "^6.3"
+        "symfony/lock": "^6.3",
+        "google/cloud-bigquery-connection": "^1.5"
     },
     "config": {
         "allow-plugins": {
