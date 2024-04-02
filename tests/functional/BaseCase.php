@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests;
 
 use Exception;
+use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
@@ -54,7 +55,10 @@ class BaseCase extends TestCase
 {
     use RetryTrait;
 
-    public const DEFAULT_LOCATION = 'US';
+    public const EU_LOCATION = 'EU';
+    public const US_LOCATION = 'US';
+
+    public const DEFAULT_LOCATION = self::US_LOCATION;
 
     protected string $testRunId;
 
@@ -209,8 +213,7 @@ class BaseCase extends TestCase
         $meta = new Any();
         $meta->pack(
             (new CreateProjectCommand\CreateProjectBigqueryMeta())
-                ->setGcsFileBucketName((string) getenv('BQ_BUCKET_NAME'))
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setGcsFileBucketName((string) getenv('BQ_BUCKET_NAME')),
         );
 
         $command->setStackPrefix($this->getStackPrefix());
@@ -303,7 +306,7 @@ class BaseCase extends TestCase
     /**
      * Get credentials from envs
      */
-    protected function getCredentials(): GenericBackendCredentials
+    protected function getCredentials(string $region = BaseCase::DEFAULT_LOCATION): GenericBackendCredentials
     {
         $principal = getenv('BQ_PRINCIPAL');
         if ($principal === false) {
@@ -325,7 +328,7 @@ class BaseCase extends TestCase
         $any->pack(
             (new GenericBackendCredentials\BigQueryCredentialsMeta())
                 ->setFolderId($folderId)
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+                ->setRegion($region),
         );
         return (new GenericBackendCredentials())
             ->setPrincipal($principal)
@@ -390,9 +393,7 @@ class BaseCase extends TestCase
             ->setBucketId($bucket);
 
         $meta = new Any();
-        $meta->pack((new CreateBucketCommand\CreateBucketBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
         $command->setMeta($meta);
 
         if ($branchId !== null) {
@@ -520,9 +521,7 @@ class BaseCase extends TestCase
             ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
-        $meta->pack((new CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta())->setRegion(
-            BaseCase::DEFAULT_LOCATION,
-        ));
+        $meta->pack(new CreateWorkspaceCommand\CreateWorkspaceBigqueryMeta());
         $command->setMeta($meta);
         $response = $handler(
             $projectCredentials,
@@ -744,5 +743,11 @@ class BaseCase extends TestCase
         }
         assert($checkedColumn !== null, 'Column not found');
         return $checkedColumn;
+    }
+
+    public function regionsProvider(): Generator
+    {
+        yield [BaseCase::DEFAULT_LOCATION];
+        yield [BaseCase::EU_LOCATION];
     }
 }

@@ -73,8 +73,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $meta = new Any();
         $meta->pack(
-            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
         );
         $command->setMeta($meta);
 
@@ -131,8 +130,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             ->setStackPrefix($this->getStackPrefix());
         $meta = new Any();
         $meta->pack(
-            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
         );
         $command->setMeta($meta);
         try {
@@ -315,8 +313,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $meta = new Any();
         $meta->pack(
-            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta())
-                ->setRegion(BaseCase::DEFAULT_LOCATION),
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
         );
         $command->setMeta($meta);
 

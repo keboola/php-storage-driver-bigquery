@@ -26,6 +26,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use ReflectionClass;
 
 class CreateDropTableTest extends BaseCase
 {
@@ -41,10 +42,15 @@ class CreateDropTableTest extends BaseCase
         $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
     }
 
-    public function testCreateTable(): void
+    /**
+     * @dataProvider regionsProvider
+     */
+    public function testCreateTable(string $region): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
-        $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $credentials = $this->getCredentials($region);
+        $bucketResponse = $this->createTestBucket($credentials, $this->projects[0][2]);
+        $bucketDatasetName = $bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
@@ -81,7 +87,7 @@ class CreateDropTableTest extends BaseCase
             ->setColumns($columns);
         /** @var ObjectInfoResponse $response */
         $response = $handler(
-            $this->projectCredentials,
+            $credentials,
             $command,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
@@ -136,6 +142,15 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('x ARRAY<INTEGER>', $column->getLength());
         $this->assertTrue($column->getNullable());
 
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
+        $bucket = $bqClient->dataset($bucketDatasetName);
+        $this->assertTrue($bucket->exists());
+        $table = $bucket->table($tableName);
+
+        $reflectedClass = new ReflectionClass($table);
+        $reflection = $reflectedClass->getProperty('location');
+        $this->assertSame($region, $reflection->getValue($table));
+
         // DROP TABLE
         $handler = new DropTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -144,13 +159,11 @@ class CreateDropTableTest extends BaseCase
             ->setTableName($tableName);
 
         $handler(
-            $this->projectCredentials,
+            $credentials,
             $command,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
-
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $bucket = $bqClient->dataset($bucketDatasetName);
         $this->assertTrue($bucket->exists());

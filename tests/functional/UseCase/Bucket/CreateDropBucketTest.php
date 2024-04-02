@@ -12,6 +12,7 @@ use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use ReflectionClass;
 use Throwable;
 
 class CreateDropBucketTest extends BaseCase
@@ -27,24 +28,32 @@ class CreateDropBucketTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
     }
 
-    public function testCreateDropBucket(): void
+    /**
+     * @dataProvider regionsProvider
+     */
+    public function testCreateDropBucket(string $region): void
     {
-        $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
+        $credentials = $this->getCredentials($region);
+        $response = $this->createTestBucket($credentials, $this->projects[0][2]);
 
         $handler = new DropBucketHandler($this->clientManager);
         $command = (new DropBucketCommand())
             ->setBucketObjectName($response->getCreateBucketObjectName());
 
         $handler(
-            $this->projectCredentials,
+            $credentials,
             $command,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
         $this->assertFalse($dataset->exists());
+
+        $reflectedClass = new ReflectionClass($dataset);
+        $reflection = $reflectedClass->getProperty('location');
+        $this->assertSame($region, $reflection->getValue($dataset));
     }
 
     public function testCreateBucketInBranch(): void
