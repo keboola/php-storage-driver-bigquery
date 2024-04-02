@@ -149,7 +149,6 @@ class CreateDropTableTest extends BaseCase
 
         $reflectedClass = new ReflectionClass($table);
         $reflection = $reflectedClass->getProperty('location');
-        $reflection->setAccessible(true);
         $this->assertSame($region, $reflection->getValue($table));
 
         // DROP TABLE

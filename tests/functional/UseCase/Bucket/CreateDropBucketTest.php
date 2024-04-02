@@ -53,7 +53,6 @@ class CreateDropBucketTest extends BaseCase
 
         $reflectedClass = new ReflectionClass($dataset);
         $reflection = $reflectedClass->getProperty('location');
-        $reflection->setAccessible(true);
         $this->assertSame($region, $reflection->getValue($dataset));
     }
 
