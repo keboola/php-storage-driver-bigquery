@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 
+use Google\Cloud\BigQuery\Connection\V1\Client\ConnectionServiceClient;
+use Google\Cloud\BigQuery\Connection\V1\CloudResourceProperties;
+use Google\Cloud\BigQuery\Connection\V1\Connection;
+use Google\Cloud\BigQuery\Connection\V1\CreateConnectionRequest;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -134,7 +138,7 @@ class ObjectInfoTest extends BaseCase
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
 
-        $this->assertCount(7, $objects);
+        $this->assertCount(8, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -150,6 +154,16 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $externalTable = $this->getObjectByNameAndType(
+            $objects,
+            'externalTable',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTable->getObjectType());
+        $externalTableWithConnection = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnection',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTableWithConnection->getObjectType());
         $materializedView = $this->getObjectByNameAndType(
             $objects,
             'materialized_view',
@@ -212,7 +226,7 @@ class ObjectInfoTest extends BaseCase
         $this->assertInstanceOf(SchemaInfo::class, $response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
-        $this->assertCount(6, $objects);
+        $this->assertCount(7, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -228,6 +242,11 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        $externalTableWithConnection = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnection',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTableWithConnection->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
             'materialized_view',
@@ -300,6 +319,50 @@ class ObjectInfoTest extends BaseCase
         $bqClient->runQuery($bqClient->query(sprintf(
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+        )));
+
+        $externalCredentialsArray = CredentialsHelper::getCredentialsArray($this->projectCredentials);
+        $client = new ConnectionServiceClient([
+            'credentials' => $externalCredentialsArray,
+        ]);
+
+        $parent = $client->locationName($externalCredentialsArray['project_id'], 'US');
+        $cloudSqlProperties = (new CloudResourceProperties());
+        $connection = (new Connection())
+            ->setFriendlyName('externalTableConnection')
+            ->setCloudResource($cloudSqlProperties);
+
+        $request = (new CreateConnectionRequest())
+            ->setParent($parent)
+            ->setConnectionId('externalTableConnection')
+            ->setConnection($connection);
+
+        $response = $client->createConnection($request);
+        $connectionServiceAccountEmail = $response->getCloudResource()->getServiceAccountId();
+
+        $mainCreds = $this->getCredentials();
+
+        $storageClient = $this->clientManager->getStorageClient($mainCreds);
+        $bucket = $storageClient->bucket(getenv('BQ_BUCKET_NAME'));
+        $object = $bucket->object('/import/a_b_c-3row.csv');
+
+        $policy = $bucket->iam()->policy();
+        $role = 'roles/storage.objectViewer';
+        $policy['bindings'][] = [
+            'role' => $role,
+            'members' => [
+                'serviceAccount:' . $connectionServiceAccountEmail,
+            ],
+        ];
+
+        $bucket->iam()->setPolicy($policy);
+
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnection WITH CONNECTION %s OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($response->getName()),
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
