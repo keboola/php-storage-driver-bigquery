@@ -167,7 +167,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $tableName,
                 );
             } else {
-                $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName);
+                $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName, $tableColumnsDefinitions);
             }
         } catch (QueryException $e) {
             throw new QueryBuilderException(

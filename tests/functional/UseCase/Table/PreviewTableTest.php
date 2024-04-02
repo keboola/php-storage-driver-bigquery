@@ -1161,6 +1161,50 @@ class PreviewTableTest extends BaseCase
         $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
         $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
 
+        // CHECK: where filter withOUT datatype
+        $filter = [
+            'input' => [
+                'columns' => ['id', 'decimal_varchar'],
+                'filters' => new ExportFilters([
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'decimal_varchar',
+                            'operator' => Operator::eq,
+                            'values' => ['100.2'],
+                            'dataType' => DataType::DOUBLE,
+                            // here is datatype required, because the column is string
+                        ]),
+                        new TableWhereFilter([
+                            'columnsName' => 'id',
+                            'operator' => Operator::eq,
+                            'values' => ['2'],
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [
+                    new ExportOrderBy([
+                        'columnName' => 'id',
+                        'order' => ExportOrderBy\Order::ASC,
+                    ]),
+                ],
+            ],
+            'expectedColumns' => ['id', 'decimal_varchar'],
+            'expectedRows' => [
+                [
+                    'id' => [
+                        'value' => ['string_value' => '2'],
+                        'truncated' => false,
+                    ],
+                    'decimal_varchar' => [
+                        'value' => ['string_value' => '100.20'],
+                        'truncated' => false,
+                    ],
+                ],
+            ],
+        ];
+        $response = $this->previewTable($bucketDatabaseName, $tableName, $filter['input']);
+        $this->checkPreviewData($response, $filter['expectedColumns'], $filter['expectedRows']);
+
         // FILL DATA
         $insertGroups = [
             [
@@ -1478,98 +1522,6 @@ class PreviewTableTest extends BaseCase
 
     public function filterProvider(): Generator
     {
-        yield 'wrong int' => [
-            [
-                'columns' => ['int'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'int',
-                            'operator' => Operator::eq,
-                            'values' => ['aaa'],
-                        ]),
-                    ],
-                ]),
-            ],
-            'Invalid filter value, expected:"INT64", actual:"STRING".',
-        ];
-
-        yield 'wrong date' => [
-            [
-                'columns' => ['date'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'date',
-                            'operator' => Operator::eq,
-                            'values' => ['2022-02-31'],
-                        ]),
-                    ],
-                ]),
-            ],
-            // non-existing date
-            'Invalid date: \'2022-02-31\'; while executing the filter on column \'date\'',
-        ];
-
-        yield 'wrong time' => [
-            [
-                'columns' => ['time'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'time',
-                            'operator' => Operator::eq,
-                            'values' => ['25:59:59.999999'],
-                        ]),
-                    ],
-                ]),
-            ],
-            'Invalid time string "25:59:59.999999"; while executing the filter on column \'time\'',
-        ];
-
-        yield 'wrong timestamp' => [
-            [
-                'columns' => ['timestamp'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'timestamp',
-                            'operator' => Operator::eq,
-                            'values' => ['25:59:59.999999'],
-                        ]),
-                    ],
-                ]),
-            ],
-            //phpcs:ignore
-            "Invalid timestamp: '25:59:59.999999'; while executing the filter on column 'timestamp'",
-        ];
-
-        yield 'wrong more filters' => [
-            [
-                'columns' => ['int'],
-                'filters' => new ImportExportShared\ExportFilters([
-                    'whereFilters' => [
-                        new TableWhereFilter([
-                            'columnsName' => 'int',
-                            'operator' => Operator::lt,
-                            'values' => ['aaa'],
-                        ]),
-                        new TableWhereFilter([
-                            'columnsName' => 'int',
-                            'operator' => Operator::gt,
-                            'values' => ['aaa'],
-                        ]),
-                        new TableWhereFilter([
-                            'columnsName' => 'time',
-                            'operator' => Operator::eq,
-                            'values' => ['25:59:59.999999'],
-                        ]),
-                    ],
-                ]),
-            ],
-            'Invalid filter value, expected:"INT64", actual:"STRING".',
-        ];
-
         foreach ([
                      'ARRAY',
                      'STRUCT',

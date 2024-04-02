@@ -73,20 +73,30 @@ abstract class CommonFilterQueryBuilder
         );
     }
 
-    private function convertNonStringValue(TableWhereFilter $filter, string $value): string|int|float
-    {
-        switch (true) {
-            case $filter->getDataType() === DataType::INTEGER:
-            case $filter->getDataType() === DataType::BIGINT:
-                $value = (int) $value;
-                break;
-            case $filter->getDataType() === DataType::REAL:
-            case $filter->getDataType() === DataType::DECIMAL:
-            case $filter->getDataType() === DataType::DOUBLE:
-                $value = (float) $value;
-                break;
+    private function convertNonStringValue(
+        TableWhereFilter $filter,
+        string $value,
+        QueryBuilder $query,
+        ?string $realDatatype = null,
+    ): string {
+        if ($realDatatype === null) {
+            switch (true) {
+                case $filter->getDataType() === DataType::INTEGER:
+                case $filter->getDataType() === DataType::BIGINT:
+                    $realDatatype = Bigquery::TYPE_BIGINT;
+                    break;
+                case $filter->getDataType() === DataType::REAL:
+                case $filter->getDataType() === DataType::DECIMAL:
+                case $filter->getDataType() === DataType::DOUBLE:
+                    $realDatatype = Bigquery::TYPE_FLOAT64;
+                    break;
+            }
         }
-        return $value;
+        return sprintf(
+            'SAFE_CAST(%s AS %s)',
+            $query->createNamedParameter($value, $filter->getDataType()),
+            $realDatatype,
+        );
     }
 
     protected function processChangedConditions(
@@ -127,14 +137,49 @@ abstract class CommonFilterQueryBuilder
     /**
      * @param RepeatedField|TableWhereFilter[] $filters
      */
-    protected function processWhereFilters(RepeatedField $filters, QueryBuilder $query, string $tableName): void
-    {
+    protected function processWhereFilters(
+        RepeatedField $filters,
+        QueryBuilder $query,
+        string $tableName,
+        ColumnCollection $tableColumnsDefinitions,
+    ): void {
+        $columnDefByName = [];
+        foreach ($tableColumnsDefinitions as $column) {
+            $columnDefByName[$column->getColumnName()] = $column;
+        }
+
         foreach ($filters as $whereFilter) {
+            $colDefinition = $columnDefByName[$whereFilter->getColumnsName()]->getColumnDefinition();
+            $columnBaseType = $colDefinition->getBasetype();
+            if ($whereFilter->getDataType() === DataType::STRING) {
+                // default dataType but base type might be not string
+                $convertedDatatype = match ($columnBaseType) {
+                    BaseType::INTEGER => DataType::INTEGER,
+                    BaseType::FLOAT, BaseType::NUMERIC => DataType::DOUBLE,
+                    default => DataType::STRING,
+                };
+                $whereFilter->setDataType($convertedDatatype);
+            }
+
             $values = ProtobufHelper::repeatedStringToArray($whereFilter->getValues());
             if (count($values) === 1) {
-                $this->processSimpleValue($whereFilter, reset($values), $query, $tableName);
+                $this->processSimpleValue(
+                    $whereFilter,
+                    reset($values),
+                    $query,
+                    $tableName,
+                    $columnBaseType,
+                    $colDefinition->getType(),
+                );
             } else {
-                $this->processMultipleValue($tableName, $whereFilter, $values, $query);
+                $this->processMultipleValue(
+                    $tableName,
+                    $whereFilter,
+                    $values,
+                    $query,
+                    $columnBaseType,
+                    $colDefinition->getType(),
+                );
             }
         }
     }
@@ -144,20 +189,43 @@ abstract class CommonFilterQueryBuilder
         string $value,
         QueryBuilder $query,
         string $tableName,
+        string $baseType,
+        string $realDatatype,
     ): void {
-        if ($filter->getDataType() !== DataType::STRING) {
-            $columnSql = $this->columnConverter->convertColumnByDataType(
-                $tableName,
-                $filter->getColumnsName(),
-                $filter->getDataType(),
-            );
-            $value = $this->convertNonStringValue($filter, $value);
-        } else {
+        // Scenarios:
+        //
+        // 1. baseType = STRING; realDatatype = *NOT_STRING
+        // SQL -> SAFE_CAST(column as datatype) = SAFE_CAST('3.14' as dataType)
+        // 2. baseType = STRING; realDatatype = STRING
+        // SQL -> column = '3.14'
+        // 3. baseType = *NOT_STRING; realDatatype = (doesn't matter)
+        // SQL -> column = SAFE_CAST('3.14' as $realDatatype)
+        //
+        // *NOT_STRING = any type but STRING
+        if ($baseType !== BaseType::STRING) {
+            // scenario 3
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
             );
+            $value = $this->convertNonStringValue($filter, $value, $query, $realDatatype);
+        } elseif ($filter->getDataType() !== DataType::STRING) {
+            // scenario 1
+            $columnSql = $this->columnConverter->convertColumnByDataType(
+                $tableName,
+                $filter->getColumnsName(),
+                $filter->getDataType(),
+            );
+            $value = $this->convertNonStringValue($filter, $value, $query);
+        } else {
+            // scenario 2
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
+            $value = $query->createNamedParameter($value, $filter->getDataType());
         }
 
         $query->andWhere(
@@ -165,7 +233,7 @@ abstract class CommonFilterQueryBuilder
                 '%s %s %s',
                 $columnSql,
                 self::OPERATOR_SINGLE_VALUE[$filter->getOperator()],
-                $query->createNamedParameter($value, $filter->getDataType()),
+                $value,
             ),
         );
     }
@@ -178,6 +246,8 @@ abstract class CommonFilterQueryBuilder
         TableWhereFilter $filter,
         array $values,
         QueryBuilder $query,
+        string $baseType,
+        string $realDatatype,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -185,14 +255,25 @@ abstract class CommonFilterQueryBuilder
             );
         }
 
-        if ($filter->getDataType() !== DataType::STRING) {
+        if ($baseType !== BaseType::STRING) {
+            $columnSql = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+            );
+            $values = array_map(
+                fn(string $value) => $this->convertNonStringValue($filter, $value, $query, $realDatatype),
+                $values,
+            );
+            $param = '[' . implode(', ', $values) . ']';
+        } elseif ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
                 $filter->getDataType(),
             );
-            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value), $values);
-            $param = $query->createNamedParameter($values, Connection::PARAM_INT_ARRAY);
+            $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value, $query), $values);
+            $param = '[' . implode(', ', $values) . ']';
         } else {
             $columnSql = sprintf(
                 '%s.%s',
