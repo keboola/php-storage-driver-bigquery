@@ -203,7 +203,7 @@ abstract class CommonFilterQueryBuilder
         //
         // *NOT_STRING = any type but STRING
         if ($baseType !== BaseType::STRING) {
-            // 3
+            // scenario 3
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -211,8 +211,7 @@ abstract class CommonFilterQueryBuilder
             );
             $value = $this->convertNonStringValue($filter, $value, $query, $realDatatype);
         } elseif ($filter->getDataType() !== DataType::STRING) {
-            // && $baseType === BaseType::STRING
-            // 1
+            // scenario 1
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
                 $filter->getColumnsName(),
@@ -220,7 +219,7 @@ abstract class CommonFilterQueryBuilder
             );
             $value = $this->convertNonStringValue($filter, $value, $query);
         } else {
-            // 2
+            // scenario 2
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -257,7 +256,6 @@ abstract class CommonFilterQueryBuilder
         }
 
         if ($baseType !== BaseType::STRING) {
-            // 3
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
