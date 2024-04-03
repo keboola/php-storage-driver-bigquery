@@ -138,6 +138,7 @@ class ObjectInfoTest extends BaseCase
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
 
+        // can select from both external tables, because main project has access to files in GCS
         $this->assertCount(8, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
@@ -154,6 +155,8 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        // two external bucket are available, in second project we test that external tables are not supported
+        // if we haven't access to GCS
         $externalTable = $this->getObjectByNameAndType(
             $objects,
             'externalTable',
@@ -226,6 +229,8 @@ class ObjectInfoTest extends BaseCase
         $this->assertInstanceOf(SchemaInfo::class, $response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
+        // in link project we can select only from external tables with connection
+        // second external table without connection is ignored, and warning is logged
         $this->assertCount(7, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
@@ -242,6 +247,7 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        // in link project, we only can access to external table with connection
         $externalTableWithConnection = $this->getObjectByNameAndType(
             $objects,
             'externalTableWithConnection',
@@ -322,6 +328,7 @@ class ObjectInfoTest extends BaseCase
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
+        // simulate user interaction, he creates connection to external bucket manually in console.google.com
         $connection = $this->prepareConnectionForExternalBucket();
 
         $bqClient->runQuery($bqClient->query(sprintf(
@@ -406,7 +413,7 @@ SQL,
      * @throws \Google\ApiCore\ValidationException
      * @throws \JsonException
      */
-    public function prepareConnectionForExternalBucket(): Connection
+    private function prepareConnectionForExternalBucket(): Connection
     {
         $externalCredentialsArray = CredentialsHelper::getCredentialsArray($this->projectCredentials);
         $connectionClient = new ConnectionServiceClient([
