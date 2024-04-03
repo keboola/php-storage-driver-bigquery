@@ -13,7 +13,7 @@ services:
         - BUILD_ID
   dev: &dev
     <<: *prod
-    image: keboola/php-storage-driver-bigquery
+    image: production
     volumes:
       - ./:/code
   dev-xdebug:
