@@ -429,7 +429,7 @@ SQL,
 
         $request = (new CreateConnectionRequest())
             ->setParent($parent)
-            ->setConnectionId('externalTableConnection')
+            ->setConnectionId('exConn-' . substr($this->getTestHash(), -7) . self::getRand())
             ->setConnection($connection);
 
         $response = $connectionClient->createConnection($request);
