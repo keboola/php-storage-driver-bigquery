@@ -5,7 +5,7 @@ Keboola high level storage backend driver for Big Query
 ## Install dependencies.
 
 ```bash
-docker-compose run --rm dev composer install
+docker compose run --rm dev composer install
 ```
 
 ## Setup Big Query
@@ -46,13 +46,13 @@ BQ_KEY_FILE=<big_query_key.json file owned by main service acc>
 
 All done. Now you can try `composer loadGcs` script and run tests.
 ```bash
-docker-compose run --rm dev composer loadGcs
+docker compose run --rm dev composer loadGcs
 ```
 
 ## Build docker images
 
 ```bash
-docker-compose build
+docker compose build
 ```
 
 ## Xdebug
@@ -65,15 +65,15 @@ Run tests with following command.
 
 ```bash
 # This will run all tests
-docker-compose run --rm dev composer tests
+docker compose run --rm dev composer tests
 # This will run all tests in parallel
-docker-compose run --rm dev composer paratest
+docker compose run --rm dev composer paratest
 # This will run import tests in parallel
-docker-compose run --rm dev composer paratest-import
+docker compose run --rm dev composer paratest-import
 # This will run export tests in parallel
-docker-compose run --rm dev composer paratest-export
+docker compose run --rm dev composer paratest-export
 # This will run all tests in parallel excluding import and export
-docker-compose run --rm dev composer paratest-other
+docker compose run --rm dev composer paratest-other
 ```
 
 To disable retry copy `phpunit-retry.xml.dist`
@@ -85,26 +85,26 @@ cp phpunit-retry.xml.dist phpunit-retry.xml
 
 ```bash
 #run all bellow but not tests
-docker-compose run --rm dev composer check
+docker compose run --rm dev composer check
 
 #phplint
-docker-compose run --rm dev composer phplint
+docker compose run --rm dev composer phplint
 
 #phpcs
-docker-compose run --rm dev composer phpcs
+docker compose run --rm dev composer phpcs
 
 #phpcbf
-docker-compose run --rm dev composer phpcbf
+docker compose run --rm dev composer phpcbf
 
 #phpstan
-docker-compose run --rm dev composer phpstan
+docker compose run --rm dev composer phpstan
 ```
 
 ## Full CI workflow
 
 This command will run all checks and run tests
 ```bash
-docker-compose run --rm dev composer ci
+docker compose run --rm dev composer ci
 ```
 
 ## Using

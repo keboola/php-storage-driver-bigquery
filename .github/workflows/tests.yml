@@ -15,17 +15,17 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Build Image
-        run: docker-compose build
+        run: docker compose build
 
       - name: Check
         run: |
-          docker-compose run --rm production composer ci
+          docker compose run --rm production composer ci
 
       - name: Prepare stubs
         env:
           BQ_KEY_FILE: ${{ secrets.BQ_KEY_FILE }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
-        run: docker-compose run --rm production composer loadGcs
+        run: docker compose run --rm production composer loadGcs
       - name: Run Tests functional parallel
         id: test
         env:
@@ -35,7 +35,7 @@ jobs:
           BQ_STACK_PREFIX: ${{ secrets.BQ_STACK_PREFIX }}
           BQ_BUCKET_NAME: ${{ secrets.BQ_BUCKET_NAME }}
           BUILD_ID: ${{ github.run_id }}
-        run: docker-compose run --rm  --volume /tmp/parestest-logs:/code/logs production composer paratest
+        run: docker compose run --rm  --volume /tmp/parestest-logs:/code/logs production composer paratest
       - name: Upload test logs
         if: success() || steps.test.conclusion == 'failure'
         uses: actions/upload-artifact@v3
