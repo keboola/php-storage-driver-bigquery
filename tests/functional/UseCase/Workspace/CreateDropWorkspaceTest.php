@@ -176,6 +176,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         $ws2BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials2);
 
+        // test WS2 can't read from other workspaces
         try {
             $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
                 'SELECT * FROM %s.`testTable`;',
@@ -187,6 +188,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->assertStringContainsString('User does not have permission to query table', $e->getMessage());
         }
 
+        // test WS2 can't write into other workspaces
         try {
             $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
                 'CREATE TABLE %s.`testTable` (`id` INTEGER);',
