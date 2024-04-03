@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
+use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -175,6 +176,13 @@ class CreateDropWorkspaceTest extends BaseCase
         )));
 
         $ws2BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials2);
+        // test WS2 can see only own WS dataset and bucket dataset via RO
+        $actualDatasetsInWs2 = [];
+        /** @var Dataset $dataset */
+        foreach ($ws2BqClient->datasets() as $dataset) {
+            $actualDatasetsInWs2[] = $dataset->info()['datasetReference']['datasetId'];
+        }
+        $this->assertNotContains($wsResponse1->getWorkspaceObjectName(), $actualDatasetsInWs2);
 
         // test WS2 can't read from other workspaces
         try {
