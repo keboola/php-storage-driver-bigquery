@@ -6,7 +6,9 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
+use Google\Service\CloudResourceManager\Expr;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
+use Google\Service\CloudResourceManager\GetPolicyOptions;
 use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Google\Service\Iam\ServiceAccount;
@@ -134,18 +136,32 @@ final class CreateWorkspaceHandler extends BaseHandler
 
         $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
+            $option = new GetPolicyOptions();
+            $option->setRequestedPolicyVersion(Helper::REQUESTED_POLICY_VERSION);
+            $getIamPolicyRequest->setOptions($option);
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
             $finalBinding[] = $actualPolicy->getBindings();
 
             foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
                 $bigQueryJobUserBinding = new Binding();
                 $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
                 $bigQueryJobUserBinding->setRole($role);
+
+                if ($role === IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER) {
+                    $conditionExpression = new Expr();
+                    $conditionExpression->setTitle('ReadOnly Role');
+                    $conditionExpression->setDescription('Allow read only from buckets not from other ws');
+                    $conditionExpression->setExpression(sprintf(
+                        "!resource.name.startsWith('%s/datasets/WORKSPACE_')",
+                        $projectName,
+                    ));
+                    $bigQueryJobUserBinding->setCondition($conditionExpression);
+                }
                 $finalBinding[] = $bigQueryJobUserBinding;
             }
 
             $policy = new Policy();
-            $policy->setVersion($actualPolicy->getVersion());
+            $policy->setVersion(Helper::REQUESTED_POLICY_VERSION);
             $policy->setEtag($actualPolicy->getEtag());
             $policy->setBindings($finalBinding);
             $setIamPolicyRequest = new SetIamPolicyRequest();

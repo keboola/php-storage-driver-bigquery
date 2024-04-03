@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
 use Google\Service\CloudResourceManager;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
+use Google\Service\CloudResourceManager\GetPolicyOptions;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
@@ -16,6 +17,8 @@ use Throwable;
 
 class Helper
 {
+    public const REQUESTED_POLICY_VERSION = 3;
+
     public static function assertServiceAccountBindings(
         CloudResourceManager $cloudResourceManager,
         string $projectName,
@@ -38,7 +41,11 @@ class Helper
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail, $logger): void {
             $logger->log(LogLevel::DEBUG, 'Try check iam policy for ' . $wsServiceAccEmail . ' in ' . $projectName);
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, (new GetIamPolicyRequest()));
+            $getIamPolicyRequest = new GetIamPolicyRequest();
+            $option = new GetPolicyOptions();
+            $option->setRequestedPolicyVersion(self::REQUESTED_POLICY_VERSION);
+            $getIamPolicyRequest->setOptions($option);
+            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
             $actualPolicy = $actualPolicy->getBindings();
 
             $serviceAccRoles = [];

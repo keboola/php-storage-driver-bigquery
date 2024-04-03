@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
+use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -60,14 +61,20 @@ class CreateDropWorkspaceTest extends BaseCase
     {
         // CREATE
         [
-            $credentials,
-            $response,
+            $wsCredentials1,
+            $wsResponse1,
         ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
-        $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
-        $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+
+        [
+            $wsCredentials2,
+            $wsResponse2,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+
+        $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials1);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse1);
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $wsKeyData = CredentialsHelper::getCredentialsArray($credentials);
+        $wsKeyData = CredentialsHelper::getCredentialsArray($wsCredentials1);
         $projectId = $wsKeyData['project_id'];
         $wsServiceAccEmail = $wsKeyData['client_email'];
 
@@ -79,20 +86,22 @@ class CreateDropWorkspaceTest extends BaseCase
         );
         $this->assertNotNull($wsServiceAcc);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
+        $ws1BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials1);
 
         /** @var array<string, string> $datasets */
         $datasets = $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */
-            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
+            'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` IN (%s,%s) ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
-            BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
+            BigqueryQuote::quote(strtoupper($wsResponse1->getWorkspaceObjectName())),
+            BigqueryQuote::quote(strtoupper($wsResponse2->getWorkspaceObjectName())),
         )));
 
-        $this->assertCount(1, $datasets);
+        // two workspace datasets
+        $this->assertCount(2, $datasets);
 
         // test ws service acc is owner of ws dataset
-        $workspaceDataset = $bqClient->dataset($response->getWorkspaceObjectName())->info();
+        $workspaceDataset = $bqClient->dataset($wsResponse1->getWorkspaceObjectName())->info();
         $this->assertNotNull($workspaceDataset);
         $this->assertCount(1, $workspaceDataset['access']);
         $this->assertSame('OWNER', $workspaceDataset['access'][0]['role']);
@@ -106,7 +115,7 @@ class CreateDropWorkspaceTest extends BaseCase
         );
 
         try {
-            $this->createTestBucket($credentials, $this->projects[0][2]);
+            $this->createTestBucket($wsCredentials1, $this->projects[0][2]);
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
             $this->assertSame(403, $exception->getCode());
@@ -134,7 +143,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         try {
             $this->fillTableWithData(
-                $credentials,
+                $wsCredentials1,
                 $bucketDatasetName->getCreateBucketObjectName(),
                 $tableName,
                 $insertGroups,
@@ -145,7 +154,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->assertStringContainsString('Access Denied: ', $e->getMessage());
         }
 
-        $result = $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $result = $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -153,38 +162,72 @@ class CreateDropWorkspaceTest extends BaseCase
 
         $this->assertCount(3, $result);
         // try to create table
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
         // try to create view
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'CREATE VIEW %s.`testView` AS '
             . 'SELECT `id` FROM %s.`testTable`;',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
+        $ws2BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials2);
+        // test WS2 can see only own WS dataset and bucket dataset via RO
+        $actualDatasetsInWs2 = [];
+        /** @var Dataset $dataset */
+        foreach ($ws2BqClient->datasets() as $dataset) {
+            $actualDatasetsInWs2[] = $dataset->info()['datasetReference']['datasetId'];
+        }
+        $this->assertNotContains($wsResponse1->getWorkspaceObjectName(), $actualDatasetsInWs2);
+
+        // test WS2 can't read from other workspaces
+        try {
+            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+                'SELECT * FROM %s.`testTable`;',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            )));
+            $this->fail('Read from another workspace should fail');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('User does not have permission to query table', $e->getMessage());
+        }
+
+        // test WS2 can't write into other workspaces
+        try {
+            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+                'CREATE TABLE %s.`testTable` (`id` INTEGER);',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            )));
+
+            $this->fail('Write in another workspace should fail');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('Permission bigquery.tables.create denied on dataset', $e->getMessage());
+        }
+
         // try to drop view
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'DROP VIEW %s.`testView`;',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
         // try to drop table
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
             'DROP TABLE %s.`testTable`;',
-            BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         $command = (new DropWorkspaceCommand())
-            ->setWorkspaceUserName($response->getWorkspaceUserName())
-            ->setWorkspaceRoleName($response->getWorkspaceRoleName())
-            ->setWorkspaceObjectName($response->getWorkspaceObjectName());
+            ->setWorkspaceUserName($wsResponse1->getWorkspaceUserName())
+            ->setWorkspaceRoleName($wsResponse1->getWorkspaceRoleName())
+            ->setWorkspaceObjectName($wsResponse1->getWorkspaceObjectName());
 
         $dropResponse = $handler(
             $this->projectCredentials,
@@ -216,7 +259,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $bqClient->query(sprintf(
                 'SELECT schema_name FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s;',
                 BigqueryQuote::quoteSingleIdentifier($projectId),
-                BigqueryQuote::quote($response->getWorkspaceObjectName()),
+                BigqueryQuote::quote($wsResponse1->getWorkspaceObjectName()),
             )),
         );
 
