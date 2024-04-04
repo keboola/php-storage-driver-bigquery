@@ -164,6 +164,14 @@ final class ObjectInfoHandler extends BaseHandler
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
                     )));
 
+                    $this->userLogger->info(sprintf(
+                        'We have registered an external table: "%s". Please note, if this table is not created' .
+                        ' as a BigLake table, reading from it in the workspace will not be possible.',
+                        $info['id'],
+                    ), [
+                        'info' => $info,
+                    ]);
+
                     yield (new ObjectInfo())
                         ->setObjectType(ObjectType::TABLE)
                         ->setObjectName($table->id());

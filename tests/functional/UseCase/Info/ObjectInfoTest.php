@@ -185,7 +185,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(2, $logs);
+        $this->assertCount(4, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -203,6 +203,26 @@ class ObjectInfoTest extends BaseCase
                 '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
+
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Informational,
+            sprintf(
+                'We have registered an external table: "%s:%s.externalTable". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
+
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Informational,
+            sprintf(
+                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
@@ -271,7 +291,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(3, $logs);
+        $this->assertCount(4, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -301,6 +321,15 @@ class ObjectInfoTest extends BaseCase
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'externalTable',
+            ),
+        );
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Informational,
+            sprintf(
+                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.',
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
             ),
         );
     }
