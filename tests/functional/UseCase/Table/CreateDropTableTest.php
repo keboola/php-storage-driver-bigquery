@@ -200,7 +200,7 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('10', $meta->getRangePartitioning()->getRange()->getEnd());
         $this->assertSame('1', $meta->getRangePartitioning()->getRange()->getInterval());
 
-        // Range partitioning and clustering
+        // Time partitioning and clustering
         $expirationMs = (string) (1000 * 60 * 60 * 24 * 10);
         $tableInfo = $this->createTableForPartitioning(
             (new CreateTableCommand\BigQueryTableMeta())
@@ -222,6 +222,37 @@ class CreateDropTableTest extends BaseCase
         $this->assertSame('DAY', $meta->getTimePartitioning()->getType());
         $this->assertSame('time', $meta->getTimePartitioning()->getField());
         $this->assertSame($expirationMs, $meta->getTimePartitioning()->getExpirationMs());
+
+        // Both Time,Range partitioning and clustering
+        // test that when both range and time partitioning are set
+        // no exception is raised from BQ and table is created only with rangePartitioning
+        $tableInfo = $this->createTableForPartitioning(
+            (new CreateTableCommand\BigQueryTableMeta())
+                ->setClustering((new Clustering())->setFields(['id']))
+                ->setRangePartitioning((new RangePartitioning())
+                    ->setField('id')
+                    ->setRange((new RangePartitioning\Range())
+                        ->setStart('0')
+                        ->setEnd('10')
+                        ->setInterval('1')))
+                ->setTimePartitioning((new TimePartitioning())
+                    ->setType('DAY')
+                    ->setField('time')
+                    ->setExpirationMs($expirationMs)/**10 days*/),
+            'rangetime',
+        );
+        $this->assertNotNull($tableInfo->getMeta());
+        $meta = $tableInfo->getMeta()->unpack();
+        $this->assertInstanceOf(TableInfo\BigQueryTableMeta::class, $meta);
+        $this->assertNotNull($meta->getClustering());
+        $this->assertSame(['id'], ProtobufHelper::repeatedStringToArray($meta->getClustering()->getFields()));
+        $this->assertNull($meta->getTimePartitioning());
+        $this->assertNotNull($meta->getRangePartitioning());
+        $this->assertSame('id', $meta->getRangePartitioning()->getField());
+        $this->assertNotNull($meta->getRangePartitioning()->getRange());
+        $this->assertSame('0', $meta->getRangePartitioning()->getRange()->getStart());
+        $this->assertSame('10', $meta->getRangePartitioning()->getRange()->getEnd());
+        $this->assertSame('1', $meta->getRangePartitioning()->getRange()->getInterval());
     }
 
     public function testCreateTableFail(): void
