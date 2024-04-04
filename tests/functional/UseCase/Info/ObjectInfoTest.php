@@ -297,7 +297,7 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'External tables are not supported. Table "%s:%s.%s" was ignored',
+                'Unable to read from the external table. The table named "%s:%s.%s" has been skipped.',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'externalTable',

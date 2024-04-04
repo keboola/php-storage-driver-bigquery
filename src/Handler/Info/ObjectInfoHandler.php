@@ -170,7 +170,7 @@ final class ObjectInfoHandler extends BaseHandler
                     continue;
                 } catch (Throwable $e) {
                     $this->userLogger->warning(sprintf(
-                        'External tables are not supported. Table "%s" was ignored',
+                        'Unable to read from the external table. The table named "%s" has been skipped.',
                         $info['id'],
                     ), [
                         'info' => $info,
