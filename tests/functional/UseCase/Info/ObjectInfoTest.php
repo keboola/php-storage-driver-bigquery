@@ -210,7 +210,7 @@ class ObjectInfoTest extends BaseCase
 
         $this->assertLogsContainsMessage(
             $logs,
-            LogMessage\Level::Informational,
+            LogMessage\Level::Warning,
             sprintf(
                 'We have registered an external table: "%s:%s.externalTable". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
@@ -220,7 +220,7 @@ class ObjectInfoTest extends BaseCase
 
         $this->assertLogsContainsMessage(
             $logs,
-            LogMessage\Level::Informational,
+            LogMessage\Level::Warning,
             sprintf(
                 'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
@@ -325,9 +325,9 @@ class ObjectInfoTest extends BaseCase
         );
         $this->assertLogsContainsMessage(
             $logs,
-            LogMessage\Level::Informational,
+            LogMessage\Level::Warning,
             sprintf(
-                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.',
+                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
