@@ -92,7 +92,7 @@ final class ImportTableFromFileHandler extends BaseHandler
         $filePath = $command->getFilePath();
         assert($filePath !== null);
         $source = $this->getSourceFile($filePath, $credentials, $csvOptions, $formatOptions);
-        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
+        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
 
         $stagingTable = null;
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
