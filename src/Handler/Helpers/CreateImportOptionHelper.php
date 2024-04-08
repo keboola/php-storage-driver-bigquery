@@ -13,6 +13,9 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 
 final class CreateImportOptionHelper
 {
+    /**
+     * @param string[] $features
+     */
     public static function createOptions(
         ImportOptions $options,
         array $features,
