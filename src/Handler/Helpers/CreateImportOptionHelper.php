@@ -13,8 +13,12 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 
 final class CreateImportOptionHelper
 {
+    /**
+     * @param string[] $features
+     */
     public static function createOptions(
         ImportOptions $options,
+        array $features,
     ): BigqueryImportOptions {
         $strategyMapping = [
             ImportStrategy::STRING_TABLE => ImportOptionsInterface::USING_TYPES_STRING,
@@ -28,6 +32,7 @@ final class CreateImportOptionHelper
             $strategyMapping[$options->getImportStrategy()],
             null,
             ProtobufHelper::repeatedStringToArray($options->getImportAsNull()),
+            $features,
         );
     }
 }

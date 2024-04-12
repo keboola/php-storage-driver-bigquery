@@ -78,7 +78,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
         $source = $this->createSource($bqClient, $command);
-        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions);
+        $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
 
         // Replace is only available in view or clone import
         $shouldDropTableIfExists = $importOptions->getCreateMode() === ImportOptions\CreateMode::REPLACE
