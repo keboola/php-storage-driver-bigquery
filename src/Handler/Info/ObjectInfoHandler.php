@@ -156,13 +156,35 @@ final class ObjectInfoHandler extends BaseHandler
             $table->reload(); // table has to be reload info from list is missing schema
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
-                $this->userLogger->warning(sprintf(
-                    'External tables are not supported. Table "%s" was ignored',
-                    $info['id'],
-                ), [
-                    'info' => $info,
-                ]);
-                continue;
+                try {
+                    $client->runQuery($client->query(sprintf(
+                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
+                        BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
+                    )));
+
+                    $this->userLogger->warning(sprintf(
+                        'We have registered an external table: "%s". Please note, if this table is not created' .
+                        ' as a BigLake table, reading from it in the workspace will not be possible.',
+                        $info['id'],
+                    ), [
+                        'info' => $info,
+                    ]);
+
+                    yield (new ObjectInfo())
+                        ->setObjectType(ObjectType::TABLE)
+                        ->setObjectName($table->id());
+                    continue;
+                } catch (Throwable $e) {
+                    $this->userLogger->warning(sprintf(
+                        'Unable to read from the external table. The table named "%s" has been skipped.',
+                        $info['id'],
+                    ), [
+                        'info' => $info,
+                    ]);
+                    continue;
+                }
             }
 
             if ($info['type'] === 'VIEW' || $info['type'] === 'MATERIALIZED_VIEW') {

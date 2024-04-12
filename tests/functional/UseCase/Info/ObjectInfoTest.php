@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Info;
 
+use Google\Cloud\BigQuery\Connection\V1\Client\ConnectionServiceClient;
+use Google\Cloud\BigQuery\Connection\V1\CloudResourceProperties;
+use Google\Cloud\BigQuery\Connection\V1\Connection;
+use Google\Cloud\BigQuery\Connection\V1\CreateConnectionRequest;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -134,7 +138,8 @@ class ObjectInfoTest extends BaseCase
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
 
-        $this->assertCount(6, $objects);
+        // can select from both external tables, because main project has access to files in GCS
+        $this->assertCount(8, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -150,6 +155,18 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        // two external bucket are available, in second project we test that external tables are not supported
+        // if we haven't access to GCS
+        $externalTable = $this->getObjectByNameAndType(
+            $objects,
+            'externalTable',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTable->getObjectType());
+        $externalTableWithConnection = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnection',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTableWithConnection->getObjectType());
         $materializedView = $this->getObjectByNameAndType(
             $objects,
             'materialized_view',
@@ -168,7 +185,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(3, $logs);
+        $this->assertCount(4, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -190,11 +207,22 @@ class ObjectInfoTest extends BaseCase
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
         );
+
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'External tables are not supported. Table "%s:%s.externalTable" was ignored',
+                'We have registered an external table: "%s:%s.externalTable". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+            ),
+        );
+
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
             ),
@@ -221,7 +249,9 @@ class ObjectInfoTest extends BaseCase
         $this->assertInstanceOf(SchemaInfo::class, $response->getSchemaInfo());
         /** @var Traversable<ObjectInfo> $objects */
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
-        $this->assertCount(6, $objects);
+        // in link project we can select only from external tables with connection
+        // second external table without connection is ignored, and warning is logged
+        $this->assertCount(7, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -237,6 +267,12 @@ class ObjectInfoTest extends BaseCase
             'bucket_view1',
         );
         $this->assertSame(ObjectType::VIEW, $view->getObjectType());
+        // in link project, we only can access to external table with connection
+        $externalTableWithConnection = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnection',
+        );
+        $this->assertSame(ObjectType::TABLE, $externalTableWithConnection->getObjectType());
         $view = $this->getObjectByNameAndType(
             $objects,
             'materialized_view',
@@ -255,7 +291,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(3, $logs);
+        $this->assertCount(4, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -281,10 +317,19 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'External tables are not supported. Table "%s:%s.%s" was ignored',
+                'Unable to read from the external table. The table named "%s:%s.%s" has been skipped.',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'externalTable',
+            ),
+        );
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'We have registered an external table: "%s:%s.externalTableWithConnection". Please note, if this table is not created as a BigLake table, reading from it in the workspace will not be possible.', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
             ),
         );
     }
@@ -309,6 +354,18 @@ class ObjectInfoTest extends BaseCase
         $bqClient->runQuery($bqClient->query(sprintf(
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
+        )));
+
+        // simulate user interaction, he creates connection to external bucket manually in console.google.com
+        $connection = $this->prepareConnectionForExternalBucket();
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            "CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnection 
+            WITH CONNECTION %s 
+            OPTIONS (format = 'CSV',uris = [%s]);",
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($connection->getName()),
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
@@ -378,6 +435,53 @@ DROP TABLE %s.table2
 SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
+    }
+
+    /**
+     * @throws \Google\ApiCore\ApiException
+     * @throws \Google\ApiCore\ValidationException
+     * @throws \JsonException
+     */
+    private function prepareConnectionForExternalBucket(): Connection
+    {
+        $externalCredentialsArray = CredentialsHelper::getCredentialsArray($this->projectCredentials);
+        $connectionClient = new ConnectionServiceClient([
+            'credentials' => $externalCredentialsArray,
+        ]);
+
+        // 1. create connection to be able to read from external bucket
+        $parent = $connectionClient->locationName($externalCredentialsArray['project_id'], 'US');
+        $cloudSqlProperties = (new CloudResourceProperties());
+        $connection = (new Connection())
+            ->setFriendlyName('externalTableConnection')
+            ->setCloudResource($cloudSqlProperties);
+
+        $request = (new CreateConnectionRequest())
+            ->setParent($parent)
+            ->setConnectionId('exConn-' . substr($this->getTestHash(), -7) . self::getRand())
+            ->setConnection($connection);
+
+        $response = $connectionClient->createConnection($request);
+        // when connection is created, new service account is created for connection automatically
+        $connectionServiceAccountEmail = $response->getCloudResource()?->getServiceAccountId();
+
+        // 2. connection was created, now we need to grant access to service account created for connection
+        $storageClient = $this->clientManager->getStorageClient($this->getCredentials());
+        $bqBucketName = getenv('BQ_BUCKET_NAME');
+        assert($bqBucketName !== false, 'BQ_BUCKET_NAME env var is not set');
+        $bucket = $storageClient->bucket($bqBucketName);
+
+        $policy = $bucket->iam()->policy();
+        $role = 'roles/storage.objectViewer';
+        $policy['bindings'][] = [
+            'role' => $role,
+            'members' => [
+                'serviceAccount:' . $connectionServiceAccountEmail,
+            ],
+        ];
+
+        $bucket->iam()->setPolicy($policy);
+        return $response;
     }
 
     public function testInfoTable(): void
