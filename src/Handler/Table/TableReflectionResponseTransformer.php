@@ -12,6 +12,7 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\Backend\BigQuery\TimePartitioning;
 use Keboola\StorageDriver\Command\Info\TableInfo;
+use Keboola\StorageDriver\Command\Info\TableType as DriverTableType;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Keboola\TableBackendUtils\Table\TableType;
@@ -101,10 +102,11 @@ class TableReflectionResponseTransformer
             $meta->setPartitions($partitions);
         }
 
-        $res->setTableType(match ($ref->getTableType()) {
-            TableType::BIGQUERY_EXTERNAL => TableInfo\TableType::EXTERNAL,
-            default => TableInfo\TableType::NORMAL,
-        }
+        $res->setTableType(
+            match ($ref->getTableType()) {
+                TableType::BIGQUERY_EXTERNAL => DriverTableType::EXTERNAL,
+                default => DriverTableType::NORMAL,
+            },
         );
 
         $any = new Any();
