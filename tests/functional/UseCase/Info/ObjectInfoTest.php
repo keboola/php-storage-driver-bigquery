@@ -557,6 +557,7 @@ SQL,
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
         $tableInfo = $response->getTableInfo();
+        $this->assertNotNull($tableInfo);
 
         $this->assertEquals(TableType::EXTERNAL, $tableInfo->getTableType());
     }
