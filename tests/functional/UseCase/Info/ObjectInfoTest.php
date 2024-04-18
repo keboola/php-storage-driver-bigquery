@@ -19,6 +19,7 @@ use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
 use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Info\SchemaInfo;
 use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
+use Keboola\StorageDriver\Command\Info\TableType;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -532,6 +533,33 @@ SQL,
             $columns,
         );
         $this->assertSame(['id', 'name', 'large'], $columnsNames);
+        $this->assertEquals(TableType::NORMAL, $tableInfo->getTableType());
+    }
+
+    public function testExternalTableType(): void
+    {
+        $this->createObjectsInSchema();
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::TABLE);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+            'externalTable',
+        ]));
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        $tableInfo = $response->getTableInfo();
+        $this->assertNotNull($tableInfo);
+
+        $this->assertEquals(TableType::EXTERNAL, $tableInfo->getTableType());
     }
 
     public function testInfoView(): void
