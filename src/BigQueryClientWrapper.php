@@ -32,6 +32,7 @@ class BigQueryClientWrapper extends BigQueryClient
             /** @var QueryJobConfiguration $query */
             $query = $query->labels(['run_id' => $this->runId]);
         }
+        $options = array_merge($options, ['maxRetries' => 100]);
         return parent::runQuery($query, $options);
     }
 
