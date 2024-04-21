@@ -134,7 +134,7 @@ class GCPClientManager
      * @throws CredentialsMetaRequiredException
      * @throws \JsonException
      */
-    public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
+    public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClientWrapper
     {
         $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 

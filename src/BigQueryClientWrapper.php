@@ -35,6 +35,27 @@ class BigQueryClientWrapper extends BigQueryClient
         return parent::runQuery($query, $options);
     }
 
+    public function executeQuery(QueryJobConfiguration $query): QueryResults
+    {
+        if ($this->runId !== '') {
+            /** @var QueryJobConfiguration $query */
+            $query = $query->labels(['run_id' => $this->runId]);
+        }
+        $job = $this->startQuery($query);
+
+        $retriesCount = 0;
+        do {
+            $waitSeconds = (int) min(pow(2, $retriesCount), 20);
+            sleep($waitSeconds);
+
+            $job->reload();
+
+            $retriesCount++;
+        } while (!$job->isComplete());
+
+        return $job->queryResults();
+    }
+
     /**
      * @param QueryJobConfiguration $config
      * @param array<mixed> $options
