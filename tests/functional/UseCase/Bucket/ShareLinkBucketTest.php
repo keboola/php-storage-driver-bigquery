@@ -82,7 +82,7 @@ class ShareLinkBucketTest extends BaseCase
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
-        $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
+        $sourceBqClient->executeQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`) VALUES (1)',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
@@ -175,7 +175,7 @@ class ShareLinkBucketTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         // check that there is no need to re-share or whatever
-        $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
+        $sourceBqClient->executeQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`) VALUES (1)',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_AFTER_NAME),
@@ -327,7 +327,7 @@ class ShareLinkBucketTest extends BaseCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         // check that there is no need to re-share or whatever
-        $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
+        $sourceBqClient->executeQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`) VALUES (1)',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_AFTER_NAME),

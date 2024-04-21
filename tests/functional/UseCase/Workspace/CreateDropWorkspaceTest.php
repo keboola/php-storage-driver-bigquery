@@ -89,7 +89,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $ws1BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $wsCredentials1);
 
         /** @var array<string, string> $datasets */
-        $datasets = $bqClient->runQuery($bqClient->query(sprintf(
+        $datasets = $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` IN (%s,%s) ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
@@ -154,7 +154,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->assertStringContainsString('Access Denied: ', $e->getMessage());
         }
 
-        $result = $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
+        $result = $ws1BqClient->executeQuery($ws1BqClient->query(sprintf(
             'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -162,13 +162,13 @@ class CreateDropWorkspaceTest extends BaseCase
 
         $this->assertCount(3, $result);
         // try to create table
-        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
+        $ws1BqClient->executeQuery($ws1BqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
         // try to create view
-        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
+        $ws1BqClient->executeQuery($ws1BqClient->query(sprintf(
             'CREATE VIEW %s.`testView` AS '
             . 'SELECT `id` FROM %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
@@ -186,7 +186,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // test WS2 can't read from other workspaces
         try {
-            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+            $ws2BqClient->executeQuery($ws2BqClient->query(sprintf(
                 'SELECT * FROM %s.`testTable`;',
                 BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
             )));
@@ -198,7 +198,7 @@ class CreateDropWorkspaceTest extends BaseCase
 
         // test WS2 can't write into other workspaces
         try {
-            $ws2BqClient->runQuery($ws2BqClient->query(sprintf(
+            $ws2BqClient->executeQuery($ws2BqClient->query(sprintf(
                 'CREATE TABLE %s.`testTable` (`id` INTEGER);',
                 BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
             )));
@@ -210,13 +210,13 @@ class CreateDropWorkspaceTest extends BaseCase
         }
 
         // try to drop view
-        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
+        $ws1BqClient->executeQuery($ws1BqClient->query(sprintf(
             'DROP VIEW %s.`testView`;',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
         // try to drop table
-        $ws1BqClient->runQuery($ws1BqClient->query(sprintf(
+        $ws1BqClient->executeQuery($ws1BqClient->query(sprintf(
             'DROP TABLE %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
@@ -255,7 +255,7 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->assertStringContainsString('.iam.gserviceaccount.com does not exist.', $e->getMessage());
         }
 
-        $datasets = $bqClient->runQuery(
+        $datasets = $bqClient->executeQuery(
             $bqClient->query(sprintf(
                 'SELECT schema_name FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s;',
                 BigqueryQuote::quoteSingleIdentifier($projectId),
@@ -338,7 +338,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create table
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $wsBqClient->executeQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
@@ -371,7 +371,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $projectId = $wsKeyData['project_id'];
         $wsServiceAccEmail = $wsKeyData['client_email'];
 
-        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
+        $datasets = $projectBqClient->executeQuery($projectBqClient->query(sprintf(
             /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
@@ -408,7 +408,7 @@ class CreateDropWorkspaceTest extends BaseCase
                 }
             });
 
-        $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
+        $datasets = $projectBqClient->executeQuery($projectBqClient->query(sprintf(
         /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),

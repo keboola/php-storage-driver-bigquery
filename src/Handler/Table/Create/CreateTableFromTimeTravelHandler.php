@@ -84,7 +84,7 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
         );
 
         try {
-            $bqClient->runQuery($bqClient->query($query));
+            $bqClient->executeQuery($bqClient->query($query));
         } catch (NotFoundException $e) {
             throw new ObjectNotFoundException($sourceTableName);
         }

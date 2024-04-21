@@ -10,6 +10,7 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Timestamp;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Db\ImportExport\Backend\Snowflake\Helper\DateTimeHelper;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -38,7 +39,7 @@ class BaseImportTestCase extends BaseCase
     protected function createDestinationTable(
         string $bucketDatabaseName,
         string $destinationTableName,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -66,7 +67,7 @@ class BaseImportTestCase extends BaseCase
             $tableDestDef->getPrimaryKeysNames(),
         );
         $query = $bqClient->query($sql);
-        $bqClient->runQuery($query);
+        $bqClient->executeQuery($query);
         // init some values
         // phpcs:ignore
         foreach ([
@@ -84,7 +85,7 @@ class BaseImportTestCase extends BaseCase
                 BigqueryQuote::quoteSingleIdentifier($destinationTableName),
                 implode(',', $quotedValues),
             );
-            $bqClient->runQuery($bqClient->query($sql));
+            $bqClient->executeQuery($bqClient->query($sql));
         }
         return $tableDestDef;
     }
@@ -92,7 +93,7 @@ class BaseImportTestCase extends BaseCase
     protected function createDestinationTypedTable(
         string $bucketDatabaseName,
         string $destinationTableName,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -122,7 +123,7 @@ class BaseImportTestCase extends BaseCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         // init some values
         foreach ([
                      ['1', '2', '4', BigqueryQuote::quote('2014-11-10 13:12:06.000000+00:00')],
@@ -135,17 +136,17 @@ class BaseImportTestCase extends BaseCase
                 BigqueryQuote::quoteSingleIdentifier($destinationTableName),
                 implode(',', $i),
             ));
-            $bqClient->runQuery($queryJobConfiguration);
+            $bqClient->executeQuery($queryJobConfiguration);
         }
         return $tableDestDef;
     }
 
     protected function createAccountsTable(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $bucketDatabaseName,
         string $destinationTableName,
     ): void {
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.%s (
                 `id` STRING(60),
                 `idTwitter` STRING(60),
@@ -180,12 +181,12 @@ class BaseImportTestCase extends BaseCase
     }
 
     protected function assertTimestamp(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $database,
         string $tableName,
     ): void {
         /** @var array<string, array<string>> $timestamps */
-        $timestamps = $bqClient->runQuery($bqClient->query(sprintf(
+        $timestamps = $bqClient->executeQuery($bqClient->query(sprintf(
             'SELECT _timestamp FROM %s.%s',
             BigqueryQuote::quoteSingleIdentifier($database),
             BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -206,19 +207,19 @@ class BaseImportTestCase extends BaseCase
      * @return array<int, array<string, mixed>>
      */
     protected function fetchTable(
-        BigQueryClient $client,
+        BigQueryClientWrapper $client,
         string $schemaName,
         string $tableName,
         array $columns = [],
     ): array {
         if (count($columns) === 0) {
-            $result = $client->runQuery($client->query(sprintf(
+            $result = $client->executeQuery($client->query(sprintf(
                 'SELECT * FROM %s.%s',
                 $schemaName,
                 $tableName,
             )));
         } else {
-            $result = $client->runQuery($client->query(sprintf(
+            $result = $client->executeQuery($client->query(sprintf(
                 'SELECT %s FROM %s.%s',
                 implode(', ', array_map(static function ($item) {
                     return BigqueryQuote::quoteSingleIdentifier($item);

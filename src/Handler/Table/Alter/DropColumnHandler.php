@@ -56,7 +56,7 @@ final class DropColumnHandler extends BaseHandler
             $command->getColumnName(),
         );
 
-        $bqClient->runQuery($bqClient->query($dropColumnSql));
+        $bqClient->executeQuery($bqClient->query($dropColumnSql));
 
         return null;
     }

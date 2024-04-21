@@ -91,7 +91,7 @@ final class DeleteTableRowsHandler extends BaseHandler
         $queryDataBindings = $queryData->getBindings();
         $initialRowsCount = $ref->getRowsCount();
 
-        $bqClient->runQuery(
+        $bqClient->executeQuery(
             $bqClient->query($queryData->getQuery())
                 ->parameters($queryDataBindings),
         );

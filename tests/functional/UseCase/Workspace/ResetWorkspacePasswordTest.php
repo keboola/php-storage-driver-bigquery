@@ -54,7 +54,7 @@ class ResetWorkspacePasswordTest extends BaseCase
 
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         try {
-            $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
+            $wsBqClient->executeQuery($wsBqClient->query('SELECT 1'));
             $this->fail('Should fail');
         } catch (Throwable $e) {
             $this->assertInstanceOf(ServiceException::class, $e);
@@ -66,7 +66,7 @@ class ResetWorkspacePasswordTest extends BaseCase
 
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         /** @var array<string, string> $result */
-        $result = $wsBqClient->runQuery(
+        $result = $wsBqClient->executeQuery(
             $wsBqClient->query('SELECT SESSION_USER() AS USER'),
         )->getIterator()->current();
 

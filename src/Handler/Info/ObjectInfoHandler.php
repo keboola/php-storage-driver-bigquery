@@ -11,6 +11,7 @@ use Google\Cloud\BigQuery\Table;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
@@ -84,7 +85,7 @@ final class ObjectInfoHandler extends BaseHandler
     /**
      * @return Generator<int, ObjectInfo>
      */
-    private function getChildSchemas(BigQueryClient $bqClient): Generator
+    private function getChildSchemas(BigQueryClientWrapper $bqClient): Generator
     {
         $datasets = $bqClient->datasets();
         /** @var Dataset $child */
@@ -100,7 +101,7 @@ final class ObjectInfoHandler extends BaseHandler
      */
     private function getDatabaseResponse(
         array $path,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 1, 'Error path must have exactly one element.');
@@ -122,7 +123,7 @@ final class ObjectInfoHandler extends BaseHandler
      */
     private function getSchemaResponse(
         array $path,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 1, 'Error path must have exactly one element.');
@@ -140,7 +141,7 @@ final class ObjectInfoHandler extends BaseHandler
     /**
      * @return Generator<int, ObjectInfo>
      */
-    private function getObjectsForDataset(BigQueryClient $client, Dataset $dataset): Generator
+    private function getObjectsForDataset(BigQueryClientWrapper $client, Dataset $dataset): Generator
     {
         //TABLE: A normal BigQuery table.
         //VIEW: A virtual table defined by a SQL query.
@@ -157,7 +158,7 @@ final class ObjectInfoHandler extends BaseHandler
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
                 try {
-                    $client->runQuery($client->query(sprintf(
+                    $client->executeQuery($client->query(sprintf(
                     /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
@@ -194,7 +195,7 @@ final class ObjectInfoHandler extends BaseHandler
                 ));
 
                 try {
-                    $client->runQuery($client->query(sprintf(
+                    $client->executeQuery($client->query(sprintf(
                     /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
@@ -264,7 +265,7 @@ final class ObjectInfoHandler extends BaseHandler
     private function getTableResponse(
         array $path,
         ObjectInfoResponse $response,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
         $this->getDataset($bqClient, $path[0]);
@@ -288,7 +289,7 @@ final class ObjectInfoHandler extends BaseHandler
      */
     private function getViewResponse(
         array $path,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         ObjectInfoResponse $response,
     ): ObjectInfoResponse {
         assert(count($path) === 2, 'Error path must have exactly two elements.');
@@ -309,7 +310,7 @@ final class ObjectInfoHandler extends BaseHandler
         return $response;
     }
 
-    private function getDataset(BigQueryClient $bqClient, string $datasetName): Dataset
+    private function getDataset(BigQueryClientWrapper $bqClient, string $datasetName): Dataset
     {
         $dataset = $bqClient->dataset($datasetName);
         if ($dataset->exists() === false) {

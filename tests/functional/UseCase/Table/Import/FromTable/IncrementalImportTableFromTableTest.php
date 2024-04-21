@@ -71,13 +71,13 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             [], //<-- dont create primary keys allow duplicates
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '3'], ['2', '2', '2'], ['2', '2', '2'], ['3', '2', '3'], ['4', '4', '4']] as $i) {
             $insert[] = sprintf('(%s)', implode(',', $i));
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),

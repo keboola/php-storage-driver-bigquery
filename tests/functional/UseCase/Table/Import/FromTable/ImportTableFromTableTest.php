@@ -69,7 +69,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
@@ -78,7 +78,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -101,7 +101,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -155,10 +155,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         // cleanup
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
@@ -193,7 +193,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
@@ -202,7 +202,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -226,7 +226,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -285,10 +285,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // cleanup
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
@@ -323,7 +323,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
@@ -332,7 +332,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -358,7 +358,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -439,10 +439,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
         ], $data);
 
         // cleanup
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
         ));
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
         ));
     }
@@ -600,7 +600,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         // data in source table have nulls -> should fail, because we are trying to fit null value in to required field
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', null]] as $i) {
@@ -610,7 +610,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -634,7 +634,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -687,10 +687,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->assertSame('Required field col3 cannot be null', $e->getMessage());
         } finally {
             // cleanup
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
             ));
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
             ));
         }
@@ -730,7 +730,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', 'too expensive'], ['2', 'cheap'], ['3', 'way too expensive']] as $i) {
             $quotedValues = [];
@@ -739,7 +739,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             }
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -764,7 +764,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $tableDestDef->getColumnsDefinitions(),
             $tableDestDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new TableImportFromTableCommand();
         $path = new RepeatedField(GPBType::STRING);

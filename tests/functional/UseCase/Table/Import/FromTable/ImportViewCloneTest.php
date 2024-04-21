@@ -9,6 +9,7 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
@@ -216,7 +217,7 @@ class ImportViewCloneTest extends BaseCase
 
         // cleanup
         if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 sprintf(
                     'DROP VIEW %s.%s',
                     BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
@@ -224,7 +225,7 @@ class ImportViewCloneTest extends BaseCase
                 ),
             ));
         } else {
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 $qb->getDropTableCommand(
                     $bucketDatabaseName,
                     $destinationTableName,
@@ -232,7 +233,7 @@ class ImportViewCloneTest extends BaseCase
             ));
         }
 
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand(
                 $bucketDatabaseName,
                 $sourceTableName,
@@ -349,7 +350,7 @@ class ImportViewCloneTest extends BaseCase
 
         // cleanup
         if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 sprintf(
                     'DROP VIEW %s.%s',
                     BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
@@ -357,7 +358,7 @@ class ImportViewCloneTest extends BaseCase
                 ),
             ));
         } else {
-            $bqClient->runQuery($bqClient->query(
+            $bqClient->executeQuery($bqClient->query(
                 (new BigqueryTableQueryBuilder())->getDropTableCommand(
                     $workspaceResponse->getWorkspaceObjectName(),
                     $destinationTableName,
@@ -370,7 +371,7 @@ class ImportViewCloneTest extends BaseCase
     private function createSourceTable(
         string $bucketDatabaseName,
         string $sourceTableName,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): void {
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -391,7 +392,7 @@ class ImportViewCloneTest extends BaseCase
             $tableSourceDef->getColumnsDefinitions(),
             $tableSourceDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '1'], ['2', '2', '2'], ['3', '3', '3']] as $i) {
             $quotedValues = [];
@@ -401,7 +402,7 @@ class ImportViewCloneTest extends BaseCase
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -508,12 +509,12 @@ class ImportViewCloneTest extends BaseCase
      * count rows by selecting whole table
      */
     private function assertViewOrTableRowsCount(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $datasetName,
         string $tableName,
         int $expectedRowsCount,
     ): void {
-        $result = $bqClient->runQuery($bqClient->query(
+        $result = $bqClient->executeQuery($bqClient->query(
             sprintf(
                 'SELECT * FROM %s.%s',
                 BigqueryQuote::quoteSingleIdentifier($datasetName),

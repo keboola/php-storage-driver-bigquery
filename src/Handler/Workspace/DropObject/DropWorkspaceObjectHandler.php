@@ -59,7 +59,7 @@ final class DropWorkspaceObjectHandler extends BaseHandler
             return null;
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'DROP TABLE %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($command->getWorkspaceObjectName()),
             BigqueryQuote::quoteSingleIdentifier($command->getObjectNameToDrop()),

@@ -41,11 +41,11 @@ class ClearWorkspaceTest extends BaseCase
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create tables
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $wsBqClient->executeQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
-        $wsBqClient->runQuery($wsBqClient->query(sprintf(
+        $wsBqClient->executeQuery($wsBqClient->query(sprintf(
             'CREATE TABLE %s.`testTable2` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));

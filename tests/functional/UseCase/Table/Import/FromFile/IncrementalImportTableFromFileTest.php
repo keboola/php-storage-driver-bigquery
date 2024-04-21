@@ -138,6 +138,6 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 }

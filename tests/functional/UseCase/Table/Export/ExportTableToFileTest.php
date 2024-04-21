@@ -14,6 +14,7 @@ use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ColumnNotFoundException;
@@ -654,7 +655,7 @@ class ExportTableToFileTest extends BaseCase
     private function createSourceTable(
         string $databaseName,
         string $tableName,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): BigqueryTableDefinition {
         $tableDef = new BigqueryTableDefinition(
             $databaseName,
@@ -675,7 +676,7 @@ class ExportTableToFileTest extends BaseCase
             $tableDef->getColumnsDefinitions(),
             $tableDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         // init some values
         $insert = [];
@@ -687,7 +688,7 @@ class ExportTableToFileTest extends BaseCase
             $insert[] = sprintf('(%s)', implode(',', $i));
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($databaseName),
             BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -700,7 +701,7 @@ class ExportTableToFileTest extends BaseCase
     private function dropSourceTable(
         string $databaseName,
         string $tableName,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): void {
         $bucket = $bqClient->dataset($databaseName);
         $table = $bucket->table($tableName);
@@ -708,7 +709,7 @@ class ExportTableToFileTest extends BaseCase
             return;
         }
         $qb = new BigqueryTableQueryBuilder();
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getDropTableCommand($databaseName, $tableName),
         ));
     }
@@ -717,7 +718,7 @@ class ExportTableToFileTest extends BaseCase
      * @param string[] $sourceColumns
      */
     private function createSourceTableFromFile(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $sourceFilePath,
         string $sourceFileName,
         bool $sourceFileIsCompressed,
@@ -733,7 +734,7 @@ class ExportTableToFileTest extends BaseCase
                 $column,
             );
         }
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             sprintf(
                 'CREATE TABLE %s.%s (
                     %s

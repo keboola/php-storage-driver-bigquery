@@ -78,7 +78,7 @@ final class AddColumnHandler extends BaseHandler
             $columnDefinition,
         );
 
-        $bqClient->runQuery($bqClient->query($createTableSql));
+        $bqClient->executeQuery($bqClient->query($createTableSql));
 
         return (new ObjectInfoResponse())
             ->setPath($command->getPath())

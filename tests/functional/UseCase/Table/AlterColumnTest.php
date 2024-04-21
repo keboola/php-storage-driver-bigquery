@@ -433,6 +433,6 @@ class AlterColumnTest extends BaseCase
             $tableDef->getColumnsDefinitions(),
             $tableDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 }

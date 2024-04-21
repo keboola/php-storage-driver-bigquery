@@ -10,6 +10,7 @@ use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -59,7 +60,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $insert[] = sprintf('(%s)', implode(',', $i));
         }
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),
@@ -145,7 +146,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
         );
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $cmd = new CreateTableFromTimeTravelCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -328,7 +329,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
     }
 
     private function initTestTableAndImportBaseData(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $bucketDatasetName,
         string $sourceTableName,
     ): void {
@@ -359,12 +360,12 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $tableSourceDef->getColumnsDefinitions(),
             [], //<-- dont create primary keys allow duplicates
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
         $insert = [];
         foreach ([['1', '1', '3'], ['2', '2', '2'], ['3', '2', '3'], ['4', '4', '4']] as $i) {
             $insert[] = sprintf('(%s)', implode(',', $i));
         }
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'INSERT INTO %s.%s VALUES %s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatasetName),
             BigqueryQuote::quoteSingleIdentifier($sourceTableName),

@@ -168,7 +168,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         $this->assertCount(1, $registeredTables);
 
         // And I can get rows from external table
-        $result = $mainBqClient->runQuery(
+        $result = $mainBqClient->executeQuery(
             $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
         );
         $this->assertCount(3, $result);
@@ -211,7 +211,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         );
 
         // And I can get rows from external table
-        $result = $mainBqClient->runQuery(
+        $result = $mainBqClient->executeQuery(
             $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
         );
         $this->assertCount(4, $result);
@@ -254,7 +254,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         );
 
         try {
-            $mainBqClient->runQuery(
+            $mainBqClient->executeQuery(
                 $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
             );
             $this->fail('Should not be able to get data from external table after revoke access.');

@@ -91,7 +91,7 @@ final class AlterColumnHandler extends BaseHandler
 
         foreach ($alterColumnCommands as $operation => $sqlCommand) {
             try {
-                $bqClient->runQuery($bqClient->query($sqlCommand));
+                $bqClient->executeQuery($bqClient->query($sqlCommand));
                 // logging info to add it to error message as partial success of the job
                 $this->userLogger->info($operation);
             } catch (JobException|BadRequestException $e) {

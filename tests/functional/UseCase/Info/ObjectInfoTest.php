@@ -50,7 +50,7 @@ class ObjectInfoTest extends BaseCase
             $this->getTestHash(),
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE VIEW %s.`bucket_view1` AS '
             . 'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
@@ -338,21 +338,21 @@ class ObjectInfoTest extends BaseCase
     private function createObjectsInSchema(): void
     {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE MATERIALIZED VIEW %s.`materialized_view` AS '
             . 'SELECT * FROM %s.%s;',
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
         )));
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE SNAPSHOT TABLE %s.`snapshot` CLONE %s.%s '
             . 'OPTIONS ( expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR));',
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
         )));
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTable OPTIONS (format = 'CSV',uris = [%s]);",
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
@@ -361,7 +361,7 @@ class ObjectInfoTest extends BaseCase
         // simulate user interaction, he creates connection to external bucket manually in console.google.com
         $connection = $this->prepareConnectionForExternalBucket();
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             "CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnection 
             WITH CONNECTION %s 
             OPTIONS (format = 'CSV',uris = [%s]);",
@@ -370,7 +370,7 @@ class ObjectInfoTest extends BaseCase
             BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/import/a_b_c-3row.csv'),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 CREATE TABLE
   %s.partitionedTable (transaction_id INT64)
@@ -383,14 +383,14 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 INSERT INTO %s.partitionedTable (transaction_id) VALUES (1)
 SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 CREATE VIEW %s.partitionedView AS ( 
     SELECT
@@ -403,7 +403,7 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 CREATE TABLE
   %s.table2 (transaction_id INT64)
@@ -411,14 +411,14 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 INSERT INTO %s.table2 (transaction_id) VALUES (1)
 SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
 
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 CREATE VIEW %s.table2View AS ( 
     SELECT
@@ -430,7 +430,7 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 DROP TABLE %s.table2
 SQL,

@@ -19,6 +19,7 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
@@ -149,7 +150,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     }
 
     private function createSource(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         TableImportFromTableCommand $command,
     ): Table {
         $sourceMapping = $command->getSource();
@@ -176,7 +177,7 @@ final class ImportTableFromTableHandler extends BaseHandler
      * @return array{0: BigqueryTableDefinition|null, 1: Result}
      */
     private function import(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         CommandDestination $destination,
         ImportOptions $options,
         Table $source,
@@ -251,7 +252,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     private function createStageTable(
         BigqueryTableDefinition $destinationDefinition,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
     ): BigqueryTableDefinition {
         // prepare staging table definition
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
@@ -262,7 +263,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         );
         // create staging table
         $qb = new BigqueryTableQueryBuilder();
-        $bqClient->runQuery($bqClient->query(
+        $bqClient->executeQuery($bqClient->query(
             $qb->getCreateTableCommand(
                 $stagingTable->getSchemaName(),
                 $stagingTable->getTableName(),
@@ -274,7 +275,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     }
 
     private function importByTableCopy(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         CommandDestination $destination,
         ImportOptions $importOptions,
         Table $source,
@@ -299,7 +300,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         } finally {
             if ($stagingTable !== null) {
                 try {
-                    $bqClient->runQuery($bqClient->query(
+                    $bqClient->executeQuery($bqClient->query(
                         (new BigqueryTableQueryBuilder())->getDropTableCommand(
                             $stagingTable->getSchemaName(),
                             $stagingTable->getTableName(),
@@ -318,7 +319,7 @@ final class ImportTableFromTableHandler extends BaseHandler
      * @throws ConflictException
      */
     private function createView(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         CommandDestination $destination,
         Table $source,
     ): Result {
@@ -338,7 +339,7 @@ SQL,
         );
 
         try {
-            $bqClient->runQuery(
+            $bqClient->executeQuery(
                 $bqClient->query($sql),
             );
         } catch (ConflictException $e) {
@@ -355,7 +356,7 @@ SQL,
      * @throws BadRequestException
      * @throws ObjectAlreadyExistsException
      */
-    private function clone(BigQueryClient $bqClient, CommandDestination $destination, Table $source): Result
+    private function clone(BigQueryClientWrapper $bqClient, CommandDestination $destination, Table $source): Result
     {
         $sql = sprintf(
             <<<SQL
@@ -368,7 +369,7 @@ SQL,
         );
 
         try {
-            $bqClient->runQuery(
+            $bqClient->executeQuery(
                 $bqClient->query($sql),
             );
             return new Result([
@@ -384,8 +385,11 @@ SQL,
         }
     }
 
-    private function cloneFallback(BigQueryClient $bqClient, CommandDestination $destination, Table $source): Result
-    {
+    private function cloneFallback(
+        BigQueryClientWrapper $bqClient,
+        CommandDestination $destination,
+        Table $source,
+    ): Result {
         $sql = sprintf(
             <<<SQL
 CREATE TABLE %s.%s AS (
@@ -401,7 +405,7 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($source->getTableName()),
         );
 
-        $bqClient->runQuery(
+        $bqClient->executeQuery(
             $bqClient->query($sql),
         );
 

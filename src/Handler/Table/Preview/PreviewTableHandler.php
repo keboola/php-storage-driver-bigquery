@@ -98,7 +98,7 @@ final class PreviewTableHandler extends BaseHandler
 
         // select table
         try {
-            $result = $bqClient->runQuery(
+            $result = $bqClient->executeQuery(
                 $bqClient->query($queryData->getQuery())
                     ->parameters($queryDataBindings),
             );

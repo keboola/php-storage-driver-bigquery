@@ -10,6 +10,7 @@ use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\CsvOptions\CsvOptions;
+use Keboola\StorageDriver\BigQuery\BigQueryClientWrapper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
@@ -120,7 +121,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 
     public function testImportTableFromFileFullLoadWithoutDeduplication(): void
@@ -193,7 +194,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 
     /**
@@ -220,7 +221,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
 
         $this->createAccountsTable($bqClient, $bucketDatabaseName, $destinationTableName);
         // init some values
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
         // phpcs:ignore
             'INSERT INTO %s.%s VALUES (\'10\',\'448810375\',\'init\',\'0\',\'1\',\'\',\'1\',\'0\',\'2012-02-20 09:34:22\',\'ddd\',\'ddd\',\'1\',\'2012-02-20 09:34:22\')',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
@@ -331,7 +332,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 
     public function testImportTableFromFileWithNullValues(): void
@@ -423,15 +424,15 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // cleanup
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
     }
 
     protected function createAccountsTableWithNotNull(
-        BigQueryClient $bqClient,
+        BigQueryClientWrapper $bqClient,
         string $bucketDatabaseName,
         string $destinationTableName,
     ): void {
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.%s (
                 `id` STRING(60),
                 `idTwitter` STRING(60),

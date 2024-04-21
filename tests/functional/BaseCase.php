@@ -607,7 +607,7 @@ class BaseCase extends TestCase
     ): void {
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
         if ($truncate) {
-            $bqClient->runQuery($bqClient->query(sprintf(
+            $bqClient->executeQuery($bqClient->query(sprintf(
                 'TRUNCATE TABLE %s.%s',
                 BigqueryQuote::quoteSingleIdentifier($databaseName),
                 BigqueryQuote::quoteSingleIdentifier($tableName),
@@ -626,7 +626,7 @@ class BaseCase extends TestCase
                 $insertGroup['columns'],
                 implode(",\n", $insert),
             );
-            $bqClient->runQuery($bqClient->query($insertSql));
+            $bqClient->executeQuery($bqClient->query($insertSql));
         }
     }
 

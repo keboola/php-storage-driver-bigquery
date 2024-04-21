@@ -126,7 +126,7 @@ final class ImportTableFromFileHandler extends BaseHandler
             $query = $bqClient->query(
                 $qb->getCreateTableCommandFromDefinition($stagingTable),
             );
-            $bqClient->runQuery($query);
+            $bqClient->executeQuery($query);
 
             // load to staging table
             $toStageImporter = new ToStageImporter($bqClient);
@@ -155,7 +155,7 @@ final class ImportTableFromFileHandler extends BaseHandler
                         $stagingTable->getSchemaName(),
                         $stagingTable->getTableName(),
                     );
-                    $bqClient->runQuery($bqClient->query($query));
+                    $bqClient->executeQuery($bqClient->query($query));
                 } catch (Throwable $e) {
                     // ignore
                 }

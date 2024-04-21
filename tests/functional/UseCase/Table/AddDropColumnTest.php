@@ -65,7 +65,7 @@ class AddDropColumnTest extends BaseCase
             $tableDef->getColumnsDefinitions(),
             $tableDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
@@ -134,7 +134,7 @@ class AddDropColumnTest extends BaseCase
             $tableDef->getColumnsDefinitions(),
             $tableDef->getPrimaryKeysNames(),
         );
-        $bqClient->runQuery($bqClient->query($sql));
+        $bqClient->executeQuery($bqClient->query($sql));
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;

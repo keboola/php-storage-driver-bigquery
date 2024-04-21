@@ -40,17 +40,17 @@ class DropWorkspaceObjectTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
 
         // create tables
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.`testTable` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE TABLE %s.`testTable2` (`id` INTEGER);',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
         )));
 
         // create view
-        $bqClient->runQuery($bqClient->query(sprintf(
+        $bqClient->executeQuery($bqClient->query(sprintf(
             'CREATE VIEW %s.`testView` AS '
             . 'SELECT `id` FROM %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName()),
