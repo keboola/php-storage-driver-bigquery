@@ -35,6 +35,9 @@ class BigQueryClientWrapper extends BigQueryClient
         return parent::runQuery($query, $options);
     }
 
+    // Execute query and wait for it to finish
+    // Is recommended utilizing BigQueryClient::startQuery()
+    // as it provides better mechanisms for fine grained control over result polling.
     public function executeQuery(QueryJobConfiguration $query): QueryResults
     {
         if ($this->runId !== '') {
