@@ -158,7 +158,7 @@ final class ObjectInfoHandler extends BaseHandler
             if ($info['type'] === 'EXTERNAL') {
                 try {
                     $client->runQuery($client->query(sprintf(
-                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                    /** @lang BigQuery */ 'SELECT * FROM %s.%s.%s LIMIT 1',
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
@@ -177,12 +177,30 @@ final class ObjectInfoHandler extends BaseHandler
                         ->setObjectName($table->id());
                     continue;
                 } catch (Throwable $e) {
-                    $this->userLogger->warning(sprintf(
-                        'Unable to read from the external table. The table named "%s" has been skipped.',
-                        $info['id'],
-                    ), [
-                        'info' => $info,
-                    ]);
+                    if (str_contains($e->getMessage(), 'can be used for partition elimination')) {
+                        // partitioning should be allowed for external table
+                        $this->userLogger->warning(
+                            sprintf(
+                                'Table "%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited.', //phpcs:ignore
+                                $info['id'],
+                            ),
+                            [
+                                'info' => $info,
+                            ],
+                        );
+
+                        yield (new ObjectInfo())
+                            ->setObjectType(ObjectType::TABLE)
+                            ->setObjectName($table->id());
+                    } else {
+                        $this->userLogger->warning(sprintf(
+                            'Unable to read from the external table. The table named "%s" has been skipped.',
+                            $info['id'],
+                        ), [
+                            'info' => $info,
+                        ]);
+                    }
+
                     continue;
                 }
             }
@@ -195,7 +213,7 @@ final class ObjectInfoHandler extends BaseHandler
 
                 try {
                     $client->runQuery($client->query(sprintf(
-                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                    /** @lang BigQuery */ 'SELECT * FROM %s.%s.%s LIMIT 1',
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
