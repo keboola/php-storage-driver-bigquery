@@ -140,7 +140,7 @@ class ObjectInfoTest extends BaseCase
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
 
         // can select from both external tables, because main project has access to files in GCS
-        $this->assertCount(8, $objects);
+        $this->assertCount(9, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -186,7 +186,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(4, $logs);
+        $this->assertCount(5, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -200,7 +200,7 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'Selecting data from view "%s:%s.table2View" failed with error: '.
+                'Selecting data from view "%s:%s.table2View" failed with error: ' .
                 '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
@@ -252,7 +252,7 @@ class ObjectInfoTest extends BaseCase
         $objects = $response->getSchemaInfo()->getObjects()->getIterator();
         // in link project we can select only from external tables with connection
         // second external table without connection is ignored, and warning is logged
-        $this->assertCount(7, $objects);
+        $this->assertCount(8, $objects);
         $table = $this->getObjectByNameAndType(
             $objects,
             $this->getTestHash(),
@@ -292,7 +292,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(4, $logs);
+        $this->assertCount(5, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -306,7 +306,7 @@ class ObjectInfoTest extends BaseCase
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'Selecting data from view "%s:%s.table2View" failed with error: '.
+                'Selecting data from view "%s:%s.table2View" failed with error: ' .
                 '"Not found: Table %s:%s.table2 was not found in location US" View was ignored',
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
@@ -402,6 +402,39 @@ SQL,
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
             BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
         )));
+
+        // partitioned table using hive
+        $bqClient->runQuery(
+            $bqClient->query(
+                sprintf(
+                    <<<SQL
+CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnectionAndPartitioning 
+            WITH PARTITION COLUMNS (
+              part INT64,
+            )
+            WITH CONNECTION %s 
+            OPTIONS (
+            format = 'CSV',
+            uris = [%s],
+            max_staleness=INTERVAL '0-0 0 0:30:0' YEAR TO SECOND,
+            metadata_cache_mode = 'AUTOMATIC',
+            hive_partition_uri_prefix=%s,
+            require_hive_partition_filter=true
+            );
+SQL,
+                    BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+                    BigqueryQuote::quoteSingleIdentifier($connection->getName()),
+                    implode(
+                        ',',
+                        [
+                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/hive/part=1/*'),
+                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/hive/part=2/*'),
+                        ],
+                    ),
+                    BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/hive/'),
+                ),
+            ),
+        );
 
         $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
@@ -560,6 +593,48 @@ SQL,
         $this->assertNotNull($tableInfo);
 
         $this->assertEquals(TableType::EXTERNAL, $tableInfo->getTableType());
+    }
+
+    public function testExternalPartitionedTableType(): void
+    {
+        $this->createObjectsInSchema();
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::SCHEMA);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+        ]));
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        /** @var Traversable<ObjectInfo> $objects */
+        $objects = $response->getSchemaInfo()?->getObjects()->getIterator();
+
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnectionAndPartitioning',
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+
+        /** @var LogMessage[] $logs */
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'Table "%s:%s.%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited.', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                'externalTableWithConnectionAndPartitioning',
+            ),
+        );
     }
 
     public function testInfoView(): void
