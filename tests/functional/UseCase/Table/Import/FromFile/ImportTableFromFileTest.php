@@ -393,6 +393,8 @@ class ImportTableFromFileTest extends BaseImportTestCase
         );
         $dedupCols = new RepeatedField(GPBType::STRING);
         $convertCols = new RepeatedField(GPBType::STRING);
+        $importAsNull = new RepeatedField(GPBType::STRING);
+        $importAsNull[] = '';
         $convertCols[] = 'apiLimitExceededDatetime';
         $cmd->setImportOptions(
             (new ImportOptions())
@@ -402,6 +404,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 ->setConvertEmptyValuesToNullOnColumns($convertCols)
                 ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                 ->setNumberOfIgnoredLines(0)
+                ->setImportAsNull($importAsNull)
                 ->setTimestampColumn('_timestamp'),
         );
 
