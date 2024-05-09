@@ -439,7 +439,7 @@ class CreateDropTableTest extends BaseCase
                 ->setDefault('test'),
         ];
 
-         // DATE
+        // DATE
         yield Bigquery::TYPE_DATE . '_fail' => [
             (new TableColumnShared)
                 ->setName('date')
@@ -673,5 +673,56 @@ class CreateDropTableTest extends BaseCase
                 ->setLength('x ARRAY<INT64>')
                 ->setDefault('STRUCT(1)'),
         ];
+    }
+
+    public function testCreateTablePrimaryKeyFloat(): void
+    {
+        $tableName = $this->getTestHash() . '_Test_table';
+        $credentials = $this->getCredentials();
+        $bucketResponse = $this->createTestBucket($credentials, $this->projects[0][2]);
+        $bucketDatasetName = $bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $handler = new CreateTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared)
+            ->setName('id')
+            ->setType(Bigquery::TYPE_FLOAT64);
+        $columns[] = (new TableColumnShared)
+            ->setName('name')
+            ->setType(Bigquery::TYPE_STRING)
+            ->setLength('50')
+            ->setNullable(true)
+            ->setDefault("'Some Default'");
+        $columns[] = (new TableColumnShared)
+            ->setName('large')
+            ->setType(Bigquery::TYPE_BIGNUMERIC)
+            ->setLength('76,38')
+            ->setDefault('185.554');
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns)
+            ->setPrimaryKeysNames(ProtobufHelper::arrayToRepeatedString([
+                'id',
+                'name',
+            ]));
+
+        try {
+            $handler(
+                $credentials,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Should fail');
+        } catch (BadTableDefinitionException $e) {
+            $this->assertStringStartsWith('Failed to create table', $e->getMessage());
+            $this->assertStringContainsString('Primary key column cannot be of type FLOAT', $e->getMessage());
+        }
     }
 }

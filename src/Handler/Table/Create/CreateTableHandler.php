@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
@@ -81,6 +82,14 @@ final class CreateTableHandler extends BaseHandler
                     $command->getTableName(),
                 );
             }
+        }
+
+        if ($command->getPrimaryKeysNames()->count() > 0) {
+            $createTableOptions['tableConstraints'] = [
+                'primaryKey' => [
+                    'columns' => ProtobufHelper::repeatedStringToArray($command->getPrimaryKeysNames()),
+                ],
+            ];
         }
 
         $createTableOptions = array_merge(
