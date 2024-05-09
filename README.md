@@ -21,12 +21,14 @@ Create a sub folder in the **KBC Team Dev** (id: [431160969986](https://console.
 4. Run `terraform apply -var folder_id=[folder_id] -var billing_account_id=[billing_id] -var backend_prefix=<your prefix, eg. kbc-js> -var file_storage_backend_region=<desired region>` (e.g. us-central1 region)
    1. Optionally set `terraform.tfvars` file with variables there is predefined `terraform.tfvars.dist` file 
 5. New key files was created `principal_key.json` and `big_query_key.json`
+6. Set envs from the `principal_key.json` and `big_query_key.json` by running `php SetBQVars.php` and stop. OR continue with following steps with manual extraction.
 6. open `principal_key.json` set content of `private_key` as variable `BQ_SECRET` and remove (the whole entry) it from json file
    1. note: simply cut&paste it whole even with the quotes and new lines -> your .env will be like `BQ_SECRET="-----BEGIN PRIVATE KEY-----XXXXZQ==\n-----END PRIVATE KEY-----\n"`
 7. remove line breaks from the rest of key file (without `private_key` entry) and set this string as variable `BQ_PRINCIPAL` to `.env` 
    1. You can convert the key to string with `awk -v RS= '{$1=$1}1' principal_key.json`
 8. remove line breaks from the `big_query_key.json` key file and set this string as variable `BQ_KEY_FILE` to `.env`
    1. You can convert the key to string with `awk -v RS= '{$1=$1}1' big_query_key.json`
+
 
 At the end, your `.env` file should look like...
 ```bash
