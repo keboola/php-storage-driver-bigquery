@@ -448,7 +448,7 @@ class CreateDropWorkspaceTest extends BaseCase
                     'default' => '\'\'',
                 ],
             ],
-            'primaryKeysNames' => [''],
+            'primaryKeysNames' => [],
         ];
 
         $this->createTable($this->projectCredentials, $bucketDatasetName, $tableName, $tableStructure);
