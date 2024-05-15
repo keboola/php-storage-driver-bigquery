@@ -180,10 +180,7 @@ final class ObjectInfoHandler extends BaseHandler
                     if (str_contains($e->getMessage(), 'can be used for partition elimination')) {
                         // partitioning should be allowed for external table
                         $this->userLogger->warning(
-                            sprintf(
-                                'Table "%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited.', //phpcs:ignore
-                                $info['id'],
-                            ),
+                            DecodeErrorMessage::getErrorMessage($e),
                             [
                                 'info' => $info,
                             ],

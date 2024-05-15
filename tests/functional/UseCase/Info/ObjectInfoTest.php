@@ -629,10 +629,92 @@ SQL,
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'Table "%s:%s.%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited.', //phpcs:ignore
+                'Cannot query over table \'%s.%s.%s\' without a filter over column(s) \'part\' that can be used for partition elimination', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'externalTableWithConnectionAndPartitioning',
+            ),
+        );
+    }
+
+    public function testExternalPartitionedTableFail(): void
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $connection = $this->prepareConnectionForExternalBucket();
+
+        $bqClient->runQuery(
+            $bqClient->query(
+                sprintf(
+                    <<<SQL
+CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnectionAndPartitioningFail 
+            (
+            `user_id` INT64,
+            `project_name` STRING,
+            `email` STRING,
+            `role` STRING,
+            `hasSNFLKWriter` BOOL
+            )
+            WITH PARTITION COLUMNS
+            (
+              `project_part` INT64,
+            )
+            WITH CONNECTION %s 
+            OPTIONS (
+            format = 'CSV',
+            uris = [%s],
+            max_staleness=INTERVAL 1 DAY,
+            metadata_cache_mode = 'AUTOMATIC',
+            hive_partition_uri_prefix=%s,
+            require_hive_partition_filter=true
+            );
+SQL,
+                    BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+                    BigqueryQuote::quoteSingleIdentifier($connection->getName()),
+                    implode(
+                        ',',
+                        [
+                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/test_users_with_role.csv'),
+                        ],
+                    ),
+                    BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME')),
+                ),
+            ),
+        );
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::SCHEMA);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+        ]));
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+        /** @var Traversable<ObjectInfo> $objects */
+        $objects = $response->getSchemaInfo()?->getObjects()->getIterator();
+
+        $table = $this->getObjectByNameAndType(
+            $objects,
+            'externalTableWithConnectionAndPartitioningFail',
+        );
+        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
+
+        /** @var LogMessage[] $logs */
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'Cannot query over table \'%s.%s.%s\' without a filter over column(s) \'project_part\' that can be used for partition elimination', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                'externalTableWithConnectionAndPartitioningFail',
             ),
         );
     }
