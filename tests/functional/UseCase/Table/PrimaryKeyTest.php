@@ -270,7 +270,7 @@ class PrimaryKeyTest extends BaseCase
         $addPKHandler->setInternalLogger($this->log);
 
         $this->expectException(CannotAddPrimaryKeyException::class);
-        $this->expectExceptionMessage('Selected column col2 is nullable');
+        $this->expectExceptionMessage('Selected column "col2" is nullable');
         $addPKHandler(
             $this->projectCredentials,
             $addPKCommand,

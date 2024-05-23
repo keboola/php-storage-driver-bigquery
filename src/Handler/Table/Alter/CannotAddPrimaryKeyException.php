@@ -24,7 +24,7 @@ class CannotAddPrimaryKeyException extends Exception implements NonRetryableExce
 
     public static function createForNullableColumn(string $columnName): self
     {
-        return new self(sprintf('Selected column %s is nullable', $columnName));
+        return new self(sprintf('Selected column "%s" is nullable', $columnName));
     }
 
     public static function createForDuplicates(): self
