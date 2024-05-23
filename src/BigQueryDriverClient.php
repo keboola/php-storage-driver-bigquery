@@ -21,9 +21,11 @@ use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddPrimaryKeyHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DeleteTableRowsHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropPrimaryKeyHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
@@ -51,11 +53,13 @@ use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
+use Keboola\StorageDriver\Command\Table\AddPrimaryKeyCommand;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DropColumnCommand;
+use Keboola\StorageDriver\Command\Table\DropPrimaryKeyCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
@@ -180,6 +184,10 @@ class BigQueryDriverClient implements ClientInterface
                 return new GrantBucketAccessToReadOnlyRoleHandler($manager);
             case $command instanceof RevokeBucketAccessFromReadOnlyRoleCommand:
                 return new RevokeBucketAccessFromReadOnlyRoleHandler($manager);
+            case $command instanceof AddPrimaryKeyCommand:
+                return new AddPrimaryKeyHandler($manager);
+            case $command instanceof DropPrimaryKeyCommand:
+                return new DropPrimaryKeyHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));

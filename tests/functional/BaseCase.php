@@ -42,6 +42,7 @@ use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use LogicException;
 use PHPUnit\Framework\TestCase;
@@ -583,6 +584,12 @@ class BaseCase extends TestCase
             ->setPath($path)
             ->setTableName($tableName)
             ->setColumns($columns);
+
+        if (array_key_exists('primaryKeysNames', $structure)) {
+            $createTableCommand->setPrimaryKeysNames(
+                ProtobufHelper::arrayToRepeatedString($structure['primaryKeysNames']),
+            );
+        }
 
         $createTableResponse = $createTableHandler(
             $credentials,

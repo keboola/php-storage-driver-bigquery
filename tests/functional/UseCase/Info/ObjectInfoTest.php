@@ -556,7 +556,7 @@ SQL,
             ProtobufHelper::repeatedStringToArray($tableInfo->getPath()),
         );
         $this->assertSame(
-            [],
+            ['id'],
             ProtobufHelper::repeatedStringToArray($tableInfo->getPrimaryKeysNames()),
         );
         /** @var TableColumn[] $columns */
