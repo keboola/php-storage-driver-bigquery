@@ -36,18 +36,16 @@ use Keboola\StorageDriver\Command\Info\TableInfo\TableColumn;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
-use Keboola\StorageDriver\Command\Table\PreviewTableResponse\Row\Column;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
-use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
-use Psr\Log\LogLevel;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 use Throwable;
@@ -58,7 +56,6 @@ class BaseCase extends TestCase
 
     public const EU_LOCATION = 'EU';
     public const US_LOCATION = 'US';
-
     public const DEFAULT_LOCATION = self::US_LOCATION;
 
     protected string $testRunId;
@@ -551,8 +548,34 @@ class BaseCase extends TestCase
         return [$credentials, $response];
     }
 
+    protected function createTableFromDefinition(
+        GenericBackendCredentials $credentials,
+        BigqueryTableDefinition $def,
+    ): void {
+        $structure = [
+            'columns' => [],
+        ];
+        foreach ($def->getColumnsDefinitions() as $colDef) {
+            $structure['columns'][$colDef->getColumnName()] = [
+                'type' => $colDef->getColumnDefinition()->getType(),
+                'length' => $colDef->getColumnDefinition()->getLength(),
+                'nullable' => $colDef->getColumnDefinition()->isNullable(),
+            ];
+        }
+
+        if ($def->getPrimaryKeysNames() !== []) {
+            $structure['primaryKeysNames'] = $def->getPrimaryKeysNames();
+        }
+        $this->createTable(
+            $credentials,
+            $def->getSchemaName(),
+            $def->getTableName(),
+            $structure,
+        );
+    }
+
     /**
-     * @param array{columns: array<string, array<string, mixed>>, primaryKeysNames: array<int, string>} $structure
+     * @param array{columns: array<string, array<string, mixed>>, primaryKeysNames?: array<int, string>} $structure
      */
     protected function createTable(
         GenericBackendCredentials $credentials,
