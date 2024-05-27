@@ -14,6 +14,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
@@ -170,5 +171,161 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
                 'col3' => '4',
             ],
         ], $data);
+    }
+
+
+    public function importTableFromTableFullLoadWithTimestampTableWithTypesProvider(): Generator
+    {
+        yield 'no feature' => [
+            'features' => [],
+            'nOfUpdatedTimestamps' => 3,
+        ];
+
+        yield 'feature native-types_timestamp-bc' => [
+            'features' => ['native-types_timestamp-bc'],
+            'nOfUpdatedTimestamps' => 2,
+        ];
+
+        yield 'feature new-native-types' => [
+            'features' => ['new-native-types'],
+            'nOfUpdatedTimestamps' => 2,
+        ];
+    }
+
+    /**
+     * @dataProvider importTableFromTableFullLoadWithTimestampTableWithTypesProvider
+     * @param string[] $features
+     * Full load to storage
+     * timestamp is updated on different features
+     */
+    public function testImportTableFromTableFullLoadWithTimestampTableWithTypes(
+        array $features,
+        int $nOfUpdatedTimestamps,
+    ): void {
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // create tables
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+            ]),
+            ['col1'],
+        );
+        $this->createTableFromDefinition($this->projectCredentials, $tableSourceDef);
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            <<<SQL
+INSERT INTO %s.%s (`col1`, `col2`) VALUES
+('1', 'change'),
+('3', 'test3'),
+('4', 'test4')
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+        )));
+
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            ['col1'],
+        );
+        $this->createTableFromDefinition($this->projectCredentials, $tableDestDef);
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            <<<SQL
+INSERT INTO %s.%s (`col1`, `col2`, `_timestamp`) VALUES
+('1', 'test', '2021-01-01 00:00:00'),
+('2', 'test2', '2021-01-01 00:00:00'),
+('3', 'test3', '2021-01-01 00:00:00')
+SQL,
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+        )));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col1')
+            ->setDestinationColumnName('col1');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('col2')
+            ->setDestinationColumnName('col2');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(0)
+                ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
+                ->setTimestampColumn('_timestamp'),
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        /** @var TableImportResponse $response */
+        $response = $handler(
+            $this->projectCredentials,
+            $cmd,
+            $features,
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertSame(3, $response->getImportedRowsCount());
+
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->assertSame(4, $ref->getRowsCount());
+        $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
+
+        // assert updated timestamps
+        $timestamps = iterator_to_array($bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT COUNT(*) FROM %s.%s WHERE `_timestamp` <> \'2021-01-01 00:00:00\'',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+        )))->getIterator());
+        $timestamps = $timestamps[0];
+        $this->assertIsArray($timestamps);
+        $this->assertSame($nOfUpdatedTimestamps, array_values($timestamps)[0]);
+
+        // cleanup
+        $bqClient->runQuery($bqClient->query(
+            (new BigqueryTableQueryBuilder())->getDropTableCommand(
+                $tableSourceDef->getSchemaName(),
+                $tableSourceDef->getTableName(),
+            ),
+        ));
+        $bqClient->runQuery($bqClient->query(
+            (new BigqueryTableQueryBuilder())->getDropTableCommand(
+                $tableDestDef->getSchemaName(),
+                $tableDestDef->getTableName(),
+            ),
+        ));
     }
 }
