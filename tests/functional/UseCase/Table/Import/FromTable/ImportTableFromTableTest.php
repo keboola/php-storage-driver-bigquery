@@ -15,6 +15,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersExcept
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -816,6 +817,156 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
                 $e->getMessage(),
             );
+        }
+    }
+
+    public function importTypeBoundsProvide(): Generator
+    {
+        yield 'full' => [
+            'importType' => ImportOptions\ImportType::FULL,
+            'longContent' => 'xxxyyyxxx',
+        ];
+        yield 'incremental' => [
+            ImportOptions\ImportType::INCREMENTAL,
+            'longContent' => 'xxxyyyxxx',
+        ];
+        yield 'full error import' => [
+            'importType' => ImportOptions\ImportType::FULL,
+            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
+        ];
+        yield 'incremental error import' => [
+            ImportOptions\ImportType::INCREMENTAL,
+            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
+        ];
+    }
+
+    /**
+     * @dataProvider importTypeBoundsProvide
+     */
+    public function testLoadDataToDifferentColumnLengthMismatchBounds(int $importType, string $longContent): void
+    {
+        $sourceTableName = $this->getTestHash() . '_Test_table';
+        $destinationTableName = $this->getTestHash() . '_Test_table_final';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // create tables
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('price'),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        $insert = [];
+        foreach ([['1', 'too expensive'], ['2', 'cheap'], ['3', $longContent]] as $i) {
+            $quotedValues = [];
+            foreach ($i as $item) {
+                $quotedValues[] = BigqueryQuote::quote($item);
+            }
+            $insert[] = sprintf('(%s)', implode(',', $quotedValues));
+        }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert),
+        )));
+
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                new BigqueryColumn('price', new Bigquery(
+                    type: Bigquery::TYPE_STRING,
+                    options: [
+                        'length' => '20',
+                    ],
+                )),
+            ]),
+            [],
+        );
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('id')
+            ->setDestinationColumnName('id');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('price')
+            ->setDestinationColumnName('price');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportType($importType)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(0)
+                ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $response = null;
+        try {
+            /** @var TableImportResponse $response */
+            $response = $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            if (strlen($longContent) === 21) {
+                $this->fail('should fail because of column content won\'t fit');
+            }
+        } catch (MaximumLengthOverflowException $e) {
+            $this->assertSame(
+                sprintf('Field price: STRING(20) has maximum length 20 but got a value with length 21'),
+                $e->getMessage(),
+            );
+        }
+        if (strlen($longContent) !== 21) {
+            $this->assertNotNull($response);
+            $this->assertSame(3, $response->getImportedRowsCount());
+        } else {
+            $this->assertNull($response);
         }
     }
 }

@@ -296,6 +296,8 @@ final class ImportTableFromTableHandler extends BaseHandler
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
+        } catch (BigqueryException $e) {
+            throw MaximumLengthOverflowException::handleException($e);
         } finally {
             if ($stagingTable !== null) {
                 try {
