@@ -186,7 +186,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(5, $logs);
+        $this->assertCount(6, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -292,7 +292,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(5, $logs);
+        $this->assertCount(6, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
