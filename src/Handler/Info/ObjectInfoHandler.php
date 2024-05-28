@@ -180,7 +180,11 @@ final class ObjectInfoHandler extends BaseHandler
                     if (str_contains($e->getMessage(), 'can be used for partition elimination')) {
                         // partitioning should be allowed for external table
                         $this->userLogger->warning(
-                            DecodeErrorMessage::getErrorMessage($e),
+                            sprintf(
+                                'Table "%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited. Original error from BigQuery: "%s".', //phpcs:ignore
+                                $info['id'],
+                                DecodeErrorMessage::getDirectErrorMessage($e),
+                            ),
                             [
                                 'info' => $info,
                             ],
@@ -191,8 +195,9 @@ final class ObjectInfoHandler extends BaseHandler
                             ->setObjectName($table->id());
                     } else {
                         $this->userLogger->warning(sprintf(
-                            'Unable to read from the external table. The table named "%s" has been skipped.',
+                            'Unable to read from the external table. The table named "%s" has been skipped. Original error from BigQuery: "%s".', //phpcs:ignore
                             $info['id'],
+                            DecodeErrorMessage::getDirectErrorMessage($e),
                         ), [
                             'info' => $info,
                         ]);

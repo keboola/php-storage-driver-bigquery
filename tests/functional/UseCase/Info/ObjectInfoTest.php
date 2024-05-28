@@ -436,6 +436,37 @@ SQL,
             ),
         );
 
+        // partitioned table but with wrong partitioning set
+        $bqClient->runQuery(
+            $bqClient->query(
+                sprintf(
+                    <<<SQL
+CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithInvalidPartitioning 
+            WITH PARTITION COLUMNS (
+              part INT64,
+            )
+            WITH CONNECTION %s 
+            OPTIONS (
+            format = 'CSV',
+            uris = [%s],
+            max_staleness=INTERVAL '0-0 0 0:30:0' YEAR TO SECOND,
+            metadata_cache_mode = 'AUTOMATIC',
+            hive_partition_uri_prefix=%s
+            );
+SQL,
+                    BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+                    BigqueryQuote::quoteSingleIdentifier($connection->getName()),
+                    implode(
+                        ',',
+                        [
+                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/test_users_with_role.csv'),
+                        ],
+                    ),
+                    BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME')),
+                ),
+            ),
+        );
+
         $bqClient->runQuery($bqClient->query(sprintf(
         /** @lang BigQuery */<<<SQL
 CREATE TABLE
@@ -639,47 +670,7 @@ SQL,
 
     public function testExternalPartitionedTableFail(): void
     {
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $connection = $this->prepareConnectionForExternalBucket();
-
-        $bqClient->runQuery(
-            $bqClient->query(
-                sprintf(
-                    <<<SQL
-CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithConnectionAndPartitioningFail 
-            (
-            `user_id` INT64,
-            `project_name` STRING,
-            `email` STRING,
-            `role` STRING,
-            `hasSNFLKWriter` BOOL
-            )
-            WITH PARTITION COLUMNS
-            (
-              `project_part` INT64,
-            )
-            WITH CONNECTION %s 
-            OPTIONS (
-            format = 'CSV',
-            uris = [%s],
-            max_staleness=INTERVAL 1 DAY,
-            metadata_cache_mode = 'AUTOMATIC',
-            hive_partition_uri_prefix=%s,
-            require_hive_partition_filter=true
-            );
-SQL,
-                    BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
-                    BigqueryQuote::quoteSingleIdentifier($connection->getName()),
-                    implode(
-                        ',',
-                        [
-                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/test_users_with_role.csv'),
-                        ],
-                    ),
-                    BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME')),
-                ),
-            ),
-        );
+        $this->createObjectsInSchema();
 
         $handler = new ObjectInfoHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -696,14 +687,6 @@ SQL,
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertInstanceOf(ObjectInfoResponse::class, $response);
-        /** @var Traversable<ObjectInfo> $objects */
-        $objects = $response->getSchemaInfo()?->getObjects()->getIterator();
-
-        $table = $this->getObjectByNameAndType(
-            $objects,
-            'externalTableWithConnectionAndPartitioningFail',
-        );
-        $this->assertSame(ObjectType::TABLE, $table->getObjectType());
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
@@ -711,10 +694,10 @@ SQL,
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'Cannot query over table \'%s.%s.%s\' without a filter over column(s) \'project_part\' that can be used for partition elimination', //phpcs:ignore
+                'Unable to read from the external table. The table named "%s:%s.%s" has been skipped. Original error from BigQuery: "Incompatible partition schemas.  Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.".', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
-                'externalTableWithConnectionAndPartitioningFail',
+                'externalTableWithInvalidPartitioning',
             ),
         );
     }
