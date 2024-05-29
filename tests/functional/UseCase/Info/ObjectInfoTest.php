@@ -186,7 +186,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(5, $logs);
+        $this->assertCount(6, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -292,7 +292,7 @@ class ObjectInfoTest extends BaseCase
 
         /** @var LogMessage[] $logs */
         $logs = iterator_to_array($handler->getMessages()->getIterator());
-        $this->assertCount(5, $logs);
+        $this->assertCount(6, $logs);
         $this->assertLogsContainsMessage(
             $logs,
             LogMessage\Level::Informational,
@@ -432,6 +432,37 @@ SQL,
                         ],
                     ),
                     BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/hive/'),
+                ),
+            ),
+        );
+
+        // partitioned table but with wrong partitioning set
+        $bqClient->runQuery(
+            $bqClient->query(
+                sprintf(
+                    <<<SQL
+CREATE OR REPLACE EXTERNAL TABLE %s.externalTableWithInvalidPartitioning 
+            WITH PARTITION COLUMNS (
+              part INT64,
+            )
+            WITH CONNECTION %s 
+            OPTIONS (
+            format = 'CSV',
+            uris = [%s],
+            max_staleness=INTERVAL '0-0 0 0:30:0' YEAR TO SECOND,
+            metadata_cache_mode = 'AUTOMATIC',
+            hive_partition_uri_prefix=%s
+            );
+SQL,
+                    BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+                    BigqueryQuote::quoteSingleIdentifier($connection->getName()),
+                    implode(
+                        ',',
+                        [
+                            BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME') . '/test_users_with_role.csv'),
+                        ],
+                    ),
+                    BigqueryQuote::quote('gs://' . getenv('BQ_BUCKET_NAME')),
                 ),
             ),
         );
@@ -629,10 +660,44 @@ SQL,
             $logs,
             LogMessage\Level::Warning,
             sprintf(
-                'Table "%s:%s.%s" requires partitioning. Table registration has been allowed but some operations (data preview) might be limited.', //phpcs:ignore
+                'Cannot query over table \'%s.%s.%s\' without a filter over column(s) \'part\' that can be used for partition elimination', //phpcs:ignore
                 CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
                 $this->bucketResponse->getCreateBucketObjectName(),
                 'externalTableWithConnectionAndPartitioning',
+            ),
+        );
+    }
+
+    public function testExternalPartitionedTableFail(): void
+    {
+        $this->createObjectsInSchema();
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::SCHEMA);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+        ]));
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+
+        /** @var LogMessage[] $logs */
+        $logs = iterator_to_array($handler->getMessages()->getIterator());
+        $this->assertLogsContainsMessage(
+            $logs,
+            LogMessage\Level::Warning,
+            sprintf(
+                'Unable to read from the external table. The table named "%s:%s.%s" has been skipped. Original error from BigQuery: "Incompatible partition schemas.  Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.".', //phpcs:ignore
+                CredentialsHelper::getCredentialsArray($this->projectCredentials)['project_id'],
+                $this->bucketResponse->getCreateBucketObjectName(),
+                'externalTableWithInvalidPartitioning',
             ),
         );
     }

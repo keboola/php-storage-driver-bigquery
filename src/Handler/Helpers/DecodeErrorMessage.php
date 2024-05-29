@@ -59,4 +59,22 @@ final class DecodeErrorMessage
 
         return 'Errors: ' . implode(PHP_EOL, $errors);
     }
+
+    /**
+     * From BigQuery error message it extracts just the root cause, skip the bluff.
+     * FROM: Error while reading table: %s.%s.%s, error message:  Incompatible partition schemas.
+     *       Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.
+     * DONE: Incompatible partition schemas.
+     *       Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.
+     * For better readability in the UI
+     */
+    public static function getDirectErrorMessage(Throwable $e): string
+    {
+        $error = self::getErrorMessage($e);
+        $matchError = preg_match('/(.+)error message\: (.+)/', $error, $output_array);
+        if ($matchError === 1 && array_key_exists(2, $output_array)) {
+            return $output_array[2];
+        }
+        return $error;
+    }
 }
