@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 class DecodeErrorMessageTest extends TestCase
 {
-    public function errorProviderFroDirectExtraction(): Generator
+    public function errorProviderFromDirectExtraction(): Generator
     {
         yield 'simple message' => [
             "Cannot query over table 'local-main-0529060357146-5db0.KPjdieJ68wCATN4jm1Z2ufZ9l5Og1TZ05oF3Jvowkin_c_Test.externalTableWithConnectionAndPartitioning' without a filter over column(s) 'part' that can be used for partition eliminationError while reading table: local-main-0529060357146-5db0.KPjdieJ68wCATN4jm1Z2ufZ9l5Og1TZ05oF3Jvowkin_c_Test.externalTableWithInvalidPartitioning, error message: Incompatible partition schemas.  Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.", // phpcs:ignore
