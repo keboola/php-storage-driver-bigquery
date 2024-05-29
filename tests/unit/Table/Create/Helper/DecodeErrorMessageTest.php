@@ -100,7 +100,7 @@ error.errors[1].message',
         );
     }
     /**
-     * @dataProvider errorProviderFroDirectExtraction
+     * @dataProvider errorProviderFromDirectExtraction
      */
     public function testGetDirectErrorMessage(string $message, string $expectedErrorMessage): void
     {
