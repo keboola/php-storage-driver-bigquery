@@ -4,18 +4,30 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
+use Aws\DataExchange\DataExchangeClient;
 use Google\ApiCore\ApiException;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\DataExchange;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Cloud\Core\Exception\BadRequestException;
+use Google\Cloud\Iam\V1\Binding;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
-use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\CredentialsHelper;
+use Google\Cloud\BigQuery\Analyticshub\V1\Subscription;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
+use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleResponse;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
@@ -29,6 +41,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Throwable;
 
 class ShareLinkBucketTest extends BaseCase
 {
@@ -43,6 +56,12 @@ class ShareLinkBucketTest extends BaseCase
 
     protected CreateProjectResponse $targetProjectResponse;
 
+    protected GenericBackendCredentials $externalProjectCredentials;
+
+    protected CreateProjectResponse $externalProjectResponse;
+
+    private CreateBucketResponse $bucketResponse;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -53,6 +72,302 @@ class ShareLinkBucketTest extends BaseCase
         // project2 checks the access
         $this->targetProjectCredentials = $this->projects[1][0];
         $this->targetProjectResponse = $this->projects[1][1];
+
+        // external project
+        $this->externalProjectCredentials = $this->projects[2][0];
+        $this->externalProjectResponse = $this->projects[2][1];
+
+        $bucketResponse = $this->createTestBucket($this->projects[2][0], $this->projects[2][2]);
+        $this->bucketResponse = $bucketResponse;
+    }
+
+    public function testShareAndLinkExternalBucket()
+    {
+        // prepare test external table
+        $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
+        $externalTableName = md5($this->getName()) . '_Test_table';
+        $this->prepareTestTable($externalBucketName, $externalTableName);
+
+        // create another dataset to test user with role roles/analyticshub.admin cant share this dataset
+        $privateExternalBucketName = $this->createTestBucket(
+            projectCredentials: $this->externalProjectCredentials,
+            projectId: $this->projects[2][2],
+            bucketname: 'private_bucket',
+        );
+        $externalTableName = md5($this->getName()) . '_Test_table';
+        $this->prepareTestTable($privateExternalBucketName->getCreateBucketObjectName(), md5($this->getName()) . '_Test_table_private');
+
+        // this part simulate user who want to register ext bucket
+        // 1. and 2. will be done in one step, but we need to test it can't be registered before grant permission
+        // 1. User which want to register external bucket create exchanged and listing
+        $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
+        [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
+            $externalAnalyticHubClient,
+            $externalBucketName,
+        );
+
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
+            ->setDestinationObjectName('test_external')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
+        );
+        $command->setMeta($meta);
+
+        // 2. Grant subscribe permission to external bucket to service account if destination project
+        $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
+
+        // register bucket to source project
+        /** @var GrantBucketAccessToReadOnlyRoleResponse $result */
+        $result = $handler(
+            $this->sourceProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertSame('123_test_external', $result->getCreateBucketObjectName());
+        // Validate is bucket added
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->sourceProjectCredentials);
+        $registeredExternalBucketInMainProject = $mainBqClient->dataset('123_test_external');
+        $registeredTables = $registeredExternalBucketInMainProject->tables();
+        $this->assertCount(1, $registeredTables);
+
+        // And I can get rows from external table
+        $result = $mainBqClient->runQuery(
+            $mainBqClient->query('SELECT * FROM `123_test_external`.`' . $externalTableName . '`'),
+        );
+        $this->assertCount(3, $result);
+
+        // test service acc with roles/analyticshub.admin role can't do some other stuff
+        // we need this role only for add subscriber to destination service acc to exchanger
+        $externalCredentialsPrivate = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
+        $externalProjectStringIdPrivate = $externalCredentialsPrivate['project_id'];
+
+        $dataExchangeIdPrivate = str_replace('-', '_', $externalProjectStringIdPrivate) . '_private';
+        $formattedParentPrivate = $externalAnalyticHubClient->locationName($externalProjectStringIdPrivate, BaseCase::DEFAULT_LOCATION);
+
+        $dataExchangePrivate = new DataExchange();
+        $dataExchangePrivate->setDisplayName($dataExchangeIdPrivate);
+
+        // test we cant create new exchanger with roles/analyticshub.admin on already created exchanger
+        try {
+            $sourceAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->sourceProjectCredentials);
+            $sourceAnalyticHubClient->createDataExchange(
+                $formattedParentPrivate,
+                $dataExchangeIdPrivate,
+                $dataExchangePrivate,
+            );
+            $this->fail('Should fail');
+        } catch (Throwable $e) {
+            $err = DecodeErrorMessage::getErrorMessage($e);
+            $this->assertStringContainsString("Permission 'analyticshub.dataExchanges.create' denied on resource", $err);
+        }
+
+        // test we cant create new listing with roles/analyticshub.admin in existing exchanger to another dataset
+        $listingIdPrivate = str_replace('-', '_', $externalCredentialsPrivate['project_id']) . '_listingPrivate';
+        $lst = new BigQueryDatasetSource([
+            'dataset' => sprintf(
+                'projects/%s/datasets/%s',
+                $externalProjectStringIdPrivate,
+                $privateExternalBucketName->getCreateBucketObjectName(),
+            ),
+        ]);
+        $listingPrivate = new Listing();
+        $listingPrivate->setBigqueryDataset($lst);
+        $listingPrivate->setDisplayName($listingIdPrivate);
+
+        try {
+            $sourceAnalyticHubClient->createListing($dataExchange->getName(), $listingIdPrivate, $listingPrivate);
+            $this->fail('Should fail');
+        } catch (Throwable $e) {
+            $err = DecodeErrorMessage::getErrorMessage($e);
+            $this->assertStringContainsString("Access Denied: Dataset ", $err);
+        }
+
+        // Finish createing ex bucket and register to source project
+        // now share and try link
+        $targetProjectBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials,
+        );
+
+//      check that the dest cannot access the table yet
+        $dataset = $targetProjectBqClient->dataset($externalBucketName);
+        $this->assertFalse($dataset->exists());
+
+        $listing = $createdListing->getName();
+
+        $this->assertNotEmpty($listing);
+
+        $publicPart = (array) json_decode(
+            $this->targetProjectResponse->getProjectUserName(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        /** @var string $targetProjectId */
+        $targetProjectId = $publicPart['project_id'];
+
+
+        // this part should be a new drive handler or something like that
+        // this part, gets source service acc with roles/analyticshub.admin and add subscriber to destination service acc
+        // to exchanger created by user
+        $sourceAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->sourceProjectCredentials);
+        $iamExchangerPolicy = $sourceAnalyticHubClient->getIamPolicy($dataExchange->getName());
+        $binding = $iamExchangerPolicy->getBindings();
+        $binding[] = new Binding([
+            'role' => 'roles/analyticshub.subscriber',
+            'members' => ['serviceAccount:' . $publicPart['client_email']],
+        ]);
+        $iamExchangerPolicy->setBindings($binding);
+        $sourceAnalyticHubClient->setIamPolicy($dataExchange->getName(), $iamExchangerPolicy);
+
+
+        // link the bucket
+        $handler = new LinkBucketHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new LinkBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setTargetProjectId($targetProjectId)
+            ->setTargetBucketId($externalBucketName)
+            ->setSourceShareRoleName($listing); // listing
+
+        $meta = new Any();
+        $meta->pack(new LinkBucketCommand\LinkBucketBigqueryMeta());
+        $command->setMeta($meta);
+        // root credentials and creating grants
+        $result = $handler(
+            $this->targetProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertInstanceOf(LinkedBucketResponse::class, $result);
+        $linkedBucketSchemaName = $result->getLinkedBucketObjectName();
+        $this->assertNotEmpty($linkedBucketSchemaName);
+
+        $targetBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->targetProjectCredentials);
+        $targetDataset = $targetBqClient->dataset($linkedBucketSchemaName);
+        $registeredTables = $targetDataset->tables();
+        $this->assertCount(1, $registeredTables);
+
+        $result = $targetBqClient->runQuery(
+            $targetBqClient->query('SELECT * FROM `'.$linkedBucketSchemaName.'`.`' . $externalTableName . '`'),
+        );
+        $this->assertCount(3, $result);
+    }
+
+    /**
+     * @return array{DataExchange, Listing}
+     */
+    private function prepareExternalBucketForRegistration(
+        AnalyticsHubServiceClient $externalAnalyticHubClient,
+        string $bucketDatabaseName,
+        string $location = BaseCase::DEFAULT_LOCATION,
+        ?string $suffix = '_external'
+    ): array {
+        $externalCredentials = CredentialsHelper::getCredentialsArray($this->externalProjectCredentials);
+        $externalProjectStringId = $externalCredentials['project_id'];
+
+        $dataExchangeId = str_replace('-', '_', $externalProjectStringId) . $suffix;
+        $formattedParent = $externalAnalyticHubClient->locationName($externalProjectStringId, $location);
+
+        // 1.1 Create exchanger in source project
+        $dataExchange = new DataExchange();
+        $dataExchange->setDisplayName($dataExchangeId);
+
+        try {
+            // delete if exist in case of retry
+            $dataExchangeName = AnalyticsHubServiceClient::dataExchangeName(
+                $externalProjectStringId,
+                $location,
+                $dataExchangeId,
+            );
+            $dataExchange = $externalAnalyticHubClient->getDataExchange($dataExchangeName);
+            $externalAnalyticHubClient->deleteDataExchange($dataExchange->getName());
+        } catch (Throwable $e) {
+            // ignore
+        }
+
+        $dataExchange = $externalAnalyticHubClient->createDataExchange(
+            $formattedParent,
+            $dataExchangeId,
+            $dataExchange,
+        );
+
+        $listingId = str_replace('-', '_', $externalCredentials['project_id']) . '_listing';
+        $lst = new BigQueryDatasetSource([
+            'dataset' => sprintf(
+                'projects/%s/datasets/%s',
+                $externalProjectStringId,
+                $bucketDatabaseName,
+            ),
+        ]);
+        $listing = new Listing();
+        $listing->setBigqueryDataset($lst);
+        $listing->setDisplayName($listingId);
+
+        // 1.2 Create listing for extern bucket
+        $createdListing = $externalAnalyticHubClient->createListing($dataExchange->getName(), $listingId, $listing);
+        return [$dataExchange, $createdListing];
+    }
+
+    private function grantMainProjectToRegisterExternalBucket(
+        AnalyticsHubServiceClient $externalAnalyticHubClient,
+        DataExchange $dataExchange,
+    ): void {
+        $mainCredentials = CredentialsHelper::getCredentialsArray($this->sourceProjectCredentials);
+        $iamExchangerPolicy = $externalAnalyticHubClient->getIamPolicy($dataExchange->getName());
+        $binding = $iamExchangerPolicy->getBindings();
+        // test still contains registration to source project now I grant both roles
+        // in the future it can be done with roles/analyticshub.admin
+        $binding[] = new Binding([
+            'role' => 'roles/analyticshub.subscriber',
+            'members' => ['serviceAccount:' . $mainCredentials['client_email']],
+        ]);
+        $binding[] = new Binding([
+            'role' => 'roles/analyticshub.admin',
+            'members' => ['serviceAccount:' . $mainCredentials['client_email']],
+        ]);
+        $iamExchangerPolicy->setBindings($binding);
+        $externalAnalyticHubClient->setIamPolicy($dataExchange->getName(), $iamExchangerPolicy);
+    }
+
+    private function prepareTestTable(string $bucketDatabaseName, string $externalTableName): void
+    {
+        $this->createTestTable($this->externalProjectCredentials, $bucketDatabaseName, $externalTableName);
+
+        // FILL DATA
+        $insertGroups = [
+            [
+                'columns' => '`id`, `name`, `large`',
+                'rows' => [
+                    "1, 'external', 'data'",
+                    "2, 'data from', 'external table'",
+                    "3, 'it works', 'awesome !'",
+                ],
+            ],
+        ];
+        $this->fillTableWithData(
+            $this->externalProjectCredentials,
+            $bucketDatabaseName,
+            $externalTableName,
+            $insertGroups,
+        );
     }
 
     public function testShareAndLinkBucket(): void
