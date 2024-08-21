@@ -44,13 +44,14 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
 
     /**
      * @param array<mixed> $createTableOptions
+     * @throws self
      */
     public static function handleBadRequestException(
         BadRequestException $e,
         string $datasetName,
         string $tableName,
         array $createTableOptions,
-    ): self {
+    ): never {
         $message = $e->getMessage();
         try {
             $decodedMessage = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
