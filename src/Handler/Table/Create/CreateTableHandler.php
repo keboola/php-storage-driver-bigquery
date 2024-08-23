@@ -21,6 +21,7 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use Throwable;
 
 final class CreateTableHandler extends BaseHandler
 {
@@ -118,16 +119,24 @@ final class CreateTableHandler extends BaseHandler
             );
         }
 
-        return (new ObjectInfoResponse())
-            ->setPath($command->getPath())
-            ->setObjectType(ObjectType::TABLE)
-            ->setTableInfo(TableReflectionResponseTransformer::transformTableReflectionToResponse(
+        try {
+            $tableInfo = TableReflectionResponseTransformer::transformTableReflectionToResponse(
                 $datasetName,
                 new BigqueryTableReflection(
                     $bqClient,
                     $datasetName,
                     $command->getTableName(),
                 ),
-            ));
+            );
+        } catch (Throwable $e) {
+            // if something goes wrong in reflection queries, delete the table
+            $dataset->table($command->getTableName())->delete();
+            throw $e;
+        }
+
+        return (new ObjectInfoResponse())
+            ->setPath($command->getPath())
+            ->setObjectType(ObjectType::TABLE)
+            ->setTableInfo($tableInfo);
     }
 }

@@ -29,6 +29,9 @@ use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Keboola\TableBackendUtils\TableNotExistsReflectionException;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 use Throwable;
 
 final class ObjectInfoHandler extends BaseHandler
@@ -66,19 +69,26 @@ final class ObjectInfoHandler extends BaseHandler
             ->setPath($command->getPath())
             ->setObjectType($command->getExpectedObjectType());
 
-        switch ($command->getExpectedObjectType()) {
-            // DATABASE === PROJECT in BQ
-            case ObjectType::DATABASE:
-                return $this->getDatabaseResponse($path, $bqClient, $response);
-            case ObjectType::SCHEMA:
-                return $this->getSchemaResponse($path, $bqClient, $response);
-            case ObjectType::VIEW:
-                return $this->getViewResponse($path, $bqClient, $response);
-            case ObjectType::TABLE:
-                return $this->getTableResponse($path, $response, $bqClient);
-            default:
-                throw new UnknownObjectException(ObjectType::name($command->getExpectedObjectType()));
-        }
+        $retryPolicy = new SimpleRetryPolicy(5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(10, 1.8, 300);
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $response = $proxy->call(function () use ($path, $bqClient, $response, $command): ObjectInfoResponse {
+            switch ($command->getExpectedObjectType()) {
+                // DATABASE === PROJECT in BQ
+                case ObjectType::DATABASE:
+                    return $this->getDatabaseResponse($path, $bqClient, $response);
+                case ObjectType::SCHEMA:
+                    return $this->getSchemaResponse($path, $bqClient, $response);
+                case ObjectType::VIEW:
+                    return $this->getViewResponse($path, $bqClient, $response);
+                case ObjectType::TABLE:
+                    return $this->getTableResponse($path, $response, $bqClient);
+                default:
+                    throw new UnknownObjectException(ObjectType::name($command->getExpectedObjectType()));
+            }
+        });
+        assert($response instanceof ObjectInfoResponse);
+        return $response;
     }
 
     /**
