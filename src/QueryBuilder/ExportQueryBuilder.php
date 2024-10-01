@@ -22,6 +22,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
     public const MODE_SELECT = 'SELECT';
     public const MODE_DELETE = 'DELETE';
+    public const MODE_PREVIEW = 'PREVIEW';
 
     public function __construct(
         BigQueryClient $bqClient,
@@ -57,7 +58,13 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             );
         }
 
+        $from = sprintf(
+            '%s.%s',
+            BigqueryQuote::quoteSingleIdentifier($schemaName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+        );
         switch ($mode) {
+            case self::MODE_PREVIEW:
             case self::MODE_SELECT:
                 $this->processOrderStatement($tableName, $orderBy, $query);
                 $this->processSelectStatement(
@@ -67,18 +74,13 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $truncateLargeColumns,
                     $tableName,
                 );
-                $query->from(sprintf(
-                    '%s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                ));
+                if ($mode === self::MODE_PREVIEW) {
+                    $from .= ' TABLESAMPLE SYSTEM (10 PERCENT)';
+                }
+                $query->from($from);
                 break;
             case self::MODE_DELETE:
-                $query->delete(sprintf(
-                    '%s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                ));
+                $query->delete($from);
                 break;
             default:
                 throw new LogicException(sprintf(
