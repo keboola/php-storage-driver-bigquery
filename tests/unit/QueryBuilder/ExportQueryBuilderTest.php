@@ -27,11 +27,14 @@ class ExportQueryBuilderTest extends TestCase
     /**
      * @dataProvider provideSuccessData
      * @param string[] $expectedBindings
+     * @param ExportQueryBuilder::MODE_* $mode
      */
     public function testBuildQueryFromCommand(
         PreviewTableCommand $previewCommand,
         string $expectedSql,
         array $expectedBindings,
+        int $rowsCount = 100_000,
+        string $mode = ExportQueryBuilder::MODE_SELECT,
     ): void {
         $connection = $this->createMock(BigQueryClient::class);
 
@@ -43,7 +46,7 @@ class ExportQueryBuilderTest extends TestCase
 
         // build query
         $queryData = $qb->buildQueryFromCommand(
-            ExportQueryBuilder::MODE_SELECT,
+            $mode,
             $previewCommand->getFilters(),
             $previewCommand->getOrderBy(),
             $previewCommand->getColumns(),
@@ -51,6 +54,7 @@ class ExportQueryBuilderTest extends TestCase
             'some_schema',
             'some_table',
             false,
+            $rowsCount,
         );
 
         $this->assertSame(
@@ -348,6 +352,120 @@ class ExportQueryBuilderTest extends TestCase
                 'dcValue5' => '10.20',
             ],
         ];
+
+        yield 'preview 10_000 rows' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => [],
+            ]),
+            <<<SQL
+            SELECT * FROM `some_schema`.`some_table`
+            SQL,
+            [],
+            10_000,
+            ExportQueryBuilder::MODE_PREVIEW,
+        ];
+
+        yield 'preview 10_001 rows' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => [],
+            ]),
+            <<<SQL
+            SELECT * FROM `some_schema`.`some_table` TABLESAMPLE SYSTEM (10 PERCENT)
+            SQL,
+            [],
+            10_001,
+            ExportQueryBuilder::MODE_PREVIEW,
+        ];
+
+        yield 'preview 100_001 rows no limit' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => [],
+                'filters' => new ExportFilters([]),
+            ]),
+            <<<SQL
+            SELECT * FROM `some_schema`.`some_table` TABLESAMPLE SYSTEM (10 PERCENT)
+            SQL,
+            [],
+            100_001,
+            ExportQueryBuilder::MODE_PREVIEW,
+        ];
+
+        yield 'preview 100_001 rows with limit' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => [],
+                'filters' => new ExportFilters([
+                    'limit' => 100,
+                ]),
+            ]),
+            <<<SQL
+            SELECT * FROM `some_schema`.`some_table` TABLESAMPLE SYSTEM (1 PERCENT) LIMIT 100
+            SQL,
+            [],
+            100_001,
+            ExportQueryBuilder::MODE_PREVIEW,
+        ];
+
+        foreach ([
+                     'changeSince' => [
+                         '1667293200',
+                         'SELECT * FROM `some_schema`.`some_table` WHERE `some_table`.`_timestamp` >= @changedSince',
+                         [
+                             'changedSince' => '2022-11-01 09:00:00',
+                         ],
+                     ],
+                     'changeUntil' => [
+                         '1669827600',
+                         'SELECT * FROM `some_schema`.`some_table` WHERE `some_table`.`_timestamp` < @changedUntil',
+                         [
+                             'changedUntil' => '2022-11-30 17:00:00',
+                         ],
+                     ],
+                     'fulltextSearch' => [
+                         'xxx',
+                         'SELECT * FROM `some_schema`.`some_table` WHERE `some_table`.`name` LIKE \'%xxx%\'',
+                         [],
+                     ],
+                     'whereFilters' => [
+                         [
+                             new TableWhereFilter([
+                                 'columnsName' => 'id',
+                                 'operator' => Operator::eq,
+                                 'values' => ['foo', 'bar'],
+                                 'dataType' => DataType::STRING,
+                             ]),
+                         ],
+                         // @phpcs:ignore
+                         'SELECT * FROM `some_schema`.`some_table` WHERE `some_table`.`id` IN UNNEST([SAFE_CAST(@dcValue1 AS INT), SAFE_CAST(@dcValue2 AS INT)])',
+                         [
+                             'dcValue1' => 'foo',
+                             'dcValue2' => 'bar',
+                         ],
+                     ],
+
+                 ] as $name => [$value, $expectedSql, $bindings]) {
+            yield 'preview 10_001 rows with filter' . $name => [
+                new PreviewTableCommand([
+                    'path' => ['some_schema'],
+                    'tableName' => 'some_table',
+                    'columns' => [],
+                    'filters' => new ExportFilters([
+                        $name => $value,
+                    ]),
+                ]),
+                $expectedSql,
+                $bindings,
+                10_001,
+                ExportQueryBuilder::MODE_PREVIEW,
+            ];
+        }
     }
 
     /**

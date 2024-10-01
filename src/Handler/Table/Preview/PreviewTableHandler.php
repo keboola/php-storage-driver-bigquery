@@ -76,14 +76,14 @@ final class PreviewTableHandler extends BaseHandler
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 
-        $tableColumnsDefinitions = (new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName()))
-            ->getColumnsDefinitions();
+        $ref = new BigqueryTableReflection($bqClient, $datasetName, $command->getTableName());
+        $tableColumnsDefinitions = $ref->getColumnsDefinitions();
         $this->validateFilters($command, $tableColumnsDefinitions);
 
         // build sql
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $queryData = $queryBuilder->buildQueryFromCommand(
-            ExportQueryBuilder::MODE_SELECT,
+            ExportQueryBuilder::MODE_PREVIEW,
             $command->getFilters(),
             $command->getOrderBy(),
             $command->getColumns(),
@@ -91,6 +91,7 @@ final class PreviewTableHandler extends BaseHandler
             $datasetName,
             $command->getTableName(),
             true,
+            $ref->getRowsCount(),
         );
 
         /** @var array<string> $queryDataBindings */
