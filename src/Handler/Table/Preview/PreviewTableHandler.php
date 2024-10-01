@@ -83,7 +83,7 @@ final class PreviewTableHandler extends BaseHandler
         // build sql
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $queryData = $queryBuilder->buildQueryFromCommand(
-            ExportQueryBuilder::MODE_SELECT,
+            ExportQueryBuilder::MODE_PREVIEW,
             $command->getFilters(),
             $command->getOrderBy(),
             $command->getColumns(),
