@@ -40,6 +40,14 @@ final class Retry
             if ($ex instanceof RequestException && $ex->hasResponse()) {
                 $message = (string) $ex->getResponse()?->getBody();
             }
+            if (str_contains($message, self::RETRY_SERVICE_ACCOUNT_NOT_EXIST)) {
+                Retry::logRetry($statusCode, [$message], $logger);
+                return true;
+            }
+            if (str_contains($message, self::RETRY_MISSING_CREATE_JOB)) {
+                Retry::logRetry($statusCode, $message, $logger);
+                return true;
+            }
 
             try {
                 $message = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
@@ -69,16 +77,6 @@ final class Retry
                     Retry::logRetry($statusCode, $message, $logger);
                     return true;
                 }
-                if (array_key_exists('message', $error)) {
-                    if (str_contains($error['message'], self::RETRY_MISSING_CREATE_JOB)) {
-                        Retry::logRetry($statusCode, $message, $logger);
-                        return true;
-                    }
-                    if (str_contains($error['message'], self::RETRY_SERVICE_ACCOUNT_NOT_EXIST)) {
-                        Retry::logRetry($statusCode, $message, $logger);
-                        return true;
-                    }
-                }
             }
 
             Retry::logNotRetry($statusCode, $message, $logger);
@@ -91,14 +89,18 @@ final class Retry
      * @param array<mixed> $message
      * @throws JsonException
      */
-    private static function logRetry(int $statusCode, array $message, LoggerInterface $logger): void
+    private static function logRetry(int $statusCode, array|string $message, LoggerInterface $logger): void
     {
+        if (is_array($message)) {
+            $message = json_encode($message, JSON_THROW_ON_ERROR);
+        }
+
         $logger->log(
-            LogLevel::DEBUG,
+            LogLevel::INFO,
             sprintf(
                 'Retrying [%s] request with exception::%s',
                 $statusCode,
-                json_encode($message, JSON_THROW_ON_ERROR),
+                $message,
             ),
         );
     }
@@ -113,7 +115,7 @@ final class Retry
             $message = json_encode($message, JSON_THROW_ON_ERROR);
         }
         $logger->log(
-            LogLevel::DEBUG,
+            LogLevel::INFO,
             sprintf(
                 'Not retrying [%s] request with exception::%s',
                 $statusCode,
