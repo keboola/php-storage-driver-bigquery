@@ -186,7 +186,11 @@ EOD, true, 512, JSON_THROW_ON_ERROR);
                 $exceptionType,
             ];
 
-            foreach (['bigquery.jobs.create', 'IAM setPolicy failed for Dataset'] as $msg) {
+            foreach ([
+                         'bigquery.jobs.create',
+                         //phpcs:ignore
+                         'IAM setPolicy failed for Dataset xxxx:WORKSPACE_11111: Service account xxxx@xxxx.iam.gserviceaccount.com does not exist.',
+                     ] as $msg) {
                 $json['error']['errors'][0]['reason'] = 'unknown';
                 $json['error']['errors'][0]['message'] = $msg;
                 yield sprintf('retry on message "%s" "%s"', $msg, $exceptionType) => [

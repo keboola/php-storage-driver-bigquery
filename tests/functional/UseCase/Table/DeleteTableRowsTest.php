@@ -32,7 +32,7 @@ class DeleteTableRowsTest extends BaseCase
 
     protected CreateBucketResponse $bucketResponse;
 
-    private function setData(string $bucketDatabaseName, string $tableName): void
+    private function setTableData(string $bucketDatabaseName, string $tableName): void
     {
 // FILL DATA
         $insertGroups = [
@@ -142,7 +142,7 @@ class DeleteTableRowsTest extends BaseCase
             'primaryKeysNames' => ['id'],
         ];
         $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
-        $this->setData($bucketDatabaseName, $tableName);
+        $this->setTableData($bucketDatabaseName, $tableName);
 
         // CHECK: no filter = truncate table
         $filter = [
@@ -160,7 +160,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['2', '3', '4'],
         ];
-        $this->setData($bucketDatabaseName, $tableName);
+        $this->setTableData($bucketDatabaseName, $tableName);
         $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
@@ -178,7 +178,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['4'],
         ];
-        $this->setData($bucketDatabaseName, $tableName);
+        $this->setTableData($bucketDatabaseName, $tableName);
         $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 3, 1);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
@@ -208,7 +208,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['1', '2', '4'],
         ];
-        $this->setData($bucketDatabaseName, $tableName);
+        $this->setTableData($bucketDatabaseName, $tableName);
         $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
@@ -226,7 +226,7 @@ class DeleteTableRowsTest extends BaseCase
             ],
             'expectedRows' => ['1', '3', '4'],
         ];
-        $this->setData($bucketDatabaseName, $tableName);
+        $this->setTableData($bucketDatabaseName, $tableName);
         $response = $this->deleteRows($bucketDatabaseName, $tableName, $filter['input'], 1, 3);
         $this->checkPreviewData($response, $filter['expectedRows']);
 
