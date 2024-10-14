@@ -33,6 +33,7 @@ class GCPClientManager
     private const KEBOOLA_USER_AGENT = 'Keboola/1.0 (GPN:Keboola; connection)';
     public const TIMEOUT = 120;
     public const CONNECT_TIMEOUT = 10;
+    private const DEFAULT_RETRIES_COUNT = 20;
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
         '500' => Runner::TASK_RETRY_ALWAYS,
         '503' => Runner::TASK_RETRY_ALWAYS,
@@ -140,6 +141,7 @@ class GCPClientManager
         string $runId,
         GenericBackendCredentials $credentials,
         ?HandlerStack $handlerStack = null,
+        int $retries = self::DEFAULT_RETRIES_COUNT,
     ): BigQueryClient {
         $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 
@@ -170,7 +172,7 @@ class GCPClientManager
                     'User-Agent' => self::KEBOOLA_USER_AGENT,
                 ],
             ],
-            'retries' => 30,
+            'retries' => $retries,
             'location' => $credentialsMeta->getRegion(),
         ], $runId);
     }
