@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery;
 
+use Google\Auth\HttpHandler\Guzzle6HttpHandler;
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Billing\V1\CloudBillingClient;
@@ -14,11 +15,14 @@ use Google\Cloud\Storage\StorageClient;
 use Google\Task\Runner;
 use Google_Client;
 use Google_Service_CloudResourceManager;
+use GuzzleHttp\Client;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\HandlerStack;
 use Keboola\StorageDriver\BigQuery\Client\BigQuery\Retry;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Connection\Bigquery\BigQueryClientWrapper;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 class GCPClientManager
 {
@@ -26,10 +30,10 @@ class GCPClientManager
         'timeout' => self::TIMEOUT,
         'connect_timeout' => self::CONNECT_TIMEOUT,
     ];
-
+    private const KEBOOLA_USER_AGENT = 'Keboola/1.0 (GPN:Keboola; connection)';
     public const TIMEOUT = 120;
     public const CONNECT_TIMEOUT = 10;
-
+    private const DEFAULT_RETRIES_COUNT = 20;
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
         '500' => Runner::TASK_RETRY_ALWAYS,
         '503' => Runner::TASK_RETRY_ALWAYS,
@@ -133,16 +137,42 @@ class GCPClientManager
      * @throws CredentialsMetaRequiredException
      * @throws \JsonException
      */
-    public function getBigQueryClient(string $runId, GenericBackendCredentials $credentials): BigQueryClient
-    {
+    public function getBigQueryClient(
+        string $runId,
+        GenericBackendCredentials $credentials,
+        ?HandlerStack $handlerStack = null,
+        int $retries = self::DEFAULT_RETRIES_COUNT,
+    ): BigQueryClient {
         $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
+
+        if ($handlerStack === null) {
+            $handlerStack = HandlerStack::create();
+        }
+        $guzzleClient = new Client(['handler' => $handlerStack]);
 
         // note: the close method is not used in this client
         return new BigQueryClientWrapper([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
-            'restRetryFunction' => Retry::getRetryDecider($this->logger),
+            'httpHandler' => new Guzzle6HttpHandler($guzzleClient),
+            'restRetryFunction' => function () {
+                // BigQuery client sometimes calls directly restRetryFunction with exception as first argument
+                // But in other cases it expects to return callable which accepts exception as first argument
+                $argsNum = func_num_args();
+                if ($argsNum === 2) {
+                    $ex = func_get_arg(0);
+                    if ($ex instanceof Throwable) {
+                        return Retry::getRetryDecider($this->logger)($ex);
+                    }
+                }
+                return Retry::getRetryDecider($this->logger);
+            },
             'requestTimeout' => self::TIMEOUT,
-            'retries' => 20,
+            'restOptions' => [
+                'headers' => [
+                    'User-Agent' => self::KEBOOLA_USER_AGENT,
+                ],
+            ],
+            'retries' => $retries,
             'location' => $credentialsMeta->getRegion(),
         ], $runId);
     }

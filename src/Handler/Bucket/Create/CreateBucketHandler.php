@@ -51,6 +51,7 @@ final class CreateBucketHandler extends BaseHandler
             $newBucketDatabaseName,
             [
                 'location' => $credentialsMeta->getRegion(),
+                'retries' => 2,
             ],
         );
 

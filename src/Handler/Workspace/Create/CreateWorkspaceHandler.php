@@ -119,6 +119,7 @@ final class CreateWorkspaceHandler extends BaseHandler
                 'userByEmail' => $wsServiceAcc->getEmail(),
             ],
             'location' => $credentialsMeta->getRegion(),
+            'retries' => 5,
         ]);
 
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc
