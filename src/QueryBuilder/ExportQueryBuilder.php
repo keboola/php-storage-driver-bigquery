@@ -22,6 +22,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 {
     public const MODE_SELECT = 'SELECT';
     public const MODE_DELETE = 'DELETE';
+    public const MODE_PREVIEW = 'PREVIEW';
 
     public function __construct(
         BigQueryClient $bqClient,
@@ -44,9 +45,11 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         string $schemaName,
         string $tableName,
         bool $truncateLargeColumns,
+        int $rowsCount = 0,
     ): QueryBuilderResponse {
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
+        $limit = 0;
         if ($filters !== null) {
             $this->assertFilterCombination($filters);
             $this->processFilters(
@@ -55,9 +58,16 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                 $tableColumnsDefinitions,
                 $tableName,
             );
+            $limit = $filters->getLimit();
         }
 
+        $from = sprintf(
+            '%s.%s',
+            BigqueryQuote::quoteSingleIdentifier($schemaName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+        );
         switch ($mode) {
+            case self::MODE_PREVIEW:
             case self::MODE_SELECT:
                 $this->processOrderStatement($tableName, $orderBy, $query);
                 $this->processSelectStatement(
@@ -67,18 +77,20 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                     $truncateLargeColumns,
                     $tableName,
                 );
-                $query->from(sprintf(
-                    '%s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                ));
+                if ($mode === self::MODE_PREVIEW && !$this->isFilterUsed($filters) && $rowsCount > 10_000) {
+                    // do not take sample from small tables under 10000 rows
+                    $defaultSample = 10; // 10% sample over 10000 rows is 1000 rows which si limit in storage
+                    if ($limit !== 0 && $rowsCount / 100 > $limit) {
+                        // 1% of rows in table is higher than limit, we will sample only 1%
+                        // default limit in storage is 100 rows so this will be almost always true
+                        $defaultSample = 1; // 1% is minimal sample
+                    }
+                    $from .= sprintf(' TABLESAMPLE SYSTEM (%d PERCENT)', $defaultSample);
+                }
+                $query->from($from);
                 break;
             case self::MODE_DELETE:
-                $query->delete(sprintf(
-                    '%s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($schemaName),
-                    BigqueryQuote::quoteSingleIdentifier($tableName),
-                ));
+                $query->delete($from);
                 break;
             default:
                 throw new LogicException(sprintf(
@@ -176,5 +188,15 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             );
         }
         $this->processLimitStatement($filters->getLimit(), $query);
+    }
+
+    private function isFilterUsed(?ExportFilters $filters): bool
+    {
+        return $filters !== null && (
+                $filters->getChangeSince() !== ''
+                || $filters->getChangeUntil() !== ''
+                || $filters->getFulltextSearch() !== ''
+                || $filters->getWhereFilters()->count() > 0
+            );
     }
 }
