@@ -50,7 +50,7 @@ final class AddColumnHandler extends BaseHandler
         assert($command->getTableName() !== '', 'AddColumnCommand.tableName is required');
         assert($column instanceof TableColumnShared, 'AddColumnCommand.columnDefinition is required');
 
-        assert($column->getNullable() === false, 'You cannot add a REQUIRED column to an existing table schema.');
+        assert($column->getNullable() === true, 'You cannot add a REQUIRED column to an existing table schema.');
         assert($column->getDefault() === '', 'You cannot add a DEFAULT to column an existing table schema.');
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
 
