@@ -76,7 +76,8 @@ class AddDropColumnTest extends BaseCase
             ->setColumnDefinition(
                 (new TableColumnShared())
                     ->setName('newCol')
-                    ->setType(Bigquery::TYPE_BIGINT),
+                    ->setType(Bigquery::TYPE_BIGINT)
+                    ->setNullable(true),
             );
         $handler = new AddColumnHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
