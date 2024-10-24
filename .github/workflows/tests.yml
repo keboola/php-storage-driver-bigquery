@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - name: Build Image
         run: docker compose build production
@@ -38,7 +38,7 @@ jobs:
         run: docker compose run --rm  --volume /tmp/parestest-logs:/code/logs production composer paratest
       - name: Upload test logs
         if: success() || steps.test.conclusion == 'failure'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: paratest-logs
           path: /tmp/parestest-logs/*
