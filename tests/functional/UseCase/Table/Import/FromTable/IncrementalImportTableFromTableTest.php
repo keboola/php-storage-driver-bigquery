@@ -178,7 +178,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
     {
         yield 'no feature' => [
             'features' => [],
-            'nOfUpdatedTimestamps' => 3,
+            'nOfUpdatedTimestamps' => 2,
         ];
     }
 
