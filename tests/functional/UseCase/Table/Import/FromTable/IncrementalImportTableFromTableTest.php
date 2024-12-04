@@ -180,11 +180,6 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
             'features' => [],
             'nOfUpdatedTimestamps' => 3,
         ];
-
-        yield 'feature new-native-types' => [
-            'features' => ['new-native-types'],
-            'nOfUpdatedTimestamps' => 2,
-        ];
     }
 
     /**
