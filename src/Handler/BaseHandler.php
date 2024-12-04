@@ -13,6 +13,7 @@ use Psr\Log\NullLogger;
 
 abstract class BaseHandler implements DriverCommandHandlerInterface
 {
+    protected const DEFAULT_RETRY_OVERRIDE = 2;
     protected LoggerInterface $internalLogger;
 
     protected UserInMemoryLogger $userLogger;

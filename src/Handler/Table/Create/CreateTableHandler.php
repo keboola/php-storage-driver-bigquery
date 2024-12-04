@@ -60,6 +60,7 @@ final class CreateTableHandler extends BaseHandler
             'schema' => [
                 'fields' => [],
             ],
+            'retries' => self::DEFAULT_RETRY_OVERRIDE,
         ];
         /** @var TableColumnShared $column */
         foreach ($command->getColumns() as $column) {

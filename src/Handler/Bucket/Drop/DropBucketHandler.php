@@ -39,7 +39,10 @@ final class DropBucketHandler extends BaseHandler
 
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
-        $dataset->delete(['deleteContents' => $command->getIsCascade()]);
+        $dataset->delete([
+            'retries' => self::DEFAULT_RETRY_OVERRIDE,
+            'deleteContents' => $command->getIsCascade(),
+        ]);
 
         return null;
     }

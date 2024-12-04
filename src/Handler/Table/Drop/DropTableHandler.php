@@ -46,7 +46,7 @@ final class DropTableHandler extends BaseHandler
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bqClient->dataset($datasetName);
         $table = $dateset->table($command->getTableName());
-        $table->delete();
+        $table->delete(['retries' => self::DEFAULT_RETRY_OVERRIDE]);
 
         return null;
     }
