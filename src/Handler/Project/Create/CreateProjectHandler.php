@@ -30,6 +30,7 @@ use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
@@ -144,16 +145,31 @@ final class CreateProjectHandler extends BaseHandler
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
-        $actualBucketPolicy = $fileStorageBucket->iam()->policy();
 
-        // project service account can list and get files
-        // project service account can export to bucket
-        // project service account can delete files, needed also for export
-        $actualBucketPolicy['bindings'][] = [
-            'role' => 'roles/storage.objectAdmin',
-            'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
-        ];
-        $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
+        $setIamPolicyRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            if (in_array($e->getCode(), GCPClientManager::ERROR_CODES_FOR_RETRY_IAM)) {
+                return true;
+            }
+            if (str_contains($e->getMessage(), 'does not exist')) {
+                // return in bad request when SA does not exists yet
+                // {"code":400,"message":"Service account <>> does not exist."...}
+                return true;
+            }
+            return false;
+        }, 20);
+        $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
+        $proxy->call(function () use ($fileStorageBucket, $projectServiceAccount): void {
+            $actualBucketPolicy = $fileStorageBucket->iam()->policy();
+
+            // project service account can list and get files
+            // project service account can export to bucket
+            // project service account can delete files, needed also for export
+            $actualBucketPolicy['bindings'][] = [
+                'role' => 'roles/storage.objectAdmin',
+                'members' => ['serviceAccount:' . $projectServiceAccount->getEmail()],
+            ];
+            $fileStorageBucket->iam()->setPolicy($actualBucketPolicy);
+        });
 
         $this->waitUntilServiceAccPropagate($iamService, $projectServiceAccount);
 
