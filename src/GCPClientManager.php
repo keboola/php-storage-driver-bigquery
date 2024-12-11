@@ -50,6 +50,8 @@ class GCPClientManager
     ];
     public const SCOPES_CLOUD_PLATFORM = 'https://www.googleapis.com/auth/cloud-platform';
 
+    public const ERROR_CODES_FOR_RETRY_IAM = [409, 401, 403, 429];
+
     /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */
     private array $clients = [];
 
