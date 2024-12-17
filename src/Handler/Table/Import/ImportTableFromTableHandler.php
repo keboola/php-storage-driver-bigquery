@@ -226,8 +226,23 @@ final class ImportTableFromTableHandler extends BaseHandler
             $destinationDefinition,
             $mappings,
         );
+        // if column names are identical, we can use CREATE TABLE COPY (CopyImportFromTableToTable)
+        // if column names are not identical, we have to use INSERT INTO (ToStageImporter)
+        $isColumnNameIdentical = true;
+        foreach ($mappings as $columnMapping) {
+            if ($columnMapping->getSourceColumnName() === $columnMapping->getDestinationColumnName()) {
+                continue;
+            }
+            $isColumnNameIdentical = false;
+        }
         // load to staging table
-        $toStageImporter = new CopyImportFromTableToTable($bqClient);
+        if ($isColumnNameIdentical) {
+            $toStageImporter = new CopyImportFromTableToTable($bqClient);
+        } else {
+            $stagingTable = $this->createStageTable($destinationDefinition, $sourceMapping, $bqClient);
+            // load to staging table
+            $toStageImporter = new ToStageImporter($bqClient);
+        }
         try {
             $importState = $toStageImporter->importToStagingTable(
                 $source,
@@ -253,6 +268,32 @@ final class ImportTableFromTableHandler extends BaseHandler
         );
         return [$stagingTable, $importResult];
     }
+
+    private function createStageTable(
+        BigqueryTableDefinition $destinationDefinition,
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        BigQueryClient $bqClient,
+    ): BigqueryTableDefinition {
+        // prepare staging table definition
+        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
+        $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
+            $destinationDefinition,
+            $mappings,
+        );
+        // create staging table
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query(
+            $qb->getCreateTableCommand(
+                $stagingTable->getSchemaName(),
+                $stagingTable->getTableName(),
+                $stagingTable->getColumnsDefinitions(),
+                [], //<-- there are no PK in BQ
+            ),
+        ));
+        return $stagingTable;
+    }
+
 
     private function importByTableCopy(
         BigQueryClient $bqClient,
