@@ -561,7 +561,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } catch (Throwable $e) {
             // 'Cannot query over table 'xxx.xxx' without a filter over column(s) 'id'
             // that can be used for partition elimination'
-            $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
+            $this->assertInstanceOf(BadExportFilterParametersException::class, $e, sprintf(
+                'Expected error instance "%s" not thrown. Got "%s" with message "%s"',
+                BadExportFilterParametersException::class,
+                $e::class,
+                $e->getMessage(),
+            ));
             $this->assertStringContainsString(
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
                 $e->getMessage(),
