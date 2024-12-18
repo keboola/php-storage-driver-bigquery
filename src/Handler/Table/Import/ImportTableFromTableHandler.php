@@ -249,23 +249,23 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable,
                 $importOptions,
             );
+            // import data to destination
+            $toFinalTableImporter = new FullImporter($bqClient);
+            if ($importOptions->isIncremental()) {
+                $toFinalTableImporter = new IncrementalImporter($bqClient);
+            }
+            $importResult = $toFinalTableImporter->importToTable(
+                $stagingTable,
+                $destinationDefinition,
+                $importOptions,
+                $importState,
+            );
         } catch (ColumnsMismatchException $e) {
             throw new DriverColumnsMismatchException($e->getMessage());
         } catch (BigqueryException $e) {
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
-        // import data to destination
-        $toFinalTableImporter = new FullImporter($bqClient);
-        if ($importOptions->isIncremental()) {
-            $toFinalTableImporter = new IncrementalImporter($bqClient);
-        }
-        $importResult = $toFinalTableImporter->importToTable(
-            $stagingTable,
-            $destinationDefinition,
-            $importOptions,
-            $importState,
-        );
         return [$stagingTable, $importResult];
     }
 
@@ -293,7 +293,6 @@ final class ImportTableFromTableHandler extends BaseHandler
         ));
         return $stagingTable;
     }
-
 
     private function importByTableCopy(
         BigQueryClient $bqClient,
