@@ -56,8 +56,8 @@ class ResetWorkspacePasswordTest extends BaseCase
         try {
             $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
             $this->fail('Should fail');
-        } catch (Throwable $e) {
-            $this->assertInstanceOf(ServiceException::class, $e);
+        } catch (ServiceException $e) {
+            $this->assertSame(401, $e->getCode());
         }
 
         // check new password
