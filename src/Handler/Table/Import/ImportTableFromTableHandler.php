@@ -25,6 +25,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
@@ -219,14 +220,45 @@ final class ImportTableFromTableHandler extends BaseHandler
             return [null, $importState->getResult()];
         }
 
-        $stagingTable = $this->createStageTable($destinationDefinition, $sourceMapping, $bqClient);
+        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
+        $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
+            $destinationDefinition,
+            $mappings,
+        );
+        // if column names are identical, we can use CREATE TABLE COPY (CopyImportFromTableToTable)
+        // if column names are not identical, we have to use INSERT INTO (ToStageImporter)
+        $isColumnNameIdentical = true;
+        foreach ($mappings as $columnMapping) {
+            if ($columnMapping->getSourceColumnName() === $columnMapping->getDestinationColumnName()) {
+                continue;
+            }
+            $isColumnNameIdentical = false;
+        }
         // load to staging table
-        $toStageImporter = new ToStageImporter($bqClient);
+        if ($isColumnNameIdentical) {
+            $toStageImporter = new CopyImportFromTableToTable($bqClient);
+        } else {
+            $stagingTable = $this->createStageTable($destinationDefinition, $sourceMapping, $bqClient);
+            // load to staging table
+            $toStageImporter = new ToStageImporter($bqClient);
+        }
         try {
             $importState = $toStageImporter->importToStagingTable(
                 $source,
                 $stagingTable,
                 $importOptions,
+            );
+            // import data to destination
+            $toFinalTableImporter = new FullImporter($bqClient);
+            if ($importOptions->isIncremental()) {
+                $toFinalTableImporter = new IncrementalImporter($bqClient);
+            }
+            $importResult = $toFinalTableImporter->importToTable(
+                $stagingTable,
+                $destinationDefinition,
+                $importOptions,
+                $importState,
             );
         } catch (ColumnsMismatchException $e) {
             throw new DriverColumnsMismatchException($e->getMessage());
@@ -234,17 +266,6 @@ final class ImportTableFromTableHandler extends BaseHandler
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
-        // import data to destination
-        $toFinalTableImporter = new FullImporter($bqClient);
-        if ($importOptions->isIncremental()) {
-            $toFinalTableImporter = new IncrementalImporter($bqClient);
-        }
-        $importResult = $toFinalTableImporter->importToTable(
-            $stagingTable,
-            $destinationDefinition,
-            $importOptions,
-            $importState,
-        );
         return [$stagingTable, $importResult];
     }
 

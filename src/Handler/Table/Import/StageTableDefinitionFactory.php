@@ -47,7 +47,7 @@ final class StageTableDefinitionFactory
 
         return new BigqueryTableDefinition(
             $destination->getSchemaName(),
-            BackendHelper::generateTempTableName(),
+            BackendHelper::generateStagingTableName(),
             true,
             new ColumnCollection($newDefinitions),
             $destination->getPrimaryKeysNames(),
