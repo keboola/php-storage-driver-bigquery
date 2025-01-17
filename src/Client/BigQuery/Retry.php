@@ -28,7 +28,7 @@ final class Retry
         return static function (Throwable $ex) use ($logger): bool {
             $statusCode = $ex->getCode();
 
-            if (in_array($statusCode, [429, 500, 503,])) {
+            if (in_array($statusCode, [429, 500, 503, 401])) {
                 Retry::logRetry($statusCode, [], $logger);
                 return true;
             }
