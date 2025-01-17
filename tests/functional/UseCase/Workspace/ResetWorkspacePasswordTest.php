@@ -52,7 +52,12 @@ class ResetWorkspacePasswordTest extends BaseCase
         );
         assert($passwordResponse instanceof ResetWorkspacePasswordResponse);
 
-        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
+        $wsBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $credentials,
+            null,
+            1,
+        );
         try {
             $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
             $this->fail('Should fail');
