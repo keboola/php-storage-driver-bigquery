@@ -156,7 +156,7 @@ class GCPClientManager
         return new BigQueryClientWrapper([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
             'httpHandler' => new Guzzle6HttpHandler($guzzleClient, $this->logger),
-            'restRetryFunction' => Retry::getRestRetryFunction($this->logger),
+            'restRetryFunction' => Retry::getRestRetryFunction($this->logger, true),
             'requestTimeout' => self::TIMEOUT,
             'restOptions' => [
                 'headers' => [
