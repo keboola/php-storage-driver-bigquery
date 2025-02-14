@@ -11,12 +11,14 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
+use Keboola\Db\ImportExport\Backend\Assert;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -190,6 +192,12 @@ final class ImportTableFromTableHandler extends BaseHandler
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
             $destination->getTableName(),
         ))->getTableDefinition();
+        /** @var BigqueryTableDefinition $sourceTableDefinition */
+        $sourceTableDefinition = (new BigqueryTableReflection(
+            $bqClient,
+            $source->getSchema(),
+            $source->getTableName(),
+        ))->getTableDefinition();
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
             $destinationDefinition = new BigqueryTableDefinition(
@@ -222,21 +230,25 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
         $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
-        // if column names are identical, we can use CREATE TABLE COPY (CopyImportFromTableToTable)
-        // if column names are not identical, we have to use INSERT INTO (ToStageImporter)
-        $isColumnNameIdentical = true;
-        foreach ($mappings as $columnMapping) {
-            if ($columnMapping->getSourceColumnName() === $columnMapping->getDestinationColumnName()) {
-                continue;
-            }
-            $isColumnNameIdentical = false;
-        }
         // load to staging table
         $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
             $destinationDefinition,
             $mappings,
         );
-        if ($isColumnNameIdentical) {
+
+        $isColumnIdentical = true;
+        try {
+            Assert::assertSameColumns(
+                $sourceTableDefinition->getColumnsDefinitions(),
+                $stagingTable->getColumnsDefinitions(),
+                [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
+            );
+        } catch (ColumnsMismatchException) {
+            $isColumnIdentical = false;
+        }
+
+        if ($isColumnIdentical) {
+            // if columns are identical we can use COPY statement to make import faster
             $toStageImporter = new CopyImportFromTableToTable($bqClient);
         } else {
             $bqClient->runQuery($bqClient->query(
