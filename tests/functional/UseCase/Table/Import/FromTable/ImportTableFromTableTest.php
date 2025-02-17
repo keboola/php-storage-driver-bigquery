@@ -561,7 +561,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } catch (Throwable $e) {
             // 'Cannot query over table 'xxx.xxx' without a filter over column(s) 'id'
             // that can be used for partition elimination'
-            $this->assertInstanceOf(BadExportFilterParametersException::class, $e);
+            $this->assertInstanceOf(BadExportFilterParametersException::class, $e, sprintf(
+                'Expected error instance "%s" not thrown. Got "%s" with message "%s"',
+                BadExportFilterParametersException::class,
+                $e::class,
+                $e->getMessage(),
+            ));
             $this->assertStringContainsString(
                 'without a filter over column(s) \'id\' that can be used for partition elimination',
                 $e->getMessage(),
@@ -968,5 +973,141 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } else {
             $this->assertNull($response);
         }
+    }
+
+    public function testImportFromTypedTableToStringTable(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_Test_table'; // workspace
+        $destinationTableName = $this->getTestHash() . '_Test_table_final'; // storage
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // create source table with typed columns
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                new BigqueryColumn('id', new Bigquery(
+                    Bigquery::TYPE_INT,
+                    [],
+                )),
+                new BigqueryColumn('time', new Bigquery(
+                    Bigquery::TYPE_TIMESTAMP,
+                    [],
+                )),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        // insert test data
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s VALUES (1, TIMESTAMP "2023-01-01 12:00:00"), (2, TIMESTAMP "2023-01-01 12:00:00")',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+        )));
+
+        // create destination table with string columns
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                new BigqueryColumn('id', new Bigquery(
+                    Bigquery::TYPE_STRING,
+                    ['length' => '50'],
+                )),
+                new BigqueryColumn('time', new Bigquery(
+                    Bigquery::TYPE_STRING,
+                    ['length' => '50'],
+                )),
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            [],
+        );
+        $sql = $qb->getCreateTableCommand(
+            $tableDestDef->getSchemaName(),
+            $tableDestDef->getTableName(),
+            $tableDestDef->getColumnsDefinitions(),
+            $tableDestDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+
+        // prepare import command
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('id')
+            ->setDestinationColumnName('id');
+        $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+            ->setSourceColumnName('time')
+            ->setDestinationColumnName('time');
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setImportStrategy(ImportStrategy::STRING_TABLE)
+                ->setTimestampColumn('_timestamp')
+                ->setNumberOfIgnoredLines(0),
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        // execute import
+        // this is main purpose of the test, that import won't fail
+        // internally ToStageImporter is used in this case and not CopyImportFromTableToTable
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // verify results (not much important here)
+        $result = $bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT id, time FROM %s.%s ORDER BY id ASC',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+        )));
+
+        $rows = iterator_to_array($result);
+        $this->assertCount(2, $rows);
+        $this->assertIsArray($rows[0]);
+        $this->assertIsArray($rows[1]);
+        $this->assertArrayHasKey('id', $rows[0]);
+        $this->assertArrayHasKey('time', $rows[0]);
+        $this->assertArrayHasKey('id', $rows[1]);
+        $this->assertArrayHasKey('time', $rows[1]);
+
+        $this->assertSame('1', $rows[0]['id']);
+        $this->assertSame('2023-01-01 12:00:00+00', $rows[0]['time']);
+        $this->assertSame('2', $rows[1]['id']);
+        $this->assertSame('2023-01-01 12:00:00+00', $rows[1]['time']);
     }
 }

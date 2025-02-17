@@ -18,9 +18,9 @@ use Google_Service_CloudResourceManager;
 use GuzzleHttp\Client;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\HandlerStack;
-use Keboola\StorageDriver\BigQuery\Client\BigQuery\Retry;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\TableBackendUtils\Connection\Bigquery\BigQueryClientWrapper;
+use Keboola\TableBackendUtils\Connection\Bigquery\Retry;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -155,19 +155,8 @@ class GCPClientManager
         // note: the close method is not used in this client
         return new BigQueryClientWrapper([
             'keyFile' => CredentialsHelper::getCredentialsArray($credentials),
-            'httpHandler' => new Guzzle6HttpHandler($guzzleClient),
-            'restRetryFunction' => function () {
-                // BigQuery client sometimes calls directly restRetryFunction with exception as first argument
-                // But in other cases it expects to return callable which accepts exception as first argument
-                $argsNum = func_num_args();
-                if ($argsNum === 2) {
-                    $ex = func_get_arg(0);
-                    if ($ex instanceof Throwable) {
-                        return Retry::getRetryDecider($this->logger)($ex);
-                    }
-                }
-                return Retry::getRetryDecider($this->logger);
-            },
+            'httpHandler' => new Guzzle6HttpHandler($guzzleClient, $this->logger),
+            'restRetryFunction' => Retry::getRestRetryFunction($this->logger, true),
             'requestTimeout' => self::TIMEOUT,
             'restOptions' => [
                 'headers' => [

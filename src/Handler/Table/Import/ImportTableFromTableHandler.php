@@ -11,12 +11,14 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\Import\Result;
+use Keboola\Db\ImportExport\Backend\Assert;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -25,6 +27,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
@@ -189,6 +192,12 @@ final class ImportTableFromTableHandler extends BaseHandler
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
             $destination->getTableName(),
         ))->getTableDefinition();
+        /** @var BigqueryTableDefinition $sourceTableDefinition */
+        $sourceTableDefinition = (new BigqueryTableReflection(
+            $bqClient,
+            $source->getSchema(),
+            $source->getTableName(),
+        ))->getTableDefinition();
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
             $destinationDefinition = new BigqueryTableDefinition(
@@ -219,14 +228,56 @@ final class ImportTableFromTableHandler extends BaseHandler
             return [null, $importState->getResult()];
         }
 
-        $stagingTable = $this->createStageTable($destinationDefinition, $sourceMapping, $bqClient);
+        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
         // load to staging table
-        $toStageImporter = new ToStageImporter($bqClient);
+        $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
+            $destinationDefinition,
+            $mappings,
+        );
+
+        $isColumnIdentical = true;
+        try {
+            Assert::assertSameColumns(
+                $sourceTableDefinition->getColumnsDefinitions(),
+                $stagingTable->getColumnsDefinitions(),
+                [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
+            );
+        } catch (ColumnsMismatchException) {
+            $isColumnIdentical = false;
+        }
+
+        if ($isColumnIdentical) {
+            // if columns are identical we can use COPY statement to make import faster
+            $toStageImporter = new CopyImportFromTableToTable($bqClient);
+        } else {
+            $bqClient->runQuery($bqClient->query(
+                (new BigqueryTableQueryBuilder())->getCreateTableCommand(
+                    $stagingTable->getSchemaName(),
+                    $stagingTable->getTableName(),
+                    $stagingTable->getColumnsDefinitions(),
+                    [],
+                ),
+            ));
+            // load to staging table
+            $toStageImporter = new ToStageImporter($bqClient);
+        }
         try {
             $importState = $toStageImporter->importToStagingTable(
                 $source,
                 $stagingTable,
                 $importOptions,
+            );
+            // import data to destination
+            $toFinalTableImporter = new FullImporter($bqClient);
+            if ($importOptions->isIncremental()) {
+                $toFinalTableImporter = new IncrementalImporter($bqClient);
+            }
+            $importResult = $toFinalTableImporter->importToTable(
+                $stagingTable,
+                $destinationDefinition,
+                $importOptions,
+                $importState,
             );
         } catch (ColumnsMismatchException $e) {
             throw new DriverColumnsMismatchException($e->getMessage());
@@ -234,43 +285,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             BadExportFilterParametersException::handleWrongTypeInFilters($e);
             throw $e;
         }
-        // import data to destination
-        $toFinalTableImporter = new FullImporter($bqClient);
-        if ($importOptions->isIncremental()) {
-            $toFinalTableImporter = new IncrementalImporter($bqClient);
-        }
-        $importResult = $toFinalTableImporter->importToTable(
-            $stagingTable,
-            $destinationDefinition,
-            $importOptions,
-            $importState,
-        );
         return [$stagingTable, $importResult];
-    }
-
-    private function createStageTable(
-        BigqueryTableDefinition $destinationDefinition,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        BigQueryClient $bqClient,
-    ): BigqueryTableDefinition {
-        // prepare staging table definition
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
-        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
-        $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
-            $destinationDefinition,
-            $mappings,
-        );
-        // create staging table
-        $qb = new BigqueryTableQueryBuilder();
-        $bqClient->runQuery($bqClient->query(
-            $qb->getCreateTableCommand(
-                $stagingTable->getSchemaName(),
-                $stagingTable->getTableName(),
-                $stagingTable->getColumnsDefinitions(),
-                [], //<-- there are no PK in BQ
-            ),
-        ));
-        return $stagingTable;
     }
 
     private function importByTableCopy(
