@@ -62,8 +62,8 @@ class BaseCase extends TestCase
 
     /**
      * @var array{
-     *     0:array{GenericBackendCredentials, CreateProjectResponse, string},
-     *     1:array{GenericBackendCredentials, CreateProjectResponse, string},
+     *     0:array{GenericBackendCredentials, CreateProjectResponse},
+     *     1:array{GenericBackendCredentials, CreateProjectResponse},
      * }
      */
     // @phpstan-ignore-next-line
@@ -86,9 +86,6 @@ class BaseCase extends TestCase
         if (file_exists('/tmp/prj0-res')) {
             unlink('/tmp/prj0-res');
         }
-        if (file_exists('/tmp/prj0-id')) {
-            unlink('/tmp/prj0-id');
-        }
 
         if (file_exists('/tmp/prj1-cred')) {
             unlink('/tmp/prj1-cred');
@@ -96,28 +93,17 @@ class BaseCase extends TestCase
         if (file_exists('/tmp/prj1-res')) {
             unlink('/tmp/prj1-res');
         }
-        if (file_exists('/tmp/prj1-id')) {
-            unlink('/tmp/prj1-id');
-        }
 
         $this->dropProjects($this->getStackPrefix());
-        $nameGenerator = new NameGenerator($this->getStackPrefix());
         $suffix = date('mdHis') . self::getRand();
-        $project0 = [
-            ...$this->createProject('main-' . $suffix),
-            $nameGenerator->createProjectId('main-' . $suffix),
-        ];
-        $project1 = [
-            ...$this->createProject('link-' . $suffix),
-            $nameGenerator->createProjectId('link-' . $suffix),
-        ];
+        $project0 = $this->createProject('main-' . $suffix);
+        $project1 = $this->createProject('link-' . $suffix);
+
         file_put_contents('/tmp/prj0-cred', $project0[0]->serializeToJsonString());
         file_put_contents('/tmp/prj0-res', $project0[1]->serializeToJsonString());
-        file_put_contents('/tmp/prj0-id', $project0[2]);
 
         file_put_contents('/tmp/prj1-cred', $project1[0]->serializeToJsonString());
         file_put_contents('/tmp/prj1-res', $project1[1]->serializeToJsonString());
-        file_put_contents('/tmp/prj1-id', $project1[2]);
     }
 
     protected function setUp(): void
@@ -177,12 +163,10 @@ class BaseCase extends TestCase
             [
                 $prj0Cred,
                 $prj0Res,
-                (string) file_get_contents('/tmp/prj0-id'),
             ],
             [
                 $prj1Cred,
                 $prj1Res,
-                (string) file_get_contents('/tmp/prj1-id'),
             ],
         ];
     }
