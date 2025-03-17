@@ -65,7 +65,7 @@ class ObjectInfoTest extends BaseCase
         [
             ,
             $workspaceResponse,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projects[0][1], $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projects[0][1]);
         $this->createTestTable(
             $this->projectCredentials,
             $workspaceResponse->getWorkspaceObjectName(),
@@ -232,7 +232,7 @@ class ObjectInfoTest extends BaseCase
         // Create workspace
         [
             $credentials,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
 
         // Run same object info cmd but as workspace user
         $handler = new ObjectInfoHandler($this->clientManager);

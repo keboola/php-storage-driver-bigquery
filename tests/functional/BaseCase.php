@@ -501,7 +501,6 @@ class BaseCase extends TestCase
     protected function createTestWorkspace(
         GenericBackendCredentials $projectCredentials,
         CreateProjectResponse $projectResponse,
-        string $projectId,
     ): array {
         $workspaceId = 'WS' . substr($this->getTestHash(), -7) . self::getRand();
         $this->dropTestWorkspace(
@@ -512,7 +511,6 @@ class BaseCase extends TestCase
         $handler->setInternalLogger($this->log);
         $command = (new CreateWorkspaceCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($projectId)
             ->setWorkspaceId($workspaceId)
             ->setProjectReadOnlyRoleName($projectResponse->getProjectReadOnlyRoleName());
 

@@ -259,7 +259,6 @@ class ImportViewCloneTest extends BaseCase
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $targetProjectCredentials,
             $targetProjectResponse,
-            $this->projects[1][2],
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 

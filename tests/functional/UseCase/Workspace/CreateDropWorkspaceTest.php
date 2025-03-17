@@ -63,12 +63,12 @@ class CreateDropWorkspaceTest extends BaseCase
         [
             $wsCredentials1,
             $wsResponse1,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
 
         [
             $wsCredentials2,
             $wsResponse2,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
 
         $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials1);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse1);
@@ -291,7 +291,7 @@ class CreateDropWorkspaceTest extends BaseCase
         [
             $credentials,
             $response,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
@@ -331,7 +331,7 @@ class CreateDropWorkspaceTest extends BaseCase
         [
             $credentials,
             $response,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 
