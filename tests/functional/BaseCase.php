@@ -373,7 +373,6 @@ class BaseCase extends TestCase
 
     protected function createTestBucket(
         GenericBackendCredentials $projectCredentials,
-        string $projectId,
         ?string $branchId = null,
     ): CreateBucketResponse {
         $bucket = $this->getTestHash() . 'in.c-Test';
@@ -387,7 +386,6 @@ class BaseCase extends TestCase
         $handler->setInternalLogger($this->log);
         $command = (new CreateBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setProjectId($projectId)
             ->setBucketId($bucket);
 
         $meta = new Any();

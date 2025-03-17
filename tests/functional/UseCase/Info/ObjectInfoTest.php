@@ -42,7 +42,7 @@ class ObjectInfoTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
 
         // create bucket
-        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0]);
 
         $this->createTestTable(
             $this->projectCredentials,

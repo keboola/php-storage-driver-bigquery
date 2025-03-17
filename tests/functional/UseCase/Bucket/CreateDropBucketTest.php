@@ -34,7 +34,7 @@ class CreateDropBucketTest extends BaseCase
     public function testCreateDropBucket(string $region): void
     {
         $credentials = $this->getCredentials($region);
-        $response = $this->createTestBucket($credentials, $this->projects[0][2]);
+        $response = $this->createTestBucket($credentials);
 
         $handler = new DropBucketHandler($this->clientManager);
         $command = (new DropBucketCommand())
@@ -58,7 +58,7 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateBucketInBranch(): void
     {
-        $response = $this->createTestBucket($this->projectCredentials, $this->projects[0][2], '123');
+        $response = $this->createTestBucket($this->projectCredentials, '123');
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
@@ -76,7 +76,7 @@ class CreateDropBucketTest extends BaseCase
 
     public function testCreateDropCascadeBucket(): void
     {
-        $bucket = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
+        $bucket = $this->createTestBucket($this->projectCredentials);
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $createdDataset = $bqClient->dataset($bucket->getCreateBucketObjectName());

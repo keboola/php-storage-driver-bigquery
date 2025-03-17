@@ -23,7 +23,7 @@ class ObjectInfoErrorTest extends BaseCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $this->projectCredentials = $this->projects[0][0];
     }
 

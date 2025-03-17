@@ -38,7 +38,7 @@ class AlterColumnTest extends BaseCase
         parent::setUp();
         $this->projectCredentials = $this->projects[0][0];
 
-        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $this->tableName = $this->getTestHash() . '_Test_table';
     }
 

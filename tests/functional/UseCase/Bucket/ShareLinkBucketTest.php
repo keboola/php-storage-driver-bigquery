@@ -57,7 +57,7 @@ class ShareLinkBucketTest extends BaseCase
 
     public function testShareAndLinkBucket(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
 
@@ -214,7 +214,7 @@ class ShareLinkBucketTest extends BaseCase
 
     public function testShareUnshare(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $publicPart = (array) json_decode(
@@ -276,7 +276,7 @@ class ShareLinkBucketTest extends BaseCase
 
     public function testShareUnshareLinkedBucket(): void
     {
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials, $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
 
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
 

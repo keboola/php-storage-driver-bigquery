@@ -115,7 +115,7 @@ class CreateDropWorkspaceTest extends BaseCase
         );
 
         try {
-            $this->createTestBucket($wsCredentials1, $this->projects[0][2]);
+            $this->createTestBucket($wsCredentials1);
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
             $this->assertSame(403, $exception->getCode());
@@ -126,7 +126,7 @@ class CreateDropWorkspaceTest extends BaseCase
         }
 
         $tableName = 'testTable';
-        $bucketDatasetName = $this->createTestBucket($this->projectCredentials, $this->projects[0][2]);
+        $bucketDatasetName = $this->createTestBucket($this->projectCredentials);
         $this->createNonEmptyTableInBucket($bucketDatasetName->getCreateBucketObjectName(), $tableName);
 
         // FILL DATA
