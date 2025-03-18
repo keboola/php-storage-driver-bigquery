@@ -34,7 +34,7 @@ class ResetWorkspacePasswordTest extends BaseCase
         [
             $credentials,
             $createResponse,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
         assert($credentials instanceof GenericBackendCredentials);
         assert($createResponse instanceof CreateWorkspaceResponse);
 

@@ -33,7 +33,7 @@ class DropWorkspaceObjectTest extends BaseCase
         [
             $credentials,
             $response,
-        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse, $this->projects[0][2]);
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
         $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
         $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
 

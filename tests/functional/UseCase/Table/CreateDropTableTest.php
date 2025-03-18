@@ -39,7 +39,7 @@ class CreateDropTableTest extends BaseCase
         parent::setUp();
         $this->projectCredentials = $this->projects[0][0];
 
-        $this->bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $this->bucketResponse = $this->createTestBucket($this->projects[0][0]);
     }
 
     /**
@@ -49,7 +49,7 @@ class CreateDropTableTest extends BaseCase
     {
         $tableName = $this->getTestHash() . '_Test_table';
         $credentials = $this->getCredentials($region);
-        $bucketResponse = $this->createTestBucket($credentials, $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($credentials);
         $bucketDatasetName = $bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -679,7 +679,7 @@ class CreateDropTableTest extends BaseCase
     {
         $tableName = $this->getTestHash() . '_Test_table';
         $credentials = $this->getCredentials();
-        $bucketResponse = $this->createTestBucket($credentials, $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($credentials);
         $bucketDatasetName = $bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE

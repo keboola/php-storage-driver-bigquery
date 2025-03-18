@@ -31,7 +31,7 @@ class BaseImportTestCase extends BaseCase
         parent::setUp();
         $this->projectCredentials = $this->projects[0][0];
 
-        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $this->bucketResponse = $bucketResponse;
     }
 

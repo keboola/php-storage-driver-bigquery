@@ -39,7 +39,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         parent::setUp();
         $this->mainProjectCredentials = $this->projects[0][0];
         $this->externalProjectCredentials = $this->projects[1][0];
-        $bucketResponse = $this->createTestBucket($this->projects[1][0], $this->projects[1][2]);
+        $bucketResponse = $this->createTestBucket($this->projects[1][0]);
         $this->bucketResponse = $bucketResponse;
     }
 

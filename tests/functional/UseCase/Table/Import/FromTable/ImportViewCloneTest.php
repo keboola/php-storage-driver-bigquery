@@ -58,7 +58,7 @@ class ImportViewCloneTest extends BaseCase
     public function testConflictImport(int $importType): void
     {
         // create resources
-        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
@@ -151,7 +151,7 @@ class ImportViewCloneTest extends BaseCase
     public function testImportAsView(int $importType): void
     {
         // create resources
-        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
@@ -259,7 +259,6 @@ class ImportViewCloneTest extends BaseCase
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $targetProjectCredentials,
             $targetProjectResponse,
-            $this->projects[1][2],
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 
@@ -414,7 +413,7 @@ class ImportViewCloneTest extends BaseCase
      */
     private function createLinkedBucketWithTable(): array
     {
-        $bucketResponse = $this->createTestBucket($this->projects[0][0], $this->projects[0][2]);
+        $bucketResponse = $this->createTestBucket($this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
