@@ -11,6 +11,7 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\FakeConnection\FakeConnectionFactory;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand\WhereRefTableFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
@@ -33,6 +34,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
 
     /**
      * @param self::MODE_* $mode
+     * @param RepeatedField|WhereRefTableFilter[]|null $refTableFilters
      * @throws QueryBuilderException
      * @throws ColumnNotFoundException
      */
@@ -46,6 +48,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         string $tableName,
         bool $truncateLargeColumns,
         int $rowsCount = 0,
+        RepeatedField|null $refTableFilters = null,
     ): QueryBuilderResponse {
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
 
@@ -54,6 +57,7 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
             $this->assertFilterCombination($filters);
             $this->processFilters(
                 $filters,
+                $refTableFilters,
                 $query,
                 $tableColumnsDefinitions,
                 $tableName,
@@ -154,8 +158,12 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
         return (new Bigquery($type))->getBasetype();
     }
 
+    /**
+     * @param RepeatedField|WhereRefTableFilter[]|null $refTableFilters
+     */
     private function processFilters(
         ExportFilters $filters,
+        RepeatedField|null $refTableFilters,
         QueryBuilder $query,
         ColumnCollection $tableColumnsDefinitions,
         string $tableName,
@@ -180,6 +188,10 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
                 );
             } else {
                 $this->processWhereFilters($filters->getWhereFilters(), $query, $tableName, $tableColumnsDefinitions);
+
+                if ($refTableFilters !== null) {
+                    $this->processWhereRefTableFilters($query, $refTableFilters, $tableName);
+                }
             }
         } catch (QueryException $e) {
             throw new QueryBuilderException(
