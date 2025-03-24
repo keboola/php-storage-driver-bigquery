@@ -15,6 +15,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand\WhereRefTableFilter;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsResponse;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -258,7 +259,8 @@ class DeleteTableRowsTest extends BaseCase
      * @param array{
      *     changeUntil?: string,
      *     changeSince?: string,
-     *     whereFilters?: TableWhereFilter[]
+     *     whereFilters?: TableWhereFilter[],
+     *     whereRefTableFilters?: WhereRefTableFilter[],
      * } $commandInput
      */
     private function deleteRows(
@@ -281,6 +283,9 @@ class DeleteTableRowsTest extends BaseCase
         }
         if (array_key_exists('whereFilters', $commandInput)) {
             $command->setWhereFilters($commandInput['whereFilters']);
+        }
+        if (array_key_exists('whereRefTableFilters', $commandInput)) {
+            $command->setWhereRefTableFilters($commandInput['whereRefTableFilters']);
         }
         $response = $handler(
             $this->projectCredentials,
