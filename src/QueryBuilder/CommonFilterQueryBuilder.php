@@ -13,6 +13,7 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand\WhereRefTableFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
@@ -181,6 +182,49 @@ abstract class CommonFilterQueryBuilder
                     $colDefinition->getType(),
                 );
             }
+        }
+    }
+
+    /**
+     * @param RepeatedField|WhereRefTableFilter[] $filters
+     */
+    protected function processWhereRefTableFilters(
+        QueryBuilder $query,
+        RepeatedField $filters,
+        string $tableName,
+    ): void {
+        foreach ($filters as $filter) {
+            if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
+                throw new QueryBuilderException(
+                    'Only IN or NOT INT operator is allowed.',
+                );
+            }
+
+            $column = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+                BigqueryQuote::quoteSingleIdentifier($filter->getColumn()),
+            );
+
+            $subTable = $filter->getRefTable();
+            $subColumn = sprintf(
+                '%s.%s',
+                BigqueryQuote::quoteSingleIdentifier($subTable),
+                BigqueryQuote::quoteSingleIdentifier($filter->getRefColumn()),
+            );
+
+            $query->andWhere(
+                sprintf(
+                    '%s %s (SELECT %s FROM %s.%s)',
+                    $column,
+                    self::OPERATOR_MULTI_VALUE[$filter->getOperator()],
+                    $subColumn,
+                    BigqueryQuote::quoteSingleIdentifier(
+                        ProtobufHelper::repeatedStringToArray($filter->getRefPath())[0],
+                    ),
+                    BigqueryQuote::quoteSingleIdentifier($subTable),
+                ),
+            );
         }
     }
 

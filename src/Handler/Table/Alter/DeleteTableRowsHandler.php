@@ -85,6 +85,7 @@ final class DeleteTableRowsHandler extends BaseHandler
                 $datasetName,
                 $command->getTableName(),
                 false,
+                refTableFilters: $command->getWhereRefTableFilters(),
             );
         }
         /** @var array<string> $queryDataBindings */
@@ -125,6 +126,7 @@ final class DeleteTableRowsHandler extends BaseHandler
     {
         return $command->getChangeSince() === ''
             && $command->getChangeUntil() === ''
-            && count($command->getWhereFilters()) === 0;
+            && count($command->getWhereFilters()) === 0
+            && count($command->getWhereRefTableFilters()) === 0;
     }
 }
