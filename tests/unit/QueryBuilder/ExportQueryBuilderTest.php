@@ -7,11 +7,15 @@ namespace Keboola\StorageDriver\UnitTests\QueryBuilder;
 use Exception;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Protobuf\Internal\GPBType;
+use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnNotFoundException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderException;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
+use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand\WhereRefTableFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
@@ -562,6 +566,157 @@ class ExportQueryBuilderTest extends TestCase
             QueryBuilderException::class,
             'whereFilter with multiple values can be used only with "eq", "ne" operators',
         ];
+    }
+
+    /**
+     * @dataProvider provideDeleteTableRowsData
+     * @param string[] $expectedBindings
+     */
+    public function testBuildQueryFromDeleteTableRowsCommand(
+        DeleteTableRowsCommand $command,
+        string $expectedSql,
+        array $expectedBindings,
+    ): void {
+        $connection = $this->createMock(BigQueryClient::class);
+        $columnConverter = new ColumnConverter();
+
+        $qb = new ExportQueryBuilder($connection, $columnConverter);
+        $queryData = $qb->buildQueryFromCommand(
+            ExportQueryBuilder::MODE_DELETE,
+            (new ExportFilters())
+                ->setChangeSince($command->getChangeSince())
+                ->setChangeUntil($command->getChangeUntil())
+                ->setWhereFilters($command->getWhereFilters()),
+            new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class),
+            new RepeatedField(GPBType::STRING),
+            new ColumnCollection($this->getColumnsCollection()),
+            'some_bucket',
+            $command->getTableName(),
+            false,
+            refTableFilters: $command->getWhereRefTableFilters(),
+        );
+
+        $this->assertSame(
+            str_replace(PHP_EOL, '', $expectedSql),
+            $queryData->getQuery(),
+        );
+        $this->assertSame(
+            $expectedBindings,
+            $queryData->getBindings(),
+        );
+    }
+
+    public static function provideDeleteTableRowsData(): Generator
+    {
+        yield 'one whereRefTableFilters' => [
+            new DeleteTableRowsCommand([
+                'path' => ['some_bucket'],
+                'tableName' => 'some_table',
+                'whereRefTableFilters' => [
+                    new WhereRefTableFilter([
+                        'column' => 'id',
+                        'operator' => Operator::eq,
+                        'refColumn' => 'id',
+                        'refPath' => ['universe','milkyway'],
+                        'refTable' => 'mars',
+                    ]),
+                ],
+            ]),
+            'DELETE FROM `some_bucket`.`some_table` WHERE `some_table`.`id` IN (SELECT `id` FROM `universe.milkyway.mars`)', // phpcs:ignore
+            [],
+        ];
+
+        yield 'array of whereRefTableFilters' => [
+            new DeleteTableRowsCommand([
+                'path' => ['some_bucket'],
+                'tableName' => 'universe',
+                'whereRefTableFilters' => [
+                    new WhereRefTableFilter([
+                        'column' => 'id',
+                        'operator' => Operator::eq,
+                        'refColumn' => 'id',
+                        'refPath' => ['universe', 'milkyway'],
+                        'refTable' => 'venus',
+                    ]),
+                    new WhereRefTableFilter([
+                        'column' => 'name',
+                        'operator' => Operator::ne,
+                        'refColumn' => 'label',
+                        'refPath' => ['farfaraway'],
+                        'refTable' => 'alderaan',
+                    ]),
+                ],
+            ]),
+            'DELETE FROM `some_bucket`.`universe` WHERE (`universe`.`id` IN (SELECT `id` FROM `universe.milkyway.venus`)) AND (`universe`.`name` NOT IN (SELECT `label` FROM `farfaraway.alderaan`))', // phpcs:ignore
+            [],
+        ];
+
+        yield 'combination of whereFilters and whereRefTableFilters' => [
+            new DeleteTableRowsCommand([
+                'path' => ['some_bucket'],
+                'tableName' => 'universe',
+                'whereFilters' => [
+                    new TableWhereFilter([
+                        'columnsName' => 'height',
+                        'operator' => Operator::gt,
+                        'values' => ['6378'],
+                        'dataType' => DataType::INTEGER,
+                    ]),
+                ],
+                'whereRefTableFilters' => [
+                    new WhereRefTableFilter([
+                        'column' => 'id',
+                        'operator' => Operator::eq,
+                        'refColumn' => 'id',
+                        'refPath' => ['milkyway', 'sun'],
+                        'refTable' => 'earth',
+                    ]),
+                ],
+            ]),
+            'DELETE FROM `some_bucket`.`universe` WHERE (`universe`.`height` > SAFE_CAST(@dcValue1 AS DECIMAL)) AND (`universe`.`id` IN (SELECT `id` FROM `milkyway.sun.earth`))', // phpcs:ignore
+            [
+                'dcValue1' => '6378',
+            ],
+        ];
+    }
+
+    public function testBuildQueryFromDeleteTableRowsCommandFailed(): void
+    {
+        $connection = $this->createMock(BigQueryClient::class);
+        $columnConverter = new ColumnConverter();
+
+        $command = new DeleteTableRowsCommand([
+            'path' => ['some_bucket'],
+            'tableName' => 'some_table',
+            'whereRefTableFilters' => [
+                new WhereRefTableFilter([
+                    'column' => 'id',
+                    'operator' => Operator::le,
+                    'refColumn' => 'id',
+                    'refPath' => ['wkspc'],
+                    'refTable' => 'tmp_table',
+                ]),
+            ],
+        ]);
+
+        $this->expectException(QueryBuilderException::class);
+        $this->expectExceptionMessage('Only IN or NOT INT operator is allowed.');
+
+        $qb = new ExportQueryBuilder($connection, $columnConverter);
+        $qb->buildQueryFromCommand(
+            ExportQueryBuilder::MODE_DELETE,
+            (new ExportFilters())
+                ->setChangeSince($command->getChangeSince())
+                ->setChangeUntil($command->getChangeUntil())
+                ->setWhereFilters($command->getWhereFilters()),
+            new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class),
+            new RepeatedField(GPBType::STRING),
+            new ColumnCollection($this->getColumnsCollection()),
+            'some_bucket',
+            $command->getTableName(),
+            false,
+            refTableFilters: $command->getWhereRefTableFilters(),
+        );
     }
 
     /** @return BigqueryColumn[] */
