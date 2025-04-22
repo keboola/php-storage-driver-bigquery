@@ -1,4 +1,6 @@
-FROM php:8.1-cli-bullseye
+ARG PHP_VERSION=8.3.19
+
+FROM php:${PHP_VERSION}-cli-bullseye
 
 ARG COMPOSER_FLAGS="--prefer-dist --no-interaction"
 ARG DEBIAN_FRONTEND=noninteractive
