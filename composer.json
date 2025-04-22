@@ -22,7 +22,7 @@
         }
     },
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
