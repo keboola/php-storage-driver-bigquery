@@ -33,6 +33,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Profile\ProfileTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Clear\ClearWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
@@ -55,6 +56,7 @@ use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
 use Keboola\StorageDriver\Command\Table\AddPrimaryKeyCommand;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
+use Keboola\StorageDriver\Command\Table\CreateProfileTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
@@ -188,6 +190,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new AddPrimaryKeyHandler($manager);
             case $command instanceof DropPrimaryKeyCommand:
                 return new DropPrimaryKeyHandler($manager);
+            case $command instanceof CreateProfileTableCommand:
+                return new ProfileTableHandler($manager);
         }
 
         throw new CommandNotSupportedException(get_class($command));
