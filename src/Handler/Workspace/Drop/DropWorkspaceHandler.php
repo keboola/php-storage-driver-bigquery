@@ -135,6 +135,31 @@ final class DropWorkspaceHandler extends BaseHandler
             );
         });
 
+        // list all service account jobs and cancel them
+        $jobs = $bqClient->jobs(
+            [
+                'stateFilter' => 'RUNNING',
+                'allUsers' => true,
+            ],
+        );
+        foreach ($jobs as $job) {
+            // Check if the job belongs to the service account we're removing
+            if ($job->info()['user_email'] === $keyData['client_email']) {
+                try {
+                    $proxy->call(function () use ($job): void {
+                        $job->cancel();
+                    });
+                } catch (Throwable $e) {
+                    $this->userLogger->warning(sprintf(
+                        'Could not cancel job %s for service account %s: %s',
+                        $job->id(),
+                        $keyData['client_email'],
+                        $e->getMessage(),
+                    ));
+                }
+            }
+        }
+
         return null;
     }
 }
