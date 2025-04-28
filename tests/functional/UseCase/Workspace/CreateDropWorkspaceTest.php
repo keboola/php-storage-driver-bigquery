@@ -220,6 +220,9 @@ class CreateDropWorkspaceTest extends BaseCase
             'DROP TABLE %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
+        // start job with sleep but don't wait
+        // job should be cancelled when workspace is dropped
+        $ws1BqClient->startQuery($ws1BqClient->query('SELECT bigfunctions.eu.sleep(65) AS status;'));
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);
