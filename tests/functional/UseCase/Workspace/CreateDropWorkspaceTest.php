@@ -222,7 +222,7 @@ class CreateDropWorkspaceTest extends BaseCase
         )));
         // start job with sleep but don't wait
         // job should be cancelled when workspace is dropped
-        $ws1BqClient->startQuery($ws1BqClient->query('SELECT bigfunctions.eu.sleep(65) AS status;'));
+        $ws1BqClient->startQuery($ws1BqClient->query('SELECT bigfunctions.us.sleep(65) AS status;'));
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);

@@ -129,11 +129,6 @@ final class DropWorkspaceHandler extends BaseHandler
         }, 10);
 
         $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialRandomBackOffPolicy());
-        $proxy->call(function () use ($serviceAccountsService, $keyData): void {
-            $serviceAccountsService->delete(
-                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email']),
-            );
-        });
 
         // list all service account jobs and cancel them
         $jobs = $bqClient->jobs(
@@ -144,8 +139,14 @@ final class DropWorkspaceHandler extends BaseHandler
         );
         foreach ($jobs as $job) {
             // Check if the job belongs to the service account we're removing
-            if ($job->info()['user_email'] === $keyData['client_email']) {
+            $jobInfo = $job->info();
+            if (array_key_exists('user_email', $jobInfo) && $jobInfo['user_email'] === $keyData['client_email']) {
                 try {
+                    $this->userLogger->info(sprintf(
+                        'Canceling job %s for service account %s',
+                        $job->id(),
+                        $keyData['client_email'],
+                    ));
                     $proxy->call(function () use ($job): void {
                         $job->cancel();
                     });
@@ -159,6 +160,12 @@ final class DropWorkspaceHandler extends BaseHandler
                 }
             }
         }
+
+        $proxy->call(function () use ($serviceAccountsService, $keyData): void {
+            $serviceAccountsService->delete(
+                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email']),
+            );
+        });
 
         return null;
     }
