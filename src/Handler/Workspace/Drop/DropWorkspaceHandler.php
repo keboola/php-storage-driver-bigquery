@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop;
 
+use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Job;
 use Google\Protobuf\Internal\Message;
 use Google\Service\CloudResourceManager\Binding;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
@@ -14,6 +16,7 @@ use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\TableBackendUtils\Connection\Bigquery\BigQueryClientWrapper;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -52,8 +55,67 @@ final class DropWorkspaceHandler extends BaseHandler
         assert($command->getWorkspaceObjectName() !== '', 'DropWorkspaceCommand.workspaceObjectName is required');
 
         $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
-        $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
+        // get info about ws service acc from ws service acc credentials
+        /** @var array<string, string> $keyData */
+        $keyData = json_decode($command->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);
 
+        $this->deleteDataset($bqClient, $command);
+        $this->dropIamPolicies($credentials, $keyData['client_email']);
+        $this->cancelRunningJobs($bqClient, $keyData['client_email']);
+        $this->deleteServiceAccount($credentials, $keyData['project_id'], $keyData['client_email']);
+
+        return null;
+    }
+
+    private function cancelRunningJobs(
+        BigQueryClient $bqClient,
+        string $serviceAccountEmail,
+    ): void {
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY)) {
+                return true;
+            }
+            return false;
+        }, 10);
+
+        $proxy = new RetryProxy($retryPolicy, new ExponentialRandomBackOffPolicy());
+        $jobs = $bqClient->jobs(
+            [
+                'stateFilter' => 'RUNNING',
+                'allUsers' => true,
+            ],
+        );
+        /** @var Job $job */
+        foreach ($jobs as $job) {
+            // Check if the job belongs to the service account we're removing
+            $jobInfo = $job->reload(); // job needs to reload to fetch user_email
+            if (array_key_exists('user_email', $jobInfo) && $jobInfo['user_email'] === $serviceAccountEmail) {
+                try {
+                    $this->userLogger->info(sprintf(
+                        'Canceling job %s for service account %s',
+                        $job->id(),
+                        $serviceAccountEmail,
+                    ));
+                    $proxy->call(function () use ($job): void {
+                        $job->cancel();
+                    });
+                } catch (Throwable $e) {
+                    $this->userLogger->warning(sprintf(
+                        'Could not cancel job %s for service account %s: %s',
+                        $job->id(),
+                        $serviceAccountEmail,
+                        $e->getMessage(),
+                    ));
+                }
+            }
+        }
+    }
+
+    private function deleteDataset(
+        BigQueryClient $bqClient,
+        DropWorkspaceCommand $command,
+    ): void {
+        $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
         $deleteWsDatasetRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY)) {
                 return true;
@@ -72,15 +134,13 @@ final class DropWorkspaceHandler extends BaseHandler
             }
             // ignore 404 exception as dataset is probably deleted in retry
         }
+    }
 
-        $iamService = $this->clientManager->getIamClient($credentials);
-        $serviceAccountsService = $iamService->projects_serviceAccounts;
-        // get info about ws service acc from ws service acc credentials
-        /** @var array<string, string> $keyData */
-        $keyData = json_decode($command->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);
-
+    private function dropIamPolicies(
+        GenericBackendCredentials $credentials,
+        string $serviceAccountEmail,
+    ): void {
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-
         $setIamPolicyRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             if (in_array($e->getCode(), GCPClientManager::ERROR_CODES_FOR_RETRY_IAM)) {
                 return true;
@@ -88,7 +148,7 @@ final class DropWorkspaceHandler extends BaseHandler
             return false;
         }, 20);
         $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
-        $proxy->call(function () use ($cloudResourceManager, $credentials, $keyData): void {
+        $proxy->call(function () use ($cloudResourceManager, $credentials, $serviceAccountEmail): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
             $projectName = 'projects/' . $projectCredentials['project_id'];
@@ -105,7 +165,7 @@ final class DropWorkspaceHandler extends BaseHandler
                 }
                 $newMembers = [];
                 foreach ($binding->getMembers() as $member) {
-                    if ($member !== 'serviceAccount:' . $keyData['client_email']) {
+                    if ($member !== 'serviceAccount:' . $serviceAccountEmail) {
                         $newMembers[] = $member;
                     }
                 }
@@ -120,7 +180,15 @@ final class DropWorkspaceHandler extends BaseHandler
             $setIamPolicyRequest->setPolicy($policy);
             $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
         });
+    }
 
+    private function deleteServiceAccount(
+        GenericBackendCredentials $credentials,
+        string $projectId,
+        string $serviceAccountEmail,
+    ): void {
+        $iamService = $this->clientManager->getIamClient($credentials);
+        $serviceAccountsService = $iamService->projects_serviceAccounts;
         $deleteServiceAccRetryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             if (in_array($e->getCode(), self::ERROR_CODES_FOR_RETRY)) {
                 return true;
@@ -129,12 +197,10 @@ final class DropWorkspaceHandler extends BaseHandler
         }, 10);
 
         $proxy = new RetryProxy($deleteServiceAccRetryPolicy, new ExponentialRandomBackOffPolicy());
-        $proxy->call(function () use ($serviceAccountsService, $keyData): void {
+        $proxy->call(function () use ($serviceAccountsService, $projectId, $serviceAccountEmail): void {
             $serviceAccountsService->delete(
-                sprintf('projects/%s/serviceAccounts/%s', $keyData['project_id'], $keyData['client_email']),
+                sprintf('projects/%s/serviceAccounts/%s', $projectId, $serviceAccountEmail),
             );
         });
-
-        return null;
     }
 }

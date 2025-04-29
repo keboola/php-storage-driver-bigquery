@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
 use Google\Cloud\BigQuery\Dataset;
+use Google\Cloud\BigQuery\Job;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -14,13 +15,9 @@ use Google\Service\Exception as GoogleServiceException;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
-use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\Helper;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
-use Keboola\StorageDriver\BigQuery\IAmPermissions;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
@@ -220,6 +217,9 @@ class CreateDropWorkspaceTest extends BaseCase
             'DROP TABLE %s.`testTable`;',
             BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
+        // start job with sleep but don't wait (sleep will not charge any credits)
+        // job should be cancelled when workspace is dropped
+        $ws1BqClient->startQuery($ws1BqClient->query('SELECT bigfunctions.us.sleep(65) AS status;'));
 
         // DROP
         $handler = new DropWorkspaceHandler($this->clientManager);
@@ -283,6 +283,28 @@ class CreateDropWorkspaceTest extends BaseCase
         }
 
         $this->assertEmpty($serviceAccRoles);
+
+        // test no job is running for service account
+        $jobs = $bqClient->jobs(
+            [
+                'stateFilter' => 'RUNNING',
+                'allUsers' => true,
+            ],
+        );
+        /** @var Job $job */
+        foreach ($jobs as $job) {
+            // Check if no job is running for the service account
+            // this is not reliable as the deleting service account will delete reference from job
+            // we cannot test for jobs which are running without service account as tests are running in parallel
+            $jobInfo = $job->reload();
+            if (array_key_exists('user_email', $jobInfo) && $jobInfo['user_email'] === $wsServiceAccEmail) {
+                $this->fail(sprintf(
+                    'Job "%s" for service account "%s" is still running, it should be cancelled.',
+                    $job->id(),
+                    $wsServiceAccEmail,
+                ));
+            }
+        }
     }
 
     public function testDropWorkspaceWhenDatasetIsDeleted(): void
@@ -372,7 +394,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $wsServiceAccEmail = $wsKeyData['client_email'];
 
         $datasets = $projectBqClient->runQuery($projectBqClient->query(sprintf(
-            /** @lang BigQuery */
+        /** @lang BigQuery */
             'SELECT `schema_name` FROM %s.INFORMATION_SCHEMA.SCHEMATA WHERE `schema_name` = %s ;',
             BigqueryQuote::quoteSingleIdentifier($projectId),
             BigqueryQuote::quote(strtoupper($response->getWorkspaceObjectName())),
