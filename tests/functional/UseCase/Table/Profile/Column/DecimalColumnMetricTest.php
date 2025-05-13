@@ -9,6 +9,7 @@ use Google\Cloud\BigQuery\Table;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 final class DecimalColumnMetricTest extends BaseCase
@@ -82,6 +83,26 @@ final class DecimalColumnMetricTest extends BaseCase
 
         $this->assertSame(1, $countDecimal);
         $this->assertSame(1, $countString);
+    }
+
+    public function testNullCountNotNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countDecimal = $metric->collect(self::COLUMN_DECIMAL_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(0, $countDecimal);
+        $this->assertSame(0, $countString);
+    }
+
+    public function testNullCountNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countDecimal = $metric->collect(self::COLUMN_DECIMAL_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(3, $countDecimal);
+        $this->assertSame(3, $countString);
     }
 
     protected function setUp(): void
