@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
@@ -83,6 +84,48 @@ final class DecimalColumnMetricTest extends BaseCase
             $this->context,
         );
         $this->assertSame(5, $countString);
+    }
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountColumnMetric();
+
+        $countDecimal = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_DECIMAL_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(2, $countDecimal);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(2, $countString);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountColumnMetric();
+
+        $countDecimal = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_DECIMAL_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(1, $countDecimal);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(1, $countString);
     }
 
     protected function setUp(): void
