@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
@@ -41,6 +42,48 @@ final class FloatColumnMetricTest extends BaseCase
     private string $dataset;
 
     private BigQueryContext $context;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countFloat = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_FLOAT_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countFloat);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countString);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countFloat = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_FLOAT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(5, $countFloat);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(5, $countString);
+    }
 
     protected function setUp(): void
     {

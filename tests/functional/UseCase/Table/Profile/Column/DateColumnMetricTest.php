@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
@@ -41,6 +42,48 @@ final class DateColumnMetricTest extends BaseCase
     private string $dataset;
 
     private BigQueryContext $context;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countDate = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_DATE_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countDate);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countString);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countDate = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_DATE_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(5, $countDate);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(5, $countString);
+    }
 
     protected function setUp(): void
     {

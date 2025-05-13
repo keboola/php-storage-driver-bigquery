@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
@@ -31,6 +32,22 @@ final class StringColumnMetricTest extends BaseCase
     private string $dataset;
 
     private BigQueryContext $context;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $count = $metric->collect($this->dataset, self::TABLE_NAME, self::COLUMN_NOT_NULLABLE, $this->context);
+        $this->assertSame(21, $count);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $count = $metric->collect($this->dataset, self::TABLE_NAME, self::COLUMN_NULLABLE, $this->context);
+        $this->assertSame(14, $count);
+    }
 
     protected function setUp(): void
     {
