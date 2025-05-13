@@ -8,6 +8,7 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Table;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 final class StringColumnMetricTest extends BaseCase
@@ -47,6 +48,22 @@ final class StringColumnMetricTest extends BaseCase
         $count = $metric->collect(self::COLUMN_NULLABLE, $this->table, $this->bigQuery);
 
         $this->assertSame(14, $count);
+    }
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $count = $metric->collect(self::COLUMN_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(5, $count);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $count = $metric->collect(self::COLUMN_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(4, $count);
     }
 
     protected function setUp(): void

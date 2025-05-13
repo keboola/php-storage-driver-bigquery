@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Table;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 final class BooleanColumnMetricTest extends BaseCase
@@ -33,6 +34,22 @@ final class BooleanColumnMetricTest extends BaseCase
     private BigQueryClient $bigQuery;
 
     private Table $table;
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countBool = $metric->collect(self::COLUMN_BOOL_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(4, $countBool);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countBool = $metric->collect(self::COLUMN_BOOL_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(2, $countBool);
+    }
 
     protected function setUp(): void
     {
