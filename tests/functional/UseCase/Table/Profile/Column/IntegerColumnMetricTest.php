@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 
+use Generator;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -43,6 +45,9 @@ final class IntegerColumnMetricTest extends BaseCase
 
     private BigQueryContext $context;
 
+    /**
+     * @dataProvider metricProvider
+     */
     public function testMetric(
         ColumnMetricInterface $metric,
         string $column,
@@ -50,6 +55,33 @@ final class IntegerColumnMetricTest extends BaseCase
     ): void {
         $actual = $metric->collect($this->dataset, self::TABLE_NAME, $column, $this->context);
         $this->assertSame($expected, $actual);
+    }
+
+    public function metricProvider(): Generator
+    {
+        yield 'distinctCount (int, not nullable)' => [
+            new DistinctCountColumnMetric(),
+            self::COLUMN_INT_NOT_NULLABLE,
+            9,
+        ];
+
+        yield 'distinctCount (string, not nullable)' => [
+            new DistinctCountColumnMetric(),
+            self::COLUMN_STRING_NOT_NULLABLE,
+            9,
+        ];
+
+        yield 'distinctCount (int, nullable)' => [
+            new DistinctCountColumnMetric(),
+            self::COLUMN_INT_NULLABLE,
+            7,
+        ];
+
+        yield 'distinctCount (string, nullable)' => [
+            new DistinctCountColumnMetric(),
+            self::COLUMN_STRING_NULLABLE,
+            7,
+        ];
     }
 
     protected function setUp(): void
