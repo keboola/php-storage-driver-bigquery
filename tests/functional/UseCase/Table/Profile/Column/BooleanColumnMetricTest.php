@@ -8,6 +8,7 @@ use Generator;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -59,6 +60,18 @@ final class BooleanColumnMetricTest extends BaseCase
 
         yield 'duplicateCount (bool, nullable)' => [
             'metric' => new DuplicateCountColumnMetric(),
+            'column' => self::COLUMN_BOOL_NULLABLE,
+            'expected' => 2,
+        ];
+
+        yield 'nullCountNot (bool, nullable)' => [
+            'metric' => new NullCountColumnMetric(),
+            'column' => self::COLUMN_BOOL_NOT_NULLABLE,
+            'expected' => 0,
+        ];
+
+        yield 'nullCount (bool, nullable)' => [
+            'metric' => new NullCountColumnMetric(),
             'column' => self::COLUMN_BOOL_NULLABLE,
             'expected' => 2,
         ];

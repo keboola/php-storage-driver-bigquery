@@ -9,6 +9,7 @@ use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -106,6 +107,30 @@ final class FloatColumnMetricTest extends BaseCase
             new DuplicateCountColumnMetric(),
             self::COLUMN_STRING_NULLABLE,
             1,
+        ];
+
+        yield 'nullCount (float, not nullable)' => [
+            new NullCountColumnMetric(),
+            self::COLUMN_FLOAT_NOT_NULLABLE,
+            0,
+        ];
+
+        yield 'nullCount (string, not nullable)' => [
+            new NullCountColumnMetric(),
+            self::COLUMN_STRING_NOT_NULLABLE,
+            0,
+        ];
+
+        yield 'nullCount (float, nullable)' => [
+            new NullCountColumnMetric(),
+            self::COLUMN_FLOAT_NULLABLE,
+            3,
+        ];
+
+        yield 'nullCount (string, nullable)' => [
+            new NullCountColumnMetric(),
+            self::COLUMN_STRING_NULLABLE,
+            3,
         ];
     }
 
