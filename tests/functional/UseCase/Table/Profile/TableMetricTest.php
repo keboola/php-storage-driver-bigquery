@@ -8,6 +8,7 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Table;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\DataSizeMetric;
 use Keboola\StorageDriver\BigQuery\Profile\RowCountMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
@@ -67,6 +68,14 @@ final class TableMetricTest extends BaseCase
         $count = $metric->collect($this->table, $this->bigQueryClient);
 
         $this->assertSame(8, $count);
+    }
+
+    public function testDataSize(): void
+    {
+        $metric = new DataSizeMetric();
+        $bytes = $metric->collect($this->table, $this->bigQueryClient);
+
+        $this->assertSame(369, $bytes);
     }
 
     protected function setUp(): void
