@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Table;
 use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Profile\ColumnCountMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 
 final class TableMetricTest extends BaseCase
@@ -50,6 +51,14 @@ final class TableMetricTest extends BaseCase
     private BigQueryClient $bigQueryClient;
 
     private Table $table;
+
+    public function testColumnCount(): void
+    {
+        $metric = new ColumnCountMetric();
+        $count = $metric->collect($this->table, $this->bigQueryClient);
+
+        $this->assertSame(7, $count);
+    }
 
     protected function setUp(): void
     {
