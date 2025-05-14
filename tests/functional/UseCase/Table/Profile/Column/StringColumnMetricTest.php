@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\AvgMinMaxLengthColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
@@ -81,6 +82,36 @@ final class StringColumnMetricTest extends BaseCase
 
         $count = $metric->collect($this->dataset, self::TABLE_NAME, self::COLUMN_NULLABLE, $this->context);
         $this->assertSame(8, $count);
+    }
+
+    public function testLengthNotNullable(): void
+    {
+        $metric = new AvgMinMaxLengthColumnMetric();
+
+        $stats = $metric->collect($this->dataset, self::TABLE_NAME, self::COLUMN_NOT_NULLABLE, $this->context);
+        $this->assertSame(
+            [
+                'avg' => 8.3077,
+                'min' => 0,
+                'max' => 29,
+            ],
+            $stats,
+        );
+    }
+
+    public function testLengthNullable(): void
+    {
+        $metric = new AvgMinMaxLengthColumnMetric();
+
+        $stats = $metric->collect($this->dataset, self::TABLE_NAME, self::COLUMN_NULLABLE, $this->context);
+        $this->assertSame(
+            [
+                'avg' => 8.2222,
+                'min' => 0,
+                'max' => 34,
+            ],
+            $stats,
+        );
     }
 
     protected function setUp(): void
