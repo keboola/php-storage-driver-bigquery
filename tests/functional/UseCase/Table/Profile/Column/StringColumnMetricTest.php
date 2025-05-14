@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
 use Generator;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\AvgMinMaxLengthColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
@@ -39,11 +40,12 @@ final class StringColumnMetricTest extends BaseCase
 
     /**
      * @dataProvider metricProvider
+     * @param array{avg: float, min: int, max: int}|int $expected
      */
     public function testMetric(
         ColumnMetricInterface $metric,
         string $column,
-        int $expected,
+        array|int $expected,
     ): void {
         $actual = $metric->collect($this->dataset, self::TABLE_NAME, $column, $this->context);
         $this->assertSame($expected, $actual);
@@ -85,6 +87,26 @@ final class StringColumnMetricTest extends BaseCase
             new NullCountColumnMetric(),
             self::COLUMN_NULLABLE,
             8,
+        ];
+
+        yield 'avgMinMaxLength (not nullable)' => [
+            new AvgMinMaxLengthColumnMetric(),
+            self::COLUMN_NOT_NULLABLE,
+            [
+                'avg' => 8.3077,
+                'min' => 0,
+                'max' => 29,
+            ],
+        ];
+
+        yield 'avgMinMaxLength (nullable)' => [
+            new AvgMinMaxLengthColumnMetric(),
+            self::COLUMN_NULLABLE,
+            [
+                'avg' => 8.2222,
+                'min' => 0,
+                'max' => 34,
+            ],
         ];
     }
 
