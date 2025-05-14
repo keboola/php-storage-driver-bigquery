@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnCountTableMetric;
+use Keboola\StorageDriver\BigQuery\Profile\DataSizeTableMetric;
 use Keboola\StorageDriver\BigQuery\Profile\RowCountTableMetric;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -67,6 +68,14 @@ final class TableMetricTest extends BaseCase
         $count = $metric->collect($this->dataset, self::TABLE_NAME, $this->context);
 
         $this->assertSame(8, $count);
+    }
+
+    public function testDataSize(): void
+    {
+        $metric = new DataSizeTableMetric();
+        $bytes = $metric->collect($this->dataset, self::TABLE_NAME, $this->context);
+
+        $this->assertSame(369, $bytes);
     }
 
     protected function setUp(): void
