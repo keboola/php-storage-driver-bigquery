@@ -1,0 +1,141 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
+
+use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Table;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountMetric;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
+
+final class FloatColumnMetricTest extends BaseCase
+{
+    private const TABLE_NAME = 'metric_column_float_test';
+    private const COLUMN_FLOAT_NOT_NULLABLE = 'float_not_nullable';
+    private const COLUMN_FLOAT_NULLABLE = 'float_nullable';
+    private const COLUMN_STRING_NOT_NULLABLE = 'string_not_nullable';
+    private const COLUMN_STRING_NULLABLE = 'string_nullable';
+
+    private const TABLE_STRUCTURE = [
+        'columns' => [
+            self::COLUMN_FLOAT_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_FLOAT64,
+                'nullable' => false,
+            ],
+            self::COLUMN_FLOAT_NULLABLE => [
+                'type' => Bigquery::TYPE_FLOAT64,
+                'nullable' => true,
+            ],
+            self::COLUMN_STRING_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => false,
+            ],
+            self::COLUMN_STRING_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => true,
+            ],
+        ],
+    ];
+
+    private BigQueryClient $bigQuery;
+
+    private Table $table;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(7, $countFloat);
+        $this->assertSame(7, $countString);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(5, $countFloat);
+        $this->assertSame(5, $countString);
+    }
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(2, $countFloat);
+        $this->assertSame(2, $countString);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(1, $countFloat);
+        $this->assertSame(1, $countString);
+    }
+
+    public function testNullCountNotNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(0, $countFloat);
+        $this->assertSame(0, $countString);
+    }
+
+    public function testNullCountNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countFloat = $metric->collect(self::COLUMN_FLOAT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(3, $countFloat);
+        $this->assertSame(3, $countString);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $projectCredentials = $this->projects[0][0];
+
+        $bucketName = $this->createTestBucket($projectCredentials)->getCreateBucketObjectName();
+        $this->createTable($projectCredentials, $bucketName, self::TABLE_NAME, self::TABLE_STRUCTURE);
+
+        $this->bigQuery = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $this->table = $this->bigQuery->dataset($bucketName)->table(self::TABLE_NAME);
+
+        // @todo Missing test data for -inf, +inf and NaN values.
+        $this->bigQuery->runQuery($this->bigQuery->query(sprintf(
+            <<<'SQL'
+                INSERT INTO `%s.%s` (%s, %s, %s, %s) VALUES
+                (1.23, 1.23, '1.23', '1.23'),
+                (1.23, 1.23, '1.23', '1.23'),
+                (4.56, NULL, '4.56', NULL),
+                (4.56, NULL, '4.56', NULL),
+                (7.89, 7.89, '7.89', '7.89'),
+                (0.0, 0.0, '0.0', '0.0'),
+                (-3.21, -3.21, '-3.21', '-3.21'),
+                (123456.789, 123456.789, '123456.789', '123456.789'),
+                (999.99, NULL, '999.99', NULL);
+                SQL,
+            $bucketName,
+            self::TABLE_NAME,
+            self::COLUMN_FLOAT_NOT_NULLABLE,
+            self::COLUMN_FLOAT_NULLABLE,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            self::COLUMN_STRING_NULLABLE,
+        )));
+    }
+}
