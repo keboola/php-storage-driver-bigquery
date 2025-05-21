@@ -1,0 +1,140 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
+
+use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Table;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountMetric;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
+
+final class DateColumnMetricTest extends BaseCase
+{
+    private const TABLE_NAME = 'metric_column_date_test';
+    private const COLUMN_DATE_NOT_NULLABLE = 'date_not_nullable';
+    private const COLUMN_DATE_NULLABLE = 'date_nullable';
+    private const COLUMN_STRING_NOT_NULLABLE = 'string_not_nullable';
+    private const COLUMN_STRING_NULLABLE = 'string_nullable';
+
+    private const TABLE_STRUCTURE = [
+        'columns' => [
+            self::COLUMN_DATE_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_DATE,
+                'nullable' => false,
+            ],
+            self::COLUMN_DATE_NULLABLE => [
+                'type' => Bigquery::TYPE_DATE,
+                'nullable' => true,
+            ],
+            self::COLUMN_STRING_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => false,
+            ],
+            self::COLUMN_STRING_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => true,
+            ],
+        ],
+    ];
+
+    private BigQueryClient $bigQuery;
+
+    private Table $table;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(7, $countDate);
+        $this->assertSame(7, $countString);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(5, $countDate);
+        $this->assertSame(5, $countString);
+    }
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(2, $countDate);
+        $this->assertSame(2, $countString);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(1, $countDate);
+        $this->assertSame(1, $countString);
+    }
+
+    public function testNullCountNotNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NOT_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NOT_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(0, $countDate);
+        $this->assertSame(0, $countString);
+    }
+
+    public function testNullCountNullable(): void
+    {
+        $metric = new NullCountMetric();
+        $countDate = $metric->collect(self::COLUMN_DATE_NULLABLE, $this->table, $this->bigQuery);
+        $countString = $metric->collect(self::COLUMN_STRING_NULLABLE, $this->table, $this->bigQuery);
+
+        $this->assertSame(3, $countDate);
+        $this->assertSame(3, $countString);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $projectCredentials = $this->projects[0][0];
+
+        $bucketName = $this->createTestBucket($projectCredentials)->getCreateBucketObjectName();
+        $this->createTable($projectCredentials, $bucketName, self::TABLE_NAME, self::TABLE_STRUCTURE);
+
+        $this->bigQuery = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $this->table = $this->bigQuery->dataset($bucketName)->table(self::TABLE_NAME);
+
+        $this->bigQuery->runQuery($this->bigQuery->query(sprintf(
+            <<<'SQL'
+                INSERT INTO `%s.%s` (%s, %s, %s, %s) VALUES
+                (DATE '2023-01-01', DATE '2023-01-01', '2023-01-01', '2023-01-01'),
+                (DATE '2023-01-02', NULL, '2023-01-02', NULL),
+                (DATE '2023-01-02', NULL, '2023-01-02', NULL),
+                (DATE '2023-01-03', DATE '2023-01-03', '2023-01-03', '2023-01-03'),
+                (DATE '2023-01-03', DATE '2023-01-03', '2023-01-03', '2023-01-03'),
+                (DATE '2022-12-31', DATE '2022-12-31', '2022-12-31', '2022-12-31'),
+                (DATE '2024-02-29', DATE '2024-02-29', '2024-02-29', '2024-02-29'),
+                (DATE '2023-12-25', NULL, '2023-12-25', NULL),
+                (DATE '1991-12-02', DATE '1991-12-02', '1991-12-02', '1991-12-02');
+                SQL,
+            $bucketName,
+            self::TABLE_NAME,
+            self::COLUMN_DATE_NOT_NULLABLE,
+            self::COLUMN_DATE_NULLABLE,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            self::COLUMN_STRING_NULLABLE,
+        )));
+    }
+}
