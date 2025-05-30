@@ -1,0 +1,211 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Profile\Column;
+
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
+use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+
+final class IntegerColumnMetricTest extends BaseCase
+{
+    private const TABLE_NAME = 'metric_column_integer_test';
+    private const COLUMN_INT_NOT_NULLABLE = 'int_not_nullable';
+    private const COLUMN_INT_NULLABLE = 'int_nullable';
+    private const COLUMN_STRING_NOT_NULLABLE = 'string_not_nullable';
+    private const COLUMN_STRING_NULLABLE = 'string_nullable';
+
+    private const TABLE_STRUCTURE = [
+        'columns' => [
+            self::COLUMN_INT_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_INT64,
+                'nullable' => false,
+            ],
+            self::COLUMN_INT_NULLABLE => [
+                'type' => Bigquery::TYPE_INT64,
+                'nullable' => true,
+            ],
+            self::COLUMN_STRING_NOT_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => false,
+            ],
+            self::COLUMN_STRING_NULLABLE => [
+                'type' => Bigquery::TYPE_STRING,
+                'nullable' => true,
+            ],
+        ],
+    ];
+
+    private string $dataset;
+
+    private BigQueryContext $context;
+
+    public function testDistinctCountNotNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(9, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(9, $countString);
+    }
+
+    public function testDistinctCountNullable(): void
+    {
+        $metric = new DistinctCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(7, $countString);
+    }
+
+    public function testDuplicateCountNotNullable(): void
+    {
+        $metric = new DuplicateCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(2, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(2, $countString);
+    }
+
+    public function testDuplicateCountNullable(): void
+    {
+        $metric = new DuplicateCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(1, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(1, $countString);
+    }
+
+    public function testNullCountNotNullable(): void
+    {
+        $metric = new NullCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(0, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NOT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(0, $countString);
+    }
+
+    public function testNullCountNullable(): void
+    {
+        $metric = new NullCountColumnMetric();
+
+        $countInt = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_INT_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(3, $countInt);
+
+        $countString = $metric->collect(
+            $this->dataset,
+            self::TABLE_NAME,
+            self::COLUMN_STRING_NULLABLE,
+            $this->context,
+        );
+        $this->assertSame(3, $countString);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $projectCredentials = $this->projects[0][0];
+
+        $this->dataset = $this->createTestBucket($projectCredentials)->getCreateBucketObjectName();
+        $this->createTable($projectCredentials, $this->dataset, self::TABLE_NAME, self::TABLE_STRUCTURE);
+
+        $bigQuery = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
+        $this->context = new BigQueryContext(
+            $bigQuery,
+            $bigQuery->dataset($this->dataset)->table(self::TABLE_NAME),
+        );
+
+        $bigQuery->runQuery($bigQuery->query(sprintf(
+            <<<'SQL'
+                INSERT INTO %s.%s (%s, %s, %s, %s) VALUES
+                (1, 1, '1', '1'),
+                (2, 2, '2', '2'),
+                (3, NULL, '3', NULL),
+                (3, NULL, '3', NULL),
+                (4, 4, '4', '4'),
+                (5, 5, '5', '5'),
+                (5, 5, '5', '5'),
+                (100, 100, '100', '100'),
+                (0, 0, '0', '0'),
+                (-10, -10, '-10', '-10'),
+                (999999, NULL, '999999', NULL);
+                SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->dataset),
+            BigqueryQuote::quoteSingleIdentifier(self::TABLE_NAME),
+            BigqueryQuote::quoteSingleIdentifier(self::COLUMN_INT_NOT_NULLABLE),
+            BigqueryQuote::quoteSingleIdentifier(self::COLUMN_INT_NULLABLE),
+            BigqueryQuote::quoteSingleIdentifier(self::COLUMN_STRING_NOT_NULLABLE),
+            BigqueryQuote::quoteSingleIdentifier(self::COLUMN_STRING_NULLABLE),
+        )));
+    }
+}
