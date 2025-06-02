@@ -71,6 +71,7 @@ final class ProfileTableTest extends BaseCase
 
         $this->assertSame('profile_table_test', $response->getTableName());
         $this->assertSame([$this->bucketName], iterator_to_array($response->getPath()));
+        $this->assertSame('{"rowCount":8,"columnCount":7,"dataSize":483}', $response->getProfile());
 
         /** @var array<string, string> $expectedColumnProfiles */
         $expectedColumnProfiles = [
