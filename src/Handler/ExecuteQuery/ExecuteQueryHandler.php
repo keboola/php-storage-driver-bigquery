@@ -19,6 +19,8 @@ use Throwable;
 
 final class ExecuteQueryHandler extends BaseHandler
 {
+    private const DEFAULT_QUERY_TIMEOUT_SECONDS = 60 * 60; // 1 hour in seconds
+
     public GCPClientManager $clientManager;
 
     public function __construct(GCPClientManager $clientManager)
@@ -49,7 +51,7 @@ final class ExecuteQueryHandler extends BaseHandler
             'bigQueryServiceAccount' => $command->getBigQueryServiceAccount(),
             default => throw new InvalidArgumentException(
                 sprintf(
-                    // @phpcs:ignore Generic.Files.LineLength.MaxExceeded
+                // @phpcs:ignore Generic.Files.LineLength.MaxExceeded
                     'Unsupported restriction type: "%s". Currently supported is only "bigQueryServiceAccount" for workspace query execution.',
                     $restriction,
                 ),
@@ -62,6 +64,11 @@ final class ExecuteQueryHandler extends BaseHandler
 
         if ($datasetName === null) {
             throw new InvalidArgumentException('Dataset name is required for query execution.');
+        }
+        // resolve query timeout
+        $queryTimeout = self::DEFAULT_QUERY_TIMEOUT_SECONDS;
+        if (is_int($command->getTimeout()) && $command->getTimeout() > 0) {
+            $queryTimeout = $command->getTimeout();
         }
 
         // crate service account key
@@ -96,6 +103,11 @@ final class ExecuteQueryHandler extends BaseHandler
             $dataset = $bqClient->dataset($datasetName);
             $queryJobConfiguration = $bqClient->query(
                 $command->getQuery(),
+                [
+                    'configuration' => [
+                        'jobTimeoutMs' => $queryTimeout * 1000,
+                    ],
+                ]
             )->defaultDataset($dataset);
 
             // execute the query
@@ -111,7 +123,7 @@ final class ExecuteQueryHandler extends BaseHandler
             $serviceAccKeysService->delete($keyName);
         }
 
-        $rows = array_map(fn($r)=> new ExecuteQueryResponse\Data\Row([
+        $rows = array_map(fn($r) => new ExecuteQueryResponse\Data\Row([
             'fields' => $r,
         ]), iterator_to_array($result));
 
