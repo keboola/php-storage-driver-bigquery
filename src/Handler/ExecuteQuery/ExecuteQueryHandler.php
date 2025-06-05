@@ -129,7 +129,6 @@ final class ExecuteQueryHandler extends BaseHandler
 
         return new ExecuteQueryResponse([
             'status' => ExecuteQueryResponse\Status::Success,
-            'message' => json_encode(iterator_to_array($result)),
             'data' => new ExecuteQueryResponse\Data([
                 'rows' => $rows,
                 'columns' => array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']),
