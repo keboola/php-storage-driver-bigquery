@@ -107,7 +107,7 @@ final class ExecuteQueryHandler extends BaseHandler
                     'configuration' => [
                         'jobTimeoutMs' => $queryTimeout * 1000,
                     ],
-                ]
+                ],
             )->defaultDataset($dataset);
 
             // execute the query
