@@ -76,6 +76,7 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
         $this->assertCount(1, $response->getData()->getRows());
         $this->assertEquals('{}', json_encode($response->getData()->getRows()));
+        $this->assertStringContainsString('successfully', $response->getMessage());
     }
 
     public function testExecuteCTAS(): void
@@ -138,7 +139,7 @@ class ExecuteQueryTest extends BaseCase
         $this->assertNotNull($response->getData());
         $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
         $this->assertCount(0, $response->getData()->getRows());
-        $this->assertSame('', $response->getMessage());
+        $this->assertStringContainsString('successfully', $response->getMessage());
         $this->assertSame('{}', json_encode($response->getData()->getRows()));
     }
 
@@ -172,5 +173,64 @@ class ExecuteQueryTest extends BaseCase
             '/^Not found: Table [^:]+:[^\.]+\.iDoNotExists was not found in location US/',
             $response->getMessage(),
         );
+    }
+
+
+    public function testExecuteInsert(): void
+    {
+        $this->createTable(
+            $this->projectCredentials,
+            $this->workspaceName,
+            'test_table',
+            [
+                'columns' => [
+                    'col1' => [
+                        'type' => Bigquery::TYPE_INTEGER,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'col2' => [
+                        'type' => Bigquery::TYPE_STRING,
+                        'length' => '10',
+                        'nullable' => true,
+                    ],
+                ],
+            ],
+        );
+        $query = sprintf(
+            <<<SQL
+                INSERT INTO %s.%s (`col1`, `col2`) VALUES
+                (1, "Alice"),
+                (2, "Bob"),
+                (3, NULL)
+            SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
+            BigqueryQuote::quoteSingleIdentifier('test_table'),
+        );
+        $command = new ExecuteQueryCommand([
+            'query' => $query,
+            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
+            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
+                'serviceAccountEmail' => $this->workspaceUserName,
+                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
+            ]),
+        ]);
+
+        $handler = (new ExecuteQueryHandler($this->clientManager));
+        $handler->setInternalLogger($this->log);
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertInstanceOf(ExecuteQueryResponse::class, $response);
+        $this->assertEquals(Status::Success, $response->getStatus());
+        $this->assertNotNull($response->getData());
+        $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
+        $this->assertCount(0, $response->getData()->getRows());
+        $this->assertStringContainsString('successfully', $response->getMessage());
+        $this->assertSame('{}', json_encode($response->getData()->getRows()));
     }
 }

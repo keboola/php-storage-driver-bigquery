@@ -82,6 +82,9 @@ final class ExecuteQueryHandler extends BaseHandler
         );
 
         // create new service account key
+        // This is needed as query must be restricted under workspace user, but we do not have credentials for it.
+        // Impersonation would require high organization role in GCP which would be not granted in customers accounts.
+        // as a workaround we create a new service account key for the workspace user and use it to execute the query
         $createServiceAccountKeyRequest = new CreateServiceAccountKeyRequest();
         $createServiceAccountKeyRequest->setPrivateKeyType(CreateWorkspaceHandler::PRIVATE_KEY_TYPE);
         $serviceAccount = $iamService->projects_serviceAccounts->get($serviceAccResourceName);
@@ -127,8 +130,25 @@ final class ExecuteQueryHandler extends BaseHandler
             'fields' => $r,
         ]), iterator_to_array($result));
 
+        // compose the response message
+        $message = 'Query executed successfully.';
+        if (isset($result->identity()['jobId'])) {
+            $message = sprintf(
+                'Query "%s" executed successfully.',
+                $result->identity()['jobId'],
+            );
+            if (isset($result->identity()['projectId']) && isset($result->identity()['location'])) {
+                $message .= sprintf(
+                    ' Project: %s, Location: %s',
+                    $result->identity()['projectId'],
+                    $result->identity()['location'],
+                );
+            }
+        }
+
         return new ExecuteQueryResponse([
             'status' => ExecuteQueryResponse\Status::Success,
+            'message' => $message,
             'data' => new ExecuteQueryResponse\Data([
                 'rows' => $rows,
                 'columns' => array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']),
