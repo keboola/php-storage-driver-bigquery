@@ -176,7 +176,7 @@ final class CreateProjectHandler extends BaseHandler
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         $this->setPermissionsToServiceAccount($cloudResourceManager, $projectName, $projectServiceAccount->getEmail());
 
-        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($projectServiceAccount);
+        [$privateKey, $publicPart, ] = $iamService->createKeyFileCredentials($projectServiceAccount);
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $formattedParent = $analyticHubClient::locationName($projectCreateResult->getProjectId(), $region);

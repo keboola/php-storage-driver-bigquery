@@ -83,6 +83,28 @@ To disable retry copy `phpunit-retry.xml.dist`
 cp phpunit-retry.xml.dist phpunit-retry.xml
 ```
 
+## Local development with libraries changes
+
+When doing local development and you want to use local changes in `php-storage-driver-common` or `php-table-backend-utils` packages, you can symlink them into the container.
+
+```bash
+# remove vendor folder
+rm -r ./vendor/keboola/storage-driver-common
+rm -r ./vendor/keboola/table-backend-utils 
+# symlink local proto folder
+ln -s /home/<project_path>/keboola/storage-backend/packages/php-storage-driver-common ./vendor/keboola/storage-driver-common
+ln -s /home/<project_path>/keboola/storage-backend/packages/php-table-backend-utils ./vendor/keboola/table-backend-utils
+# create docker-compose.override.yml file with following content
+# it is needed to mount local packages into the container
+cat > docker-compose.override.yml <<EOF
+services:
+  dev:
+    volumes:
+      - /home/<project_path>/keboola/storage-backend/packages/php-storage-driver-common:/home/<project_path>/keboola/storage-backend/packages/php-storage-driver-common
+      - /home/<project_path>/keboola/storage-backend/packages/php-table-backend-utils:/home/<project_path>/keboola/storage-backend/packages/php-table-backend-utils
+EOF
+````
+
 ## Code quality check
 
 ```bash

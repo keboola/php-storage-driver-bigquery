@@ -226,6 +226,20 @@ class BaseCase extends TestCase
         ];
     }
 
+    public function getProjectIdFromCredentials(GenericBackendCredentials $credentials): string
+    {
+        $principal = (array) json_decode(
+            $credentials->getPrincipal(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        if (!isset($principal['project_id']) || !is_string($principal['project_id'])) {
+            throw new LogicException('Project ID is not set in credentials.');
+        }
+        return $principal['project_id'];
+    }
+
     public function dropProjects(string $startingWith): void
     {
         $mainClient = $this->clientManager->getProjectClient($this->getCredentials());
