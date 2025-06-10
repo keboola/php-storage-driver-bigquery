@@ -37,7 +37,7 @@ class ExecuteQueryTest extends BaseCase
 
         $this->workspaceName = $workspaceResponse->getWorkspaceObjectName();
         $this->workspaceUserName = $workspaceResponse->getWorkspaceUserName();
-        $credentialsArr = (array)json_decode(
+        $credentialsArr = (array) json_decode(
             $workspaceResponse->getWorkspaceUserName(),
             true,
             512,
@@ -147,7 +147,7 @@ class ExecuteQueryTest extends BaseCase
     public function testExecuteError(): void
     {
         $query = sprintf(
-        /** @lang BigQuery */ 'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`iDoNotExists`',
+        /** @lang BigQuery */            'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`iDoNotExists`',
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
         );
         $command = new ExecuteQueryCommand([
@@ -235,11 +235,22 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame('[]', json_encode($this->getRows($response)));
     }
 
+    /**
+     * @return array<mixed>
+     */
     private function getRows(ExecuteQueryResponse $response): array
     {
+        if ($response->getData() === null) {
+            return [];
+        }
+        /** @var ExecuteQueryResponse\Data\Row[] $rows */
+        $rows = iterator_to_array($response->getData()->getRows());
+        if (count($rows) === 0) {
+            return [];
+        }
         return array_map(
-            fn(ExecuteQueryResponse\Data\Row $r) => iterator_to_array($r->getFields()),
-            iterator_to_array($response->getData()->getRows())
+            fn(ExecuteQueryResponse\Data\Row $r): array => iterator_to_array($r->getFields()),
+            $rows,
         );
     }
 }
