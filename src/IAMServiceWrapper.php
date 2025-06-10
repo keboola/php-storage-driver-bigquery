@@ -35,7 +35,7 @@ class IAMServiceWrapper extends Iam
     }
 
     /**
-     * @return array{0:string, 1:string}
+     * @return array{0:string, 1:string, 2:string}
      */
     public function createKeyFileCredentials(
         ServiceAccount $serviceAccount,
@@ -72,6 +72,6 @@ class IAMServiceWrapper extends Iam
         $publicPart = json_encode($keyData);
         assert($publicPart !== false);
 
-        return [$privateKey, $publicPart];
+        return [$privateKey, $publicPart, $key->name];
     }
 }

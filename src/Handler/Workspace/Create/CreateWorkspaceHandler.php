@@ -182,7 +182,7 @@ final class CreateWorkspaceHandler extends BaseHandler
         });
 
         // generate credentials
-        [$privateKey, $publicPart] = $iamService->createKeyFileCredentials($wsServiceAcc);
+        [$privateKey, $publicPart,] = $iamService->createKeyFileCredentials($wsServiceAcc);
 
         return (new CreateWorkspaceResponse())
             ->setWorkspaceUserName($publicPart)
