@@ -126,10 +126,6 @@ final class ExecuteQueryHandler extends BaseHandler
             $serviceAccKeysService->delete($keyName);
         }
 
-        $rows = array_map(fn($r) => new ExecuteQueryResponse\Data\Row([
-            'fields' => $r,
-        ]), iterator_to_array($result->rows()));
-
         // compose the response message
         $message = 'Query executed successfully.';
         if (isset($result->identity()['jobId'])) {
@@ -146,13 +142,21 @@ final class ExecuteQueryHandler extends BaseHandler
             }
         }
 
-        return new ExecuteQueryResponse([
+        $response = new ExecuteQueryResponse([
             'status' => ExecuteQueryResponse\Status::Success,
             'message' => $message,
-            'data' => new ExecuteQueryResponse\Data([
-                'rows' => $rows,
-                'columns' => array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']),
-            ]),
         ]);
+        if (isset($result->info()['schema'])) {
+            $columns = array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']);
+            $rows = array_map(fn($r) => new ExecuteQueryResponse\Data\Row([
+                'fields' => $r,
+            ]), iterator_to_array($result->rows()));
+            $response->setData(new ExecuteQueryResponse\Data([
+                'rows' => $rows,
+                'columns' => $columns,
+            ]));
+        }
+
+        return $response;
     }
 }
