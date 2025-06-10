@@ -128,7 +128,7 @@ final class ExecuteQueryHandler extends BaseHandler
 
         $rows = array_map(fn($r) => new ExecuteQueryResponse\Data\Row([
             'fields' => $r,
-        ]), iterator_to_array($result));
+        ]), iterator_to_array($result->rows()));
 
         // compose the response message
         $message = 'Query executed successfully.';

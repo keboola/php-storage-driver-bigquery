@@ -37,7 +37,7 @@ class ExecuteQueryTest extends BaseCase
 
         $this->workspaceName = $workspaceResponse->getWorkspaceObjectName();
         $this->workspaceUserName = $workspaceResponse->getWorkspaceUserName();
-        $credentialsArr = (array) json_decode(
+        $credentialsArr = (array)json_decode(
             $workspaceResponse->getWorkspaceUserName(),
             true,
             512,
@@ -75,7 +75,8 @@ class ExecuteQueryTest extends BaseCase
         $this->assertNotNull($response->getData());
         $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
         $this->assertCount(1, $response->getData()->getRows());
-        $this->assertEquals('{}', json_encode($response->getData()->getRows()));
+        $rows = $this->getRows($response);
+        $this->assertEquals('[{"col1":"1","col2":"test"}]', json_encode($rows));
         $this->assertStringContainsString('successfully', $response->getMessage());
     }
 
@@ -140,13 +141,13 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
         $this->assertCount(0, $response->getData()->getRows());
         $this->assertStringContainsString('successfully', $response->getMessage());
-        $this->assertSame('{}', json_encode($response->getData()->getRows()));
+        $this->assertSame('[]', json_encode($this->getRows($response)));
     }
 
     public function testExecuteError(): void
     {
         $query = sprintf(
-        /** @lang BigQuery */            'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`iDoNotExists`',
+        /** @lang BigQuery */ 'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`iDoNotExists`',
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
         );
         $command = new ExecuteQueryCommand([
@@ -231,6 +232,14 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame(['col1', 'col2'], ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()));
         $this->assertCount(0, $response->getData()->getRows());
         $this->assertStringContainsString('successfully', $response->getMessage());
-        $this->assertSame('{}', json_encode($response->getData()->getRows()));
+        $this->assertSame('[]', json_encode($this->getRows($response)));
+    }
+
+    private function getRows(ExecuteQueryResponse $response): array
+    {
+        return array_map(
+            fn(ExecuteQueryResponse\Data\Row $r) => iterator_to_array($r->getFields()),
+            iterator_to_array($response->getData()->getRows())
+        );
     }
 }
