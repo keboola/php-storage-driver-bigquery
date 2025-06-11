@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\ExecuteQuery;
 
+use Generator;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery\ExecuteQueryHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -49,17 +50,37 @@ class ExecuteQueryTest extends BaseCase
         $this->workspaceUserName = $credentialsArr['client_email'];
     }
 
-    public function testExecuteQuerySimpleSelect(): void
+    public function commandProvider(): Generator
+    {
+        yield 'restricted' => [
+            function (self $that): ExecuteQueryCommand {
+                return new ExecuteQueryCommand([
+                    'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$that->workspaceName]),
+                    'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
+                        'serviceAccountEmail' => $that->workspaceUserName,
+                        'projectId' => $that->getProjectIdFromCredentials($that->projectCredentials),
+                    ]),
+                ]);
+            },
+        ];
+
+        yield 'unrestricted' => [
+            function (self $that): ExecuteQueryCommand {
+                return new ExecuteQueryCommand([
+                    'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$that->workspaceName]),
+                ]);
+            },
+        ];
+    }
+
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
+    public function testExecuteQuerySimpleSelect(callable $command): void
     {
         $query = 'SELECT 1 AS col1, "test" AS col2';
-        $command = new ExecuteQueryCommand([
-            'query' => $query,
-            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
-            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
-                'serviceAccountEmail' => $this->workspaceUserName,
-                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
-            ]),
-        ]);
+        $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
         $handler->setInternalLogger($this->log);
@@ -80,7 +101,11 @@ class ExecuteQueryTest extends BaseCase
         $this->assertStringContainsString('successfully', $response->getMessage());
     }
 
-    public function testExecuteCTAS(): void
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
+    public function testExecuteCTAS(callable $command): void
     {
         $this->createTable(
             $this->projectCredentials,
@@ -117,14 +142,7 @@ class ExecuteQueryTest extends BaseCase
             'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`test_table`',
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
         );
-        $command = new ExecuteQueryCommand([
-            'query' => $query,
-            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
-            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
-                'serviceAccountEmail' => $this->workspaceUserName,
-                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
-            ]),
-        ]);
+        $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
         $handler->setInternalLogger($this->log);
@@ -144,20 +162,17 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame('[]', json_encode($this->getRows($response)));
     }
 
-    public function testExecuteError(): void
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
+    public function testExecuteError(callable $command): void
     {
         $query = sprintf(
         /** @lang BigQuery */            'CREATE TABLE `test_table_2` AS SELECT * FROM %s.`iDoNotExists`',
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
         );
-        $command = new ExecuteQueryCommand([
-            'query' => $query,
-            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
-            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
-                'serviceAccountEmail' => $this->workspaceUserName,
-                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
-            ]),
-        ]);
+        $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
         $handler->setInternalLogger($this->log);
@@ -176,7 +191,11 @@ class ExecuteQueryTest extends BaseCase
         );
     }
 
-    public function testExecuteInsert(): void
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
+    public function testExecuteInsert(callable $command): void
     {
         $this->createTable(
             $this->projectCredentials,
@@ -207,14 +226,7 @@ class ExecuteQueryTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
             BigqueryQuote::quoteSingleIdentifier('test_table'),
         );
-        $command = new ExecuteQueryCommand([
-            'query' => $query,
-            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
-            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
-                'serviceAccountEmail' => $this->workspaceUserName,
-                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
-            ]),
-        ]);
+        $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
         $handler->setInternalLogger($this->log);
@@ -234,7 +246,11 @@ class ExecuteQueryTest extends BaseCase
         $this->assertSame('[]', json_encode($this->getRows($response)));
     }
 
-    public function testExecuteAlterTable(): void
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
+    public function testExecuteAlterTable(callable $command): void
     {
         $this->createTable(
             $this->projectCredentials,
@@ -261,14 +277,7 @@ class ExecuteQueryTest extends BaseCase
             SQL,
             BigqueryQuote::quoteSingleIdentifier('test_table'),
         );
-        $command = new ExecuteQueryCommand([
-            'query' => $query,
-            'pathRestriction' => ProtobufHelper::arrayToRepeatedString([$this->workspaceName]),
-            'bigQueryServiceAccount' => new ExecuteQueryCommand\BigQueryServiceAccount([
-                'serviceAccountEmail' => $this->workspaceUserName,
-                'projectId' => $this->getProjectIdFromCredentials($this->projectCredentials),
-            ]),
-        ]);
+        $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
         $handler->setInternalLogger($this->log);
