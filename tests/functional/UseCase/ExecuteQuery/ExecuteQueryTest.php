@@ -105,6 +105,77 @@ class ExecuteQueryTest extends BaseCase
      * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    public function testSelectAsterisk(callable $command): void
+    {
+        $this->createTable(
+            $this->projectCredentials,
+            $this->workspaceName,
+            'test_table',
+            [
+                'columns' => [
+                    'valid_from' => [
+                        'type' => Bigquery::TYPE_STRING,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'int_col' => [
+                        'type' => Bigquery::TYPE_INTEGER,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    '_timestamp' => [
+                        'type' => Bigquery::TYPE_TIMESTAMP,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                ],
+            ],
+        );
+        $bigQuery = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bigQuery->runQuery($bigQuery->query(sprintf(
+            /** @lang BigQuery */<<<SQL
+                INSERT INTO %s.%s (`valid_from`, `int_col`, `_timestamp`) VALUES
+                ("infinity",10, CURRENT_TIMESTAMP),
+                ("2014-04-08",10, CURRENT_TIMESTAMP),
+                ("2014-04-09 12:34:56.789999",10, CURRENT_TIMESTAMP)
+            SQL,
+            BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
+            BigqueryQuote::quoteSingleIdentifier('test_table'),
+        )));
+
+        $query = 'SELECT * FROM test_table';
+        $command = $command($this)->setQuery($query);
+
+        $handler = (new ExecuteQueryHandler($this->clientManager));
+        $handler->setInternalLogger($this->log);
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertInstanceOf(ExecuteQueryResponse::class, $response);
+        $this->assertEquals(Status::Success, $response->getStatus());
+        $this->assertNotNull($response->getData());
+        $this->assertSame(
+            ['valid_from', 'int_col', '_timestamp'],
+            ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()),
+        );
+        $this->assertCount(3, $response->getData()->getRows());
+        $rows = $this->getRows($response);
+        $this->assertArrayHasKey(0, $rows);
+        $this->assertArrayHasKey('valid_from', $rows[0]);
+        $this->assertEquals('2014-04-08', $rows[0]['valid_from']);
+        $this->assertEquals('10', $rows[0]['int_col']);
+        $this->assertArrayHasKey('_timestamp', $rows[0]);
+        $this->assertStringContainsString('successfully', $response->getMessage());
+    }
+
+    /**
+     * @dataProvider commandProvider
+     * @param callable(self):ExecuteQueryCommand $command
+     */
     public function testExecuteCTAS(callable $command): void
     {
         $this->createTable(
