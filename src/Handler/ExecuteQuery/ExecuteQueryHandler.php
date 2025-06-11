@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery;
 
+use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\Message;
 use Google\Service\Iam\CreateServiceAccountKeyRequest;
+use Google\Service\Iam\Resource\ProjectsServiceAccountsKeys;
 use InvalidArgumentException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
@@ -15,6 +17,7 @@ use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryCommand;
 use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use LogicException;
 use Throwable;
 
 final class ExecuteQueryHandler extends BaseHandler
@@ -46,52 +49,26 @@ final class ExecuteQueryHandler extends BaseHandler
 
         $datasetName = ProtobufHelper::repeatedStringToArray($command->getPathRestriction())[0] ?? null;
 
-        $restriction = $command->getRestriction();
-        $restriction = match ($command->getRestriction()) {
-            'bigQueryServiceAccount' => $command->getBigQueryServiceAccount(),
-            default => throw new InvalidArgumentException(
-                sprintf(
-                // @phpcs:ignore Generic.Files.LineLength.MaxExceeded
-                    'Unsupported restriction type: "%s". Currently supported is only "bigQueryServiceAccount" for workspace query execution.',
-                    $restriction,
-                ),
-            ),
-        };
-
-        if ($restriction === null) {
-            throw new InvalidArgumentException('Restriction is required for query execution.');
-        }
-
-        if ($datasetName === null) {
-            throw new InvalidArgumentException('Dataset name is required for query execution.');
-        }
         // resolve query timeout
         $queryTimeout = self::DEFAULT_QUERY_TIMEOUT_SECONDS;
         if (is_int($command->getTimeout()) && $command->getTimeout() > 0) {
             $queryTimeout = $command->getTimeout();
         }
 
-        // crate service account key
-        $iamService = $this->clientManager->getIamClient($credentials);
-        $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
+        if ($datasetName === null) {
+            throw new InvalidArgumentException('Dataset name is required for query execution.');
+        }
 
-        $serviceAccResourceName = sprintf(
-            'projects/%s/serviceAccounts/%s',
-            $restriction->getProjectId(),
-            $restriction->getServiceAccountEmail(),
-        );
-
-        // create new service account key
-        // This is needed as query must be restricted under workspace user, but we do not have credentials for it.
-        // Impersonation would require high organization role in GCP which would be not granted in customers accounts.
-        // as a workaround we create a new service account key for the workspace user and use it to execute the query
-        $createServiceAccountKeyRequest = new CreateServiceAccountKeyRequest();
-        $createServiceAccountKeyRequest->setPrivateKeyType(CreateWorkspaceHandler::PRIVATE_KEY_TYPE);
-        $serviceAccount = $iamService->projects_serviceAccounts->get($serviceAccResourceName);
-        [$privateKey, $publicPart, $keyName] = $iamService->createKeyFileCredentials($serviceAccount);
-
-        try {
-            // initialize BigQuery client with the service account key
+        if ($command->getRestriction() === 'bigQueryServiceAccount') {
+            // Use service account by creating new private key for one run
+            $restriction = $command->getBigQueryServiceAccount();
+            if ($restriction === null) {
+                throw new LogicException('BigQueryServiceAccount must be set');
+            }
+            [$serviceAccKeysService, $privateKey, $publicPart, $keyName] = $this->createServiceAccountKey(
+                $credentials,
+                $restriction,
+            );
             $bqClient = $this->clientManager->getBigQueryClient(
                 $runtimeOptions->getRunId(),
                 new GenericBackendCredentials([
@@ -102,28 +79,58 @@ final class ExecuteQueryHandler extends BaseHandler
                     'meta' => $credentials->getMeta(),
                 ]),
             );
+            try {
+                return $this->executeQuery(
+                    $bqClient,
+                    $datasetName,
+                    $command->getQuery(),
+                    $queryTimeout,
+                );
+            } finally {
+                // delete the service account key
+                $serviceAccKeysService->delete($keyName);
+            }
+        }
+
+        //  execute query directly by provided credentials
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+        );
+        return $this->executeQuery(
+            $bqClient,
+            $datasetName,
+            $command->getQuery(),
+            $queryTimeout,
+        );
+    }
+
+    private function executeQuery(
+        BigQueryClient $client,
+        string $datasetName,
+        string $query,
+        int $timeout,
+    ): ExecuteQueryResponse {
+        try {
             // prepare query job configuration
-            $dataset = $bqClient->dataset($datasetName);
-            $queryJobConfiguration = $bqClient->query(
-                $command->getQuery(),
+            $dataset = $client->dataset($datasetName);
+            $queryJobConfiguration = $client->query(
+                $query,
                 [
                     'configuration' => [
-                        'jobTimeoutMs' => $queryTimeout * 1000,
+                        'jobTimeoutMs' => $timeout * 1000,
                     ],
                 ],
             )->defaultDataset($dataset);
 
             // execute the query
-            $result = $bqClient->runQuery($queryJobConfiguration);
+            $result = $client->runQuery($queryJobConfiguration);
         } catch (Throwable $e) {
             $this->internalLogger->error($e->getMessage());
             return new ExecuteQueryResponse([
                 'status' => ExecuteQueryResponse\Status::Error,
                 'message' => DecodeErrorMessage::getErrorMessage($e),
             ]);
-        } finally {
-            // delete the service account key
-            $serviceAccKeysService->delete($keyName);
         }
 
         // compose the response message
@@ -158,5 +165,34 @@ final class ExecuteQueryHandler extends BaseHandler
         }
 
         return $response;
+    }
+
+    /**
+     * @return array{0:ProjectsServiceAccountsKeys, 1:string, 2:string, 3:string}
+     */
+    private function createServiceAccountKey(
+        GenericBackendCredentials $credentials,
+        ExecuteQueryCommand\BigQueryServiceAccount $restriction,
+    ): array {
+        // crate service account key
+        $iamService = $this->clientManager->getIamClient($credentials);
+        $serviceAccKeysService = $iamService->projects_serviceAccounts_keys;
+
+        $serviceAccResourceName = sprintf(
+            'projects/%s/serviceAccounts/%s',
+            $restriction->getProjectId(),
+            $restriction->getServiceAccountEmail(),
+        );
+
+        // create new service account key
+        // This is needed as query must be restricted under workspace user, but we do not have credentials for it.
+        // Impersonation would require high organization role in GCP which would be not granted in customers accounts.
+        // as a workaround we create a new service account key for the workspace user and use it to execute the query
+        $createServiceAccountKeyRequest = new CreateServiceAccountKeyRequest();
+        $createServiceAccountKeyRequest->setPrivateKeyType(CreateWorkspaceHandler::PRIVATE_KEY_TYPE);
+        $serviceAccount = $iamService->projects_serviceAccounts->get($serviceAccResourceName);
+        [$privateKey, $publicPart, $keyName] = $iamService->createKeyFileCredentials($serviceAccount);
+
+        return [$serviceAccKeysService, $privateKey, $publicPart, $keyName];
     }
 }
