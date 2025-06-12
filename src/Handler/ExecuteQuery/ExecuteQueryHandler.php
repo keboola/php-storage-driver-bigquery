@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery;
 
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\BigQuery\Timestamp;
 use Google\Protobuf\Internal\Message;
 use Google\Service\Iam\CreateServiceAccountKeyRequest;
 use Google\Service\Iam\Resource\ProjectsServiceAccountsKeys;
@@ -15,6 +16,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
 use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryCommand;
 use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryResponse;
+use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryResponse\Data;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use LogicException;
@@ -155,9 +157,22 @@ final class ExecuteQueryHandler extends BaseHandler
         ]);
         if (isset($result->info()['schema'])) {
             $columns = array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']);
-            $rows = array_map(fn($r) => new ExecuteQueryResponse\Data\Row([
-                'fields' => $r,
-            ]), iterator_to_array($result->rows()));
+            $rows = array_map(function ($r) {
+                $data  = [];
+                if (!is_iterable($r)) {
+                    throw new LogicException('Result rows must be iterable');
+                }
+                foreach ($r as $key => $value) {
+                    if ($value instanceof Timestamp) {
+                        $data[$key] = $value->__toString();
+                    } else {
+                        $data[$key] = $value;
+                    }
+                }
+                return new ExecuteQueryResponse\Data\Row([
+                    'fields' => $data,
+                ]);
+            }, iterator_to_array($result->rows()));
             $response->setData(new ExecuteQueryResponse\Data([
                 'rows' => $rows,
                 'columns' => $columns,
