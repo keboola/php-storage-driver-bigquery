@@ -135,7 +135,7 @@ class ExecuteQueryTest extends BaseCase
         $bigQuery->runQuery($bigQuery->query(sprintf(
             /** @lang BigQuery */<<<SQL
                 INSERT INTO %s.%s (`valid_from`, `int_col`, `_timestamp`) VALUES
-                ("infinity",10, CURRENT_TIMESTAMP),
+                ("2014-04-07",10, CURRENT_TIMESTAMP),
                 ("2014-04-08",10, CURRENT_TIMESTAMP),
                 ("2014-04-09 12:34:56.789999",10, CURRENT_TIMESTAMP)
             SQL,
@@ -143,7 +143,7 @@ class ExecuteQueryTest extends BaseCase
             BigqueryQuote::quoteSingleIdentifier('test_table'),
         )));
 
-        $query = 'SELECT * FROM test_table';
+        $query = 'SELECT * FROM test_table ORDER BY valid_from ASC';
         $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
@@ -166,7 +166,7 @@ class ExecuteQueryTest extends BaseCase
         $rows = $this->getRows($response);
         $this->assertArrayHasKey(0, $rows);
         $this->assertArrayHasKey('valid_from', $rows[0]);
-        $this->assertEquals('2014-04-08', $rows[0]['valid_from']);
+        $this->assertEquals('2014-04-07', $rows[0]['valid_from']);
         $this->assertEquals('10', $rows[0]['int_col']);
         $this->assertArrayHasKey('_timestamp', $rows[0]);
         $this->assertStringContainsString('successfully', $response->getMessage());
