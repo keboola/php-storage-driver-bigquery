@@ -113,7 +113,7 @@ class ExecuteQueryTest extends BaseCase
             'test_table',
             [
                 'columns' => [
-                    'valid_from' => [
+                    'string_col' => [
                         'type' => Bigquery::TYPE_STRING,
                         'length' => '',
                         'nullable' => false,
@@ -123,7 +123,42 @@ class ExecuteQueryTest extends BaseCase
                         'length' => '',
                         'nullable' => false,
                     ],
-                    '_timestamp' => [
+                    'bignumeric_col' => [
+                        'type' => Bigquery::TYPE_BIGNUMERIC,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'bytes_col' => [
+                        'type' => Bigquery::TYPE_BYTES,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'date_col' => [
+                        'type' => Bigquery::TYPE_DATE,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'geography_col' => [
+                        'type' => Bigquery::TYPE_GEOGRAPHY,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'json_col' => [
+                        'type' => Bigquery::TYPE_JSON,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'numeric_col' => [
+                        'type' => Bigquery::TYPE_NUMERIC,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'time_col' => [
+                        'type' => Bigquery::TYPE_TIME,
+                        'length' => '',
+                        'nullable' => false,
+                    ],
+                    'timestamp_col' => [
                         'type' => Bigquery::TYPE_TIMESTAMP,
                         'length' => '',
                         'nullable' => false,
@@ -134,16 +169,48 @@ class ExecuteQueryTest extends BaseCase
         $bigQuery = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $bigQuery->runQuery($bigQuery->query(sprintf(
             /** @lang BigQuery */<<<SQL
-                INSERT INTO %s.%s (`valid_from`, `int_col`, `_timestamp`) VALUES
-                ("2014-04-07",10, CURRENT_TIMESTAMP),
-                ("2014-04-08",10, CURRENT_TIMESTAMP),
-                ("2014-04-09 12:34:56.789999",10, CURRENT_TIMESTAMP)
+                INSERT INTO %s.%s (
+                    `string_col`,
+                    `int_col`,
+                    `bignumeric_col`,
+                    `bytes_col`,
+                    `date_col`,
+                    `geography_col`,
+                    `json_col`,
+                    `numeric_col`,
+                    `time_col`,
+                    `timestamp_col`
+                ) VALUES
+                (
+                    "test string",
+                    42,
+                    CAST("123456789.123456789" AS BIGNUMERIC),
+                    b"binary data",
+                    DATE "2024-03-15",
+                    ST_GEOGPOINT(40.7128, -74.0060),
+                    JSON '{"key": "value"}',
+                    CAST(123.45 AS NUMERIC),
+                    TIME "15:30:00",
+                    TIMESTAMP "2024-03-15 15:30:00 UTC"
+                ),
+                (
+                    "another string",
+                    100,
+                    CAST("987654321.987654321" AS BIGNUMERIC),
+                    b"more binary",
+                    DATE "2024-03-16",
+                    ST_GEOGPOINT(51.5074, -0.1278),
+                    JSON '{"array": [1,2,3]}',
+                    CAST(678.90 AS NUMERIC),
+                    TIME "18:45:00",
+                    TIMESTAMP "2024-03-16 18:45:00 UTC"
+                )
             SQL,
             BigqueryQuote::quoteSingleIdentifier($this->workspaceName),
             BigqueryQuote::quoteSingleIdentifier('test_table'),
         )));
 
-        $query = 'SELECT * FROM test_table ORDER BY valid_from ASC';
+        $query = 'SELECT * FROM test_table ORDER BY string_col ASC';
         $command = $command($this)->setQuery($query);
 
         $handler = (new ExecuteQueryHandler($this->clientManager));
@@ -159,16 +226,37 @@ class ExecuteQueryTest extends BaseCase
         $this->assertEquals(Status::Success, $response->getStatus());
         $this->assertNotNull($response->getData());
         $this->assertSame(
-            ['valid_from', 'int_col', '_timestamp'],
+            [
+                'string_col',
+                'int_col',
+                'bignumeric_col',
+                'bytes_col',
+                'date_col',
+                'geography_col',
+                'json_col',
+                'numeric_col',
+                'time_col',
+                'timestamp_col',
+            ],
             ProtobufHelper::repeatedStringToArray($response->getData()->getColumns()),
         );
-        $this->assertCount(3, $response->getData()->getRows());
+        $this->assertCount(2, $response->getData()->getRows());
         $rows = $this->getRows($response);
+
+        // Test first row
         $this->assertArrayHasKey(0, $rows);
-        $this->assertArrayHasKey('valid_from', $rows[0]);
-        $this->assertEquals('2014-04-07', $rows[0]['valid_from']);
-        $this->assertEquals('10', $rows[0]['int_col']);
-        $this->assertArrayHasKey('_timestamp', $rows[0]);
+        $row = $rows[0];
+        $this->assertEquals('another string', $row['string_col']);
+        $this->assertEquals('100', $row['int_col']);
+        $this->assertEquals('987654321.987654321', $row['bignumeric_col']);
+        $this->assertNotEmpty($row['bytes_col']); // Binary data will be base64 encoded
+        $this->assertEquals('2024-03-16', $row['date_col']);
+        $this->assertStringContainsString('POINT(51.5074 -0.1278)', $row['geography_col']);
+        $this->assertEquals('{"array":[1,2,3]}', $row['json_col']);
+        $this->assertEquals('678.90', $row['numeric_col']);
+        $this->assertEquals('18:45:00', $row['time_col']);
+        $this->assertStringStartsWith('2024-03-16', $row['timestamp_col']);
+
         $this->assertStringContainsString('successfully', $response->getMessage());
     }
 
