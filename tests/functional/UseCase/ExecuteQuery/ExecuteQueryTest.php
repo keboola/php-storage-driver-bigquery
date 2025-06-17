@@ -253,9 +253,9 @@ class ExecuteQueryTest extends BaseCase
         $this->assertEquals('2024-03-16', $row['date_col']);
         $this->assertStringContainsString('POINT(51.5074 -0.1278)', $row['geography_col']);
         $this->assertEquals('{"array":[1,2,3]}', $row['json_col']);
-        $this->assertEquals('678.90', $row['numeric_col']);
-        $this->assertEquals('18:45:00', $row['time_col']);
-        $this->assertStringStartsWith('2024-03-16', $row['timestamp_col']);
+        $this->assertEquals('678.9', $row['numeric_col']);
+        $this->assertEquals('18:45:00.000000', $row['time_col']);
+        $this->assertStringStartsWith('2024-03-16 18:45:00.000000', $row['timestamp_col']);
 
         $this->assertStringContainsString('successfully', $response->getMessage());
     }
