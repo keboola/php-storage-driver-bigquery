@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Timestamp;
+use Google\Cloud\BigQuery\ValueInterface;
 use Google\Protobuf\Internal\Message;
 use Google\Service\Iam\CreateServiceAccountKeyRequest;
 use Google\Service\Iam\Resource\ProjectsServiceAccountsKeys;
@@ -163,7 +164,7 @@ final class ExecuteQueryHandler extends BaseHandler
                     throw new LogicException('Result rows must be iterable');
                 }
                 foreach ($r as $key => $value) {
-                    if ($value instanceof Timestamp) {
+                    if ($value instanceof ValueInterface) {
                         $data[$key] = $value->__toString();
                     } else {
                         $data[$key] = $value;
