@@ -47,7 +47,7 @@ class CopyImportFromTableToTable implements ToStageImporterInterface
         $state->startTimer(self::TIMER_TABLE_IMPORT);
         try {
             if ($options->usingUserDefinedTypes()) {
-                Assert::assertSameColumns(
+                Assert::assertSameColumnsOrdered(
                     source: (new BigqueryTableReflection(
                         $this->bqClient,
                         $source->getSchema(),
