@@ -238,7 +238,7 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         $isColumnIdentical = true;
         try {
-            Assert::assertSameColumns(
+            Assert::assertSameColumnsOrdered(
                 $sourceTableDefinition->getColumnsDefinitions(),
                 $stagingTable->getColumnsDefinitions(),
                 [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
