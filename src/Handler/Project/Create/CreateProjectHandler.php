@@ -186,6 +186,50 @@ final class CreateProjectHandler extends BaseHandler
         $dataExchange->setDisplayName($dataExchangeId);
         $analyticHubClient->createDataExchange($formattedParent, $dataExchangeId, $dataExchange);
 
+        // Enable fine-grained dataset ACLs for the project after all services and permissions are set up
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            $this->internalLogger->debug('Try enable fine-grained ACLs Err:' . $e->getMessage());
+            // Retry on permission denied (403) as it might be due to eventual consistency
+            if ($e->getCode() === 403) {
+                return true;
+            }
+            // Also retry on specific BigQuery errors
+            if (in_array($e->getCode(), GCPClientManager::ERROR_CODES_FOR_RETRY_IAM)) {
+                return true;
+            }
+            return false;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            5_000, // 5s
+            1.8,
+            60_000, // 1m
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+        try {
+            $proxy->call(function () use ($credentials, $projectCreateResult, $region): void {
+                $bigQueryClient = $this->clientManager->getBigQueryClient(uniqid(), $credentials);
+                $query = sprintf(
+                    'ALTER PROJECT `%s` SET OPTIONS (`region-%s.enable_fine_grained_dataset_acls_option` = TRUE)',
+                    $projectCreateResult->getProjectId(),
+                    strtolower($region), // ensure region is lowercase as per BQ conventions
+                );
+                $bigQueryClient->runQuery($bigQueryClient->query($query));
+            });
+        } catch (Throwable $e) {
+            // If enabling fine-grained ACLs fails after all retries, we should clean up the project
+            $projectsClient->deleteProject($projectName);
+            throw new Exception(
+                sprintf(
+                    'Failed to enable fine-grained dataset ACLs for project "%s". Error: %s',
+                    $projectCreateResult->getProjectId(),
+                    $e->getMessage(),
+                ),
+                $e->getCode(),
+                $e,
+            );
+        }
+
         return (new CreateProjectResponse())
             ->setProjectUserName($publicPart)
             ->setProjectPassword($privateKey)
