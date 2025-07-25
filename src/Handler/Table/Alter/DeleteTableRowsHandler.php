@@ -50,10 +50,13 @@ final class DeleteTableRowsHandler extends BaseHandler
         assert($command->getPath()->count() === 1, 'AddColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'AddColumnCommand.tableName is required');
 
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];

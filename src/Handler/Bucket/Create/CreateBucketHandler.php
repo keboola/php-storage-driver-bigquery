@@ -25,6 +25,7 @@ final class CreateBucketHandler extends BaseHandler
 
     /**
      * @inheritDoc
+     * @param array<mixed> $features
      */
     public function __invoke(
         Message $credentials, // project credentials
@@ -45,10 +46,13 @@ final class CreateBucketHandler extends BaseHandler
             $command->getBranchId(),
         );
 
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bigQueryClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
 
         $bigQueryClient->createDataset(

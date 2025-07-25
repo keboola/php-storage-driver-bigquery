@@ -73,10 +73,13 @@ final class CreateTableFromTimeTravelHandler extends BaseHandler
 
         /** @var string $datetime */
         $datetime = date(self::TIME_TRAVEL_TIMESTAMP_FORMAT, (int) $timestamp);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
         $query = sprintf(
             'CREATE TABLE %s.%s AS SELECT * FROM %s.%s FOR SYSTEM_TIME AS OF %s;',

@@ -55,6 +55,7 @@ class ResetWorkspacePasswordTest extends BaseCase
         $wsBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $credentials,
+            [],
             null,
             1,
         );

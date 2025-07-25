@@ -82,10 +82,13 @@ final class ExportTableToFileHandler extends BaseHandler
             $requestExportOptions,
         );
 
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
         $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
         $datasetName = ProtobufHelper::repeatedStringToArray($source->getPath())[0];

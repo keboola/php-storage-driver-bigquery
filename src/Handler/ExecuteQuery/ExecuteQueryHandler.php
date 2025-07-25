@@ -72,6 +72,9 @@ final class ExecuteQueryHandler extends BaseHandler
                 $credentials,
                 $restriction,
             );
+            /** @var array<string, string> $queryTags */
+            $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
             $bqClient = $this->clientManager->getBigQueryClient(
                 $runtimeOptions->getRunId(),
                 new GenericBackendCredentials([
@@ -81,7 +84,7 @@ final class ExecuteQueryHandler extends BaseHandler
                     'port' => $credentials->getPort(),
                     'meta' => $credentials->getMeta(),
                 ]),
-                iterator_to_array($runtimeOptions->getQueryTags()),
+                $queryTags,
             );
             try {
                 return $this->executeQuery(
@@ -97,10 +100,13 @@ final class ExecuteQueryHandler extends BaseHandler
         }
 
         //  execute query directly by provided credentials
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
         return $this->executeQuery(
             $bqClient,

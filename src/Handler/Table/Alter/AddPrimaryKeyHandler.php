@@ -47,10 +47,13 @@ class AddPrimaryKeyHandler extends BaseHandler
             'AddPrimaryKeyCommand.primaryKeysNames is required and cannot be empty',
         );
 
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
-            iterator_to_array($runtimeOptions->getQueryTags()),
+            $queryTags,
         );
 
         /** @var string $databaseName */
