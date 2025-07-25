@@ -78,7 +78,11 @@ final class ImportTableFromTableHandler extends BaseHandler
         $importOptions = $command->getImportOptions();
         assert($importOptions !== null, 'TableImportFromFileCommand.importOptions is required.');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
 
         $source = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);

@@ -37,7 +37,11 @@ final class UnLinkBucketHandler extends BaseHandler
 
         assert($command->getBucketObjectName() !== '', 'UnlinkBucketCommand.bucketObjectName must be filled in');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
         $dataset = $bqClient->dataset($command->getBucketObjectName());
         $dataset->delete();
 

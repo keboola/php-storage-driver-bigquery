@@ -81,6 +81,7 @@ final class ExecuteQueryHandler extends BaseHandler
                     'port' => $credentials->getPort(),
                     'meta' => $credentials->getMeta(),
                 ]),
+                iterator_to_array($runtimeOptions->getQueryTags()),
             );
             try {
                 return $this->executeQuery(
@@ -99,6 +100,7 @@ final class ExecuteQueryHandler extends BaseHandler
         $bqClient = $this->clientManager->getBigQueryClient(
             $runtimeOptions->getRunId(),
             $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
         );
         return $this->executeQuery(
             $bqClient,

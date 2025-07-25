@@ -48,7 +48,11 @@ final class DropWorkspaceObjectHandler extends BaseHandler
             'DropWorkspaceObjectCommand.objectNameToDrop is required',
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
 
         $isTableExists = $this->isTableExists(
             $bqClient,

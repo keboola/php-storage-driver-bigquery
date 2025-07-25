@@ -99,7 +99,11 @@ final class CreateTableHandler extends BaseHandler
             CreateTableMetaHelper::convertTableMetaToRest($command),
         );
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
         if ($runtimeOptions->getRunId() !== '') {
             $createTableOptions['labels'] = ['run_id' => $runtimeOptions->getRunId(),];
         }

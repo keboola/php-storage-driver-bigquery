@@ -51,7 +51,11 @@ final class ProfileTableHandler extends BaseHandler
         assert($command->getPath()->count() === 1, 'DropTableCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropTableCommand.tableName is required');
 
-        $bigQuery = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bigQuery = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bigQuery->dataset($datasetName);

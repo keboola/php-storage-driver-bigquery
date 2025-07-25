@@ -45,7 +45,11 @@ final class CreateBucketHandler extends BaseHandler
             $command->getBranchId(),
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
 
         $bigQueryClient->createDataset(
             $newBucketDatabaseName,

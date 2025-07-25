@@ -35,7 +35,11 @@ final class DropBucketHandler extends BaseHandler
 
         assert($runtimeOptions->getMeta() === null);
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
 
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 

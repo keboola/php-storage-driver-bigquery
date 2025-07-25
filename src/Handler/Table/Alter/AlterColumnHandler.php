@@ -53,7 +53,11 @@ final class AlterColumnHandler extends BaseHandler
         assert($command->getTableName() !== '', 'AlterColumnCommand.tableName is required');
         assert($columnDefinition instanceof TableColumnShared, 'AlterColumnCommand.desiredDefinition is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
 
         // define columns
         // validate

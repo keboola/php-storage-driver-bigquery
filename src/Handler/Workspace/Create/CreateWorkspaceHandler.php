@@ -70,7 +70,11 @@ final class CreateWorkspaceHandler extends BaseHandler
 
         $credentialsMeta = CredentialsHelper::getBigQueryCredentialsMeta($credentials);
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 
         $nameGenerator = new NameGenerator($command->getStackPrefix());

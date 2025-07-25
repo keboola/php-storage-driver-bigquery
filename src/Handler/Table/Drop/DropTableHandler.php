@@ -41,7 +41,11 @@ final class DropTableHandler extends BaseHandler
         assert($command->getPath()->count() === 1, 'DropTableCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropTableCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            iterator_to_array($runtimeOptions->getQueryTags()),
+        );
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bqClient->dataset($datasetName);
