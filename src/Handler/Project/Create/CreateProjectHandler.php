@@ -38,7 +38,7 @@ use Throwable;
 final class CreateProjectHandler extends BaseHandler
 {
     public const ENABLED_SERVICES_FOR_PROJECT = [
-        GCPServiceIds::SERVICE_USAGE_SERVICE,
+//        GCPServiceIds::SERVICE_USAGE_SERVICE,
         GCPServiceIds::IAM_SERVICE,
         GCPServiceIds::BIGQUERY_SERVICE,
         GCPServiceIds::CLOUD_BILLING_SERVICE,
