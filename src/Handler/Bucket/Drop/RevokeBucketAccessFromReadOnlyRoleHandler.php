@@ -41,7 +41,14 @@ final class RevokeBucketAccessFromReadOnlyRoleHandler extends BaseHandler
             'RevokeBucketAccessToReadOnlyRoleCommand.bucketObjectName is required',
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bigQueryClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
         // In case of deleting an external bucket, we only need the dataset name.
         // This information is stored in the connection so we just delete the dataset
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());

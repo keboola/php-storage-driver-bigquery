@@ -42,7 +42,14 @@ final class ClearWorkspaceHandler extends BaseHandler
         // validate
         assert($command->getWorkspaceObjectName() !== '', 'ClearWorkspaceCommand.workspaceObjectName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         $tablesInDataset = $bqClient->dataset($command->getWorkspaceObjectName())->tables();
         try {

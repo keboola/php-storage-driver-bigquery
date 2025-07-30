@@ -52,7 +52,14 @@ final class AddColumnHandler extends BaseHandler
 
         assert($column->getNullable() === true, 'You cannot add a REQUIRED column to an existing table schema.');
         assert($column->getDefault() === '', 'You cannot add a DEFAULT to column an existing table schema.');
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         // define columns
         // validate

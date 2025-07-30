@@ -95,7 +95,14 @@ final class ImportTableFromFileHandler extends BaseHandler
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
 
         $stagingTable = null;
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
             ProtobufHelper::repeatedStringToArray($destination->getPath())[0],

@@ -23,6 +23,7 @@ final class DropBucketHandler extends BaseHandler
 
     /**
      * @inheritDoc
+     * @param array<mixed> $features
      */
     public function __invoke(
         Message $credentials, // project credentials
@@ -35,7 +36,14 @@ final class DropBucketHandler extends BaseHandler
 
         assert($runtimeOptions->getMeta() === null);
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bigQueryClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 

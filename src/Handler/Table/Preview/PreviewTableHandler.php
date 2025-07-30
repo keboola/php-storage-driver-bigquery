@@ -72,7 +72,14 @@ final class PreviewTableHandler extends BaseHandler
         assert($command->getTableName() !== '', 'PreviewTableCommand.tableName is required');
         assert($command->getColumns()->count() > 0, 'PreviewTableCommand.columns is required');
 
-        $bqClient = $this->manager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->manager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
         /** @var string $datasetName */
         $datasetName = $command->getPath()[0];
 

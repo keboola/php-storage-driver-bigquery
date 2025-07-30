@@ -59,7 +59,14 @@ final class ObjectInfoHandler extends BaseHandler
 
         assert($runtimeOptions->getMeta() === null);
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         $path = ProtobufHelper::repeatedStringToArray($command->getPath());
 

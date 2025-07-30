@@ -64,6 +64,7 @@ class GCPClientManagerTest extends TestCase
         $connection = (new GCPClientManager($logger))->getBigQueryClient(
             '123',
             $credentials,
+            [],
             $handlerStack,
         );
         $query = $connection->query('SELECT 1');

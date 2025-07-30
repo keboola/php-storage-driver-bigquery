@@ -398,7 +398,12 @@ class BaseCase extends TestCase
             $projectCredentials,
             $command,
             [],
-            new RuntimeOptions(['runId' => $this->testRunId]),
+            new RuntimeOptions([
+                'runId' => $this->testRunId,
+                'queryTags' => [
+                    'branch_id' => $branchId,
+                ],
+            ]),
         );
 
         $this->assertInstanceOf(CreateBucketResponse::class, $response);

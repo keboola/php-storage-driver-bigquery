@@ -39,7 +39,14 @@ final class DropPrimaryKeyHandler extends BaseHandler
         assert($command->getPath()->count() === 1, 'DropPrimaryKeyCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropPrimaryKeyCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         /** @var string $databaseName */
         $databaseName = $command->getPath()[0];

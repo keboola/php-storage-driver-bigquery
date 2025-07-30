@@ -136,12 +136,14 @@ class GCPClientManager
     }
 
     /**
+     * @param array<string, string> $queryTags
      * @throws CredentialsMetaRequiredException
      * @throws \JsonException
      */
     public function getBigQueryClient(
         string $runId,
         GenericBackendCredentials $credentials,
+        array $queryTags = [],
         ?HandlerStack $handlerStack = null,
         int $retries = self::DEFAULT_RETRIES_COUNT,
     ): BigQueryClient {
@@ -165,7 +167,7 @@ class GCPClientManager
             ],
             'retries' => $retries,
             'location' => $credentialsMeta->getRegion(),
-        ], $runId);
+        ], $runId, $queryTags);
     }
 
     public function getBillingClient(GenericBackendCredentials $credentials): CloudBillingClient

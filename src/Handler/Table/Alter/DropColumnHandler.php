@@ -40,7 +40,14 @@ final class DropColumnHandler extends BaseHandler
         assert($command->getPath()->count() === 1, 'DropColumnCommand.path is required and size must equal 1');
         assert($command->getTableName() !== '', 'DropColumnCommand.tableName is required');
 
-        $bqClient = $this->clientManager->getBigQueryClient($runtimeOptions->getRunId(), $credentials);
+        /** @var array<string, string> $queryTags */
+        $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $runtimeOptions->getRunId(),
+            $credentials,
+            $queryTags,
+        );
 
         // define columns
         // validate
