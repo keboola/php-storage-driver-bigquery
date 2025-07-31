@@ -119,7 +119,7 @@ class CreateDropProjectTest extends BaseCase
             GCPServiceIds::BIGQUERY_SERVICE,
             GCPServiceIds::BIGQUERY_MIGRATION_SERVICE,
             GCPServiceIds::BIGQUERY_STORAGE_SERVICE,
-            GCPServiceIds::SERVICE_USAGE_SERVICE,
+//            GCPServiceIds::SERVICE_USAGE_SERVICE,
             GCPServiceIds::CLOUD_BILLING_SERVICE,
             GCPServiceIds::CLOUD_RESOURCE_MANAGER_SERVICE,
             GCPServiceIds::CLOUD_ANALYTIC_HUB_SERVICE,
