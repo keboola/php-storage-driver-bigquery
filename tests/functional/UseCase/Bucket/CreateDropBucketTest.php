@@ -12,6 +12,7 @@ use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use ReflectionClass;
 use Throwable;
 
@@ -33,21 +34,20 @@ class CreateDropBucketTest extends BaseCase
      */
     public function testCreateDropBucket(string $region): void
     {
-        $credentials = $this->getCredentials($region);
-        $response = $this->createTestBucket($credentials);
+        $response = $this->createTestBucket($this->projectCredentials);
 
         $handler = new DropBucketHandler($this->clientManager);
         $command = (new DropBucketCommand())
             ->setBucketObjectName($response->getCreateBucketObjectName());
 
         $handler(
-            $credentials,
+            $this->projectCredentials,
             $command,
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
-        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
         $this->assertFalse($dataset->exists());
 
