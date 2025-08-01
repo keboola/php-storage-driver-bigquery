@@ -45,7 +45,7 @@ class UpdateProjectHandler extends BaseHandler
         $query = $bqClient->query(sprintf(
             'ALTER PROJECT %s SET OPTIONS (`region-%s.default_time_zone` = %s);',
             BigqueryQuote::quoteSingleIdentifier($command->getProjectId()),
-            $command->getRegion(),
+            strtolower($command->getRegion()),
             BigqueryQuote::quoteSingleIdentifier($command->getTimezone()),
         ));
         $bqClient->runQuery($query);

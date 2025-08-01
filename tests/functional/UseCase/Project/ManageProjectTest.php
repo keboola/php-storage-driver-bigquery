@@ -192,7 +192,7 @@ class ManageProjectTest extends BaseCase
         $meta = new Any();
         $meta->pack(
             (new GenericBackendCredentials\BigQueryCredentialsMeta())
-                ->setRegion(self::DEFAULT_LOCATION)
+                ->setRegion($region)
                 ->setFolderId((string) getenv('BQ_FOLDER_ID')),
         );
         $prjCreds = (new GenericBackendCredentials())
@@ -200,7 +200,10 @@ class ManageProjectTest extends BaseCase
             ->setSecret($response->getProjectPassword())
             ->setMeta($meta);
         $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $prjCreds);
-        $query = $bigQueryClient->query('SELECT * FROM region-us.INFORMATION_SCHEMA.PROJECT_OPTIONS;');
+        $query = $bigQueryClient->query(sprintf(
+            'SELECT * FROM region-%s.INFORMATION_SCHEMA.PROJECT_OPTIONS;',
+            strtolower($region),
+        ));
 
         // test timezone is not set
         $this->assertNull($bigQueryClient->runQuery($query)->rows()->current());
@@ -237,8 +240,11 @@ class ManageProjectTest extends BaseCase
             60_000, // max interval: 60s
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($bigQueryClient): void {
-            $query = $bigQueryClient->query('SELECT * FROM region-us.INFORMATION_SCHEMA.PROJECT_OPTIONS;');
+        $proxy->call(function () use ($bigQueryClient, $region): void {
+            $query = $bigQueryClient->query(sprintf(
+                'SELECT * FROM region-%s.INFORMATION_SCHEMA.PROJECT_OPTIONS;',
+                strtolower($region),
+            ));
             /** @var array<string, string> $result */
             $result = $bigQueryClient->runQuery($query)->rows()->current();
 
