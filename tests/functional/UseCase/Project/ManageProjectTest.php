@@ -27,7 +27,7 @@ use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 
-class CreateDropProjectTest extends BaseCase
+class ManageProjectTest extends BaseCase
 {
     public const TEST_PROJECT_TIMEZONE = 'America/Detroit';
 
@@ -59,7 +59,7 @@ class CreateDropProjectTest extends BaseCase
     /**
      * @dataProvider regionsProvider
      */
-    public function testCreateProject(string $region): void
+    public function testManageProject(string $region): void
     {
         $handler = new CreateProjectHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
