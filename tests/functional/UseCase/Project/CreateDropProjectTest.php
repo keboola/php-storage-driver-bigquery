@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Project;
 
-use Generator;
 use Google\Protobuf\Any;
 use Google\Service\Exception;
 use Google_Service_CloudResourceManager_GetIamPolicyRequest;
@@ -14,16 +13,24 @@ use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectIdTooLongException;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectWithProjectIdAlreadyExists;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Update\UpdateProjectHandler;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
+use Keboola\StorageDriver\Command\Project\UpdateProjectCommand;
+use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\SimpleRetryPolicy;
+use Retry\RetryProxy;
 
 class CreateDropProjectTest extends BaseCase
 {
+    public const TEST_PROJECT_TIMEZONE = 'America/Detroit';
+
     private string $rand = '';
 
     protected function getProjectId(): string
@@ -178,6 +185,68 @@ class CreateDropProjectTest extends BaseCase
             }
         }
         $this->assertTrue($hasStorageObjAdminRole);
+
+        // test project update
+
+        // get new project credentials
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION)
+                ->setFolderId((string) getenv('BQ_FOLDER_ID')),
+        );
+        $prjCreds = (new GenericBackendCredentials())
+            ->setPrincipal($response->getProjectUserName())
+            ->setSecret($response->getProjectPassword())
+            ->setMeta($meta);
+        $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $prjCreds);
+        $query = $bigQueryClient->query('SELECT * FROM region-us.INFORMATION_SCHEMA.PROJECT_OPTIONS;');
+
+        // test timezone is not set
+        $this->assertNull($bigQueryClient->runQuery($query)->rows()->current());
+
+        // update project timezone
+        $handler = new UpdateProjectHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $command = (new UpdateProjectCommand())
+            ->setProjectId($projectId)
+            ->setRegion($region)
+            ->setTimezone(self::TEST_PROJECT_TIMEZONE);
+
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // initial interval: 1s
+            1.8,
+            60_000, // max interval: 60s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($handler, $command, $region): void {
+            $handler(
+                $this->getCredentials($region),
+                $command,
+                [],
+                new RuntimeOptions(),
+            );
+        });
+
+        $retryPolicy = new SimpleRetryPolicy(10);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // initial interval: 1s
+            1.8,
+            60_000, // max interval: 60s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($bigQueryClient): void {
+            $query = $bigQueryClient->query('SELECT * FROM region-us.INFORMATION_SCHEMA.PROJECT_OPTIONS;');
+            /** @var array<string, string> $result */
+            $result = $bigQueryClient->runQuery($query)->rows()->current();
+
+            // the propagating of the timezone can take time so call with retries
+            // and validate if it set
+            $this->assertEquals('default_time_zone', $result['option_name']);
+            $this->assertEquals(self::TEST_PROJECT_TIMEZONE, $result['option_value']);
+        });
 
         $handler = new DropProjectHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
