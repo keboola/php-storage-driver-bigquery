@@ -329,7 +329,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $this->fail('Should not be able to register bucket from another region.');
         } catch (InvalidArgumentException $e) {
             $this->assertSame(
-                'The selected primary location "us" is not ready to use or not supported in the listing.',
+                'Listing region "eu" must be the same as linked dataset region "us".',
                 $e->getMessage(),
             );
             $this->assertSame(3000, $e->getCode());
