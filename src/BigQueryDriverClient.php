@@ -21,6 +21,7 @@ use Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery\ExecuteQueryHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\DropProjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Project\Update\UpdateProjectHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddPrimaryKeyHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AlterColumnHandler;
@@ -55,6 +56,7 @@ use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
+use Keboola\StorageDriver\Command\Project\UpdateProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
 use Keboola\StorageDriver\Command\Table\AddPrimaryKeyCommand;
 use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
@@ -136,6 +138,8 @@ class BigQueryDriverClient implements ClientInterface
                 return new RemoveBackendHandler();
             case $command instanceof CreateProjectCommand:
                 return new CreateProjectHandler($manager);
+            case $command instanceof UpdateProjectCommand:
+                return new UpdateProjectHandler($manager);
             case $command instanceof DropProjectCommand:
                 return new DropProjectHandler($manager);
             case $command instanceof CreateBucketCommand:
