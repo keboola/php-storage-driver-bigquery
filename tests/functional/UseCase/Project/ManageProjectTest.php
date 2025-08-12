@@ -165,6 +165,14 @@ class ManageProjectTest extends BaseCase
         ];
         $this->assertEqualsArrays($expected, $serviceAccRoles);
 
+        $project = $cloudResourceManager->projects->get('projects/' . $projectId);
+        $this->assertSame(
+            [
+                'keboola_project' => $projectId,
+            ],
+            $project->getLabels(),
+        );
+
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $dataExchangeId = $response->getProjectReadOnlyRoleName();
         $formattedName = $analyticHubClient->dataExchangeName($projectId, $region, $dataExchangeId);
