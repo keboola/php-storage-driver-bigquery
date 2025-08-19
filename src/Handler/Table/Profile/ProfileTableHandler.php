@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Profile;
 
 use Google\Protobuf\Internal\Message;
+use Keboola\Datatype\Definition\BaseType;
+use Keboola\Datatype\Definition\Bigquery;
+use Keboola\Datatype\Definition\Exception\InvalidTypeException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
+use Keboola\StorageDriver\BigQuery\Profile\Column\AvgMinMaxLengthColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NumericStatisticsColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnCountTableMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\BigQuery\Profile\DataSizeTableMetric;
@@ -89,35 +94,62 @@ final class ProfileTableHandler extends BaseHandler
         }
 
         $response->setProfile(json_encode($tableProfile, JSON_THROW_ON_ERROR));
-
-        /** @var ColumnMetricInterface[] $columnMetrics */
-        $columnMetrics = [
-            new DistinctCountColumnMetric(),
-            new DuplicateCountColumnMetric(),
-            new NullCountColumnMetric(),
-        ];
-        $columnProfiles = [];
-
         $columns = $table->info()['schema']['fields'];
-        foreach ($columns as $column) {
-            $columnProfile = [];
 
+        $columnProfiles = [];
+        foreach ($columns as $column) {
+            $columnName = $column['name'];
+            $columnMetrics = $this->columnMetricsByType($column['type']);
+
+            $columnProfile = [];
             foreach ($columnMetrics as $metric) {
                 $columnProfile[$metric->name()] = $metric->collect(
                     $datasetName,
                     $command->getTableName(),
-                    $column['name'],
+                    $columnName,
                     $bigQueryContext,
                 );
             }
 
             $columnProfiles[] = (new Column())
-                ->setName($column['name'])
+                ->setName($columnName)
                 ->setProfile(json_encode($columnProfile, JSON_THROW_ON_ERROR));
         }
 
         $response->setColumns($columnProfiles);
 
         return $response;
+    }
+
+    /**
+     * @return ColumnMetricInterface[]
+     */
+    private function columnMetricsByType(string $type): array
+    {
+        $default = [
+            new DistinctCountColumnMetric(),
+            new DuplicateCountColumnMetric(),
+            new NullCountColumnMetric(),
+        ];
+
+        try {
+            $baseType = (new Bigquery($type))->getBasetype();
+        } catch (InvalidTypeException) {
+            $baseType = null;
+        }
+
+        $extra = match ($baseType) {
+            BaseType::FLOAT,
+            BaseType::INTEGER,
+            BaseType::NUMERIC => [
+                new NumericStatisticsColumnMetric(),
+            ],
+            BaseType::STRING => [
+                new AvgMinMaxLengthColumnMetric(),
+            ],
+            default => [],
+        };
+
+        return array_merge($default, $extra);
     }
 }
