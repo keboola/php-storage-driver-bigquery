@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Profile\Column;
 
 use Google\Cloud\BigQuery\Numeric;
+use Google\Cloud\Core\Exception\BadRequestException;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
+use Keboola\StorageDriver\BigQuery\Profile\MetricCollectFailedException;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 final class NumericStatisticsColumnMetric implements ColumnMetricInterface
@@ -71,18 +73,22 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
             $columnQuoted,
         );
 
-        /**
-         * @var array{
-         *     0: array{
-         *         stats_avg: float|int|Numeric,
-         *         stats_mode: float|int|Numeric,
-         *         stats_median: float|int|Numeric,
-         *         stats_min: float|int|Numeric,
-         *         stats_max: float|int|Numeric,
-         *     }
-         * } $results
-         */
-        $results = iterator_to_array($context->client->runQuery($context->client->query($sql)));
+        try {
+            /**
+             * @var array{
+             *     0: array{
+             *         stats_avg: float|int|Numeric,
+             *         stats_mode: float|int|Numeric,
+             *         stats_median: float|int|Numeric,
+             *         stats_min: float|int|Numeric,
+             *         stats_max: float|int|Numeric,
+             *     }
+             * } $results
+             */
+            $results = iterator_to_array($context->client->runQuery($context->client->query($sql)));
+        } catch (BadRequestException $e) {
+            throw MetricCollectFailedException::fromColumnMetric($dataset, $table, $column, $this, $e);
+        }
 
         return [
             'avg' => $this->toFloat($results[0]['stats_avg']),

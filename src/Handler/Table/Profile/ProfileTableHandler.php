@@ -19,6 +19,7 @@ use Keboola\StorageDriver\BigQuery\Profile\Column\NumericStatisticsColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnCountTableMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\BigQuery\Profile\DataSizeTableMetric;
+use Keboola\StorageDriver\BigQuery\Profile\MetricCollectFailedException;
 use Keboola\StorageDriver\BigQuery\Profile\RowCountTableMetric;
 use Keboola\StorageDriver\BigQuery\Profile\TableMetricInterface;
 use Keboola\StorageDriver\Command\Table\CreateProfileTableCommand;
@@ -86,11 +87,20 @@ final class ProfileTableHandler extends BaseHandler
         $tableProfile = [];
 
         foreach ($tableMetrics as $metric) {
-            $tableProfile[$metric->name()] = $metric->collect(
-                $datasetName,
-                $command->getTableName(),
-                $bigQueryContext,
-            );
+            try {
+                $tableProfile[$metric->name()] = $metric->collect(
+                    $datasetName,
+                    $command->getTableName(),
+                    $bigQueryContext,
+                );
+            } catch (MetricCollectFailedException $e) {
+                $this->internalLogger->warning(
+                    $e->getMessage(),
+                    [
+                        'exception' => $e->getPrevious(),
+                    ],
+                );
+            }
         }
 
         $response->setProfile(json_encode($tableProfile, JSON_THROW_ON_ERROR));
@@ -103,12 +113,21 @@ final class ProfileTableHandler extends BaseHandler
 
             $columnProfile = [];
             foreach ($columnMetrics as $metric) {
-                $columnProfile[$metric->name()] = $metric->collect(
-                    $datasetName,
-                    $command->getTableName(),
-                    $columnName,
-                    $bigQueryContext,
-                );
+                try {
+                    $columnProfile[$metric->name()] = $metric->collect(
+                        $datasetName,
+                        $command->getTableName(),
+                        $columnName,
+                        $bigQueryContext,
+                    );
+                } catch (MetricCollectFailedException $e) {
+                    $this->internalLogger->warning(
+                        $e->getMessage(),
+                        [
+                            'exception' => $e->getPrevious(),
+                        ],
+                    );
+                }
             }
 
             $columnProfiles[] = (new Column())
