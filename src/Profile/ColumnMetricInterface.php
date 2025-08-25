@@ -11,6 +11,7 @@ interface ColumnMetricInterface
     public function description(): string;
 
     /**
+     * @throws MetricCollectFailedException
      * @return array<mixed>
      */
     public function collect(

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Profile\Column;
 
+use Google\Cloud\Core\Exception\BadRequestException;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
+use Keboola\StorageDriver\BigQuery\Profile\MetricCollectFailedException;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 final class DuplicateCountColumnMetric implements ColumnMetricInterface
@@ -39,8 +41,12 @@ final class DuplicateCountColumnMetric implements ColumnMetricInterface
             $columnQuoted,
         );
 
-        /** @var array{0: array{duplicate_count: int}} $results */
-        $results = iterator_to_array($context->client->runQuery($context->client->query($sql)));
+        try {
+            /** @var array{0: array{duplicate_count: int}} $results */
+            $results = iterator_to_array($context->client->runQuery($context->client->query($sql)));
+        } catch (BadRequestException $e) {
+            throw MetricCollectFailedException::fromColumnMetric($dataset, $table, $column, $this, $e);
+        }
 
         return $results[0]['duplicate_count'];
     }

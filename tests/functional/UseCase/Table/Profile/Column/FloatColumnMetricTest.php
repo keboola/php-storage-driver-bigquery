@@ -10,6 +10,7 @@ use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DuplicateCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
+use Keboola\StorageDriver\BigQuery\Profile\Column\NumericStatisticsColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -49,11 +50,12 @@ final class FloatColumnMetricTest extends BaseCase
 
     /**
      * @dataProvider metricProvider
+     * @param array<mixed>|int $expected
      */
     public function testMetric(
         ColumnMetricInterface $metric,
         string $column,
-        int $expected,
+        array|int $expected,
     ): void {
         $actual = $metric->collect($this->dataset, self::TABLE_NAME, $column, $this->context);
         $this->assertSame($expected, $actual);
@@ -132,6 +134,44 @@ final class FloatColumnMetricTest extends BaseCase
             self::COLUMN_STRING_NULLABLE,
             3,
         ];
+
+        yield 'numeric statistics (float, not nullable)' => [
+            new NumericStatisticsColumnMetric(),
+            self::COLUMN_FLOAT_NOT_NULLABLE,
+            [
+                'avg' => 13830.337667,
+                'mode' => 4.56,
+                'median' => 4.56,
+                'min' => -3.21,
+                'max' => 123456.789,
+            ],
+        ];
+
+        // @todo Waiting for implementation of untyped tables profiling.
+//        yield 'numeric statistics (string, not nullable)' => [
+//            new NumericStatisticsColumnMetric(),
+//            self::COLUMN_STRING_NOT_NULLABLE,
+//            [],
+//        ];
+
+        yield 'numeric statistics (float, nullable)' => [
+            new NumericStatisticsColumnMetric(),
+            self::COLUMN_FLOAT_NULLABLE,
+            [
+                'avg' => 20577.3215,
+                'mode' => 1.23,
+                'median' => 1.23,
+                'min' => -3.21,
+                'max' => 123456.789,
+            ],
+        ];
+
+        // @todo Waiting for implementation of untyped tables profiling.
+//        yield 'numeric statistics (string, nullable)' => [
+//            new NumericStatisticsColumnMetric(),
+//            self::COLUMN_STRING_NULLABLE,
+//            [],
+//        ];
     }
 
     protected function setUp(): void
