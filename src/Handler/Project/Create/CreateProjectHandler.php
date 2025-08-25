@@ -204,6 +204,9 @@ final class CreateProjectHandler extends BaseHandler
         $project->setParent('folders/' . $folderId);
         $project->setProjectId($projectId);
         $project->setDisplayName($projectId);
+        $project->setLabels([
+            'keboola_project' => $projectId,
+        ]);
 
         $operationResponse = $projectsClient->createProject($project);
         $operationResponse->pollUntilComplete();
