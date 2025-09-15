@@ -17,6 +17,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\EmptyHandler;
 use Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery\ExecuteQueryHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\CreateProjectHandler;
@@ -54,7 +55,9 @@ use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Command\Common\DriverResponse;
 use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryCommand;
 use Keboola\StorageDriver\Command\Info\ObjectInfoCommand;
+use Keboola\StorageDriver\Command\Project\CreateDevBranchCommand;
 use Keboola\StorageDriver\Command\Project\CreateProjectCommand;
+use Keboola\StorageDriver\Command\Project\DropDevBranchCommand;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Project\UpdateProjectCommand;
 use Keboola\StorageDriver\Command\Table\AddColumnCommand;
@@ -200,6 +203,10 @@ class BigQueryDriverClient implements ClientInterface
                 return new ProfileTableHandler($manager);
             case $command instanceof ExecuteQueryCommand:
                 return new ExecuteQueryHandler($manager);
+            case $command instanceof CreateDevBranchCommand:
+            case $command instanceof DropDevBranchCommand:
+                // Commands without any action on BQ side
+                return new EmptyHandler();
         }
 
         throw new CommandNotSupportedException(get_class($command));
