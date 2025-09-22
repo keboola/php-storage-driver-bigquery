@@ -175,7 +175,7 @@ final class ObjectInfoHandler extends BaseHandler
             if ($info['type'] === 'EXTERNAL') {
                 try {
                     $client->runQuery($client->query(sprintf(
-                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s LIMIT 1',
+                    /** @lang BigQuery */                        'SELECT * FROM %s.%s.%s TABLESAMPLE SYSTEM (1 PERCENT) LIMIT 1',
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['projectId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['datasetId']),
                         BigqueryQuote::quoteSingleIdentifier($info['tableReference']['tableId']),
