@@ -31,7 +31,7 @@ class GCPClientManager
         'connect_timeout' => self::CONNECT_TIMEOUT,
     ];
     private const KEBOOLA_USER_AGENT = 'Keboola/1.0 (GPN:Keboola; connection)';
-    public const TIMEOUT = 120;
+    public const TIMEOUT = 240;
     public const CONNECT_TIMEOUT = 10;
     private const DEFAULT_RETRIES_COUNT = 20;
     public const RETRY_MAP = [ // extends Google\Task\Runner::$retryMap
