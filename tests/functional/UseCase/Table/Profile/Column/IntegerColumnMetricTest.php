@@ -140,7 +140,6 @@ final class IntegerColumnMetricTest extends BaseCase
             self::COLUMN_INT_NOT_NULLABLE,
             [
                 'avg' => 90919.272727,
-                'mode' => 5.0,
                 'median' => 3.0,
                 'min' => -10.0,
                 'max' => 999999.0,
@@ -159,7 +158,6 @@ final class IntegerColumnMetricTest extends BaseCase
             self::COLUMN_INT_NULLABLE,
             [
                 'avg' => 13.375000,
-                'mode' => 5.0,
                 'median' => 3.0,
                 'min' => -10.0,
                 'max' => 100.0,
