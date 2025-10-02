@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop;
 
 use Google\Protobuf\Internal\Message;
+use Keboola\StorageDriver\BigQuery\BigQueryClientHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Throwable;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class DropBucketHandler extends BaseHandler
 {
@@ -48,7 +48,7 @@ final class DropBucketHandler extends BaseHandler
         $dataset = $bigQueryClient->dataset($command->getBucketObjectName());
 
         $dataset->delete([
-            'retries' => self::DEFAULT_RETRY_OVERRIDE,
+            'retries' => BigQueryClientHelper::DEFAULT_RETRY_OVERRIDE,
             'deleteContents' => $command->getIsCascade(),
         ]);
 

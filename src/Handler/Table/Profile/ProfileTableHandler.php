@@ -9,7 +9,6 @@ use Keboola\Datatype\Definition\BaseType;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Exception\InvalidTypeException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Profile\BigQueryContext;
 use Keboola\StorageDriver\BigQuery\Profile\Column\AvgMinMaxLengthColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\Column\DistinctCountColumnMetric;
@@ -26,6 +25,7 @@ use Keboola\StorageDriver\Command\Table\CreateProfileTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateProfileTableResponse;
 use Keboola\StorageDriver\Command\Table\CreateProfileTableResponse\Column;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class ProfileTableHandler extends BaseHandler
 {

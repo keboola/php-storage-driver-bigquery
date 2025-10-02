@@ -14,7 +14,6 @@ use Keboola\FileStorage\Gcs\GcsProvider;
 use Keboola\FileStorage\Path\RelativePath;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
@@ -26,6 +25,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\TableExportToFileCommand;
 use Keboola\StorageDriver\Command\Table\TableExportToFileResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 

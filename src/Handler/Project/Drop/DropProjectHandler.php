@@ -9,9 +9,9 @@ use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class DropProjectHandler extends BaseHandler
 {

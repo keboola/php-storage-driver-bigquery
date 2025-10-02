@@ -9,11 +9,11 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\DestinationDatasetReference;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class LinkBucketHandler extends BaseHandler
 {

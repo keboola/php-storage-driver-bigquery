@@ -22,7 +22,6 @@ use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
@@ -35,6 +34,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDesti
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;

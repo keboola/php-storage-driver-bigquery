@@ -8,8 +8,8 @@ use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\Message;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Datatype\Definition\Exception\InvalidLengthException;
+use Keboola\StorageDriver\BigQuery\BigQueryClientHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\Helper\CreateTableMetaHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Table\TableReflectionResponseTransformer;
 use Keboola\StorageDriver\Command\Info\ObjectInfoResponse;
@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Info\ObjectType;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\Bigquery\Parser\SQLtoRestDatatypeConverter;
@@ -60,7 +61,7 @@ final class CreateTableHandler extends BaseHandler
             'schema' => [
                 'fields' => [],
             ],
-            'retries' => self::DEFAULT_RETRY_OVERRIDE,
+            'retries' => BigQueryClientHelper::DEFAULT_RETRY_OVERRIDE,
         ];
         /** @var TableColumnShared $column */
         foreach ($command->getColumns() as $column) {
