@@ -20,13 +20,12 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
 
     public function description(): string
     {
-        return 'Basic statistics for numeric column (average, mode, median minimum, and maximum.';
+        return 'Basic statistics for numeric column (average, median minimum, and maximum.';
     }
 
     /**
      * @return array{
      *     avg: float,
-     *     mode: float,
      *     median: float,
      *     min: float,
      *     max: float,
@@ -49,7 +48,6 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
                 )
                 SELECT
                     ROUND(AVG(%s), 6) AS stats_avg,
-                    APPROX_TOP_COUNT(%s, 1)[OFFSET(0)].value AS stats_mode,
                     (
                         SELECT m
                         FROM (
@@ -70,7 +68,6 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
             $columnQuoted,
             $columnQuoted,
             $columnQuoted,
-            $columnQuoted,
         );
 
         try {
@@ -78,7 +75,6 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
              * @var array{
              *     0: array{
              *         stats_avg: float|int|Numeric,
-             *         stats_mode: float|int|Numeric,
              *         stats_median: float|int|Numeric,
              *         stats_min: float|int|Numeric,
              *         stats_max: float|int|Numeric,
@@ -92,7 +88,6 @@ final class NumericStatisticsColumnMetric implements ColumnMetricInterface
 
         return [
             'avg' => $this->toFloat($results[0]['stats_avg']),
-            'mode' => $this->toFloat($results[0]['stats_mode']),
             'median' => $this->toFloat($results[0]['stats_median']),
             'min' => $this->toFloat($results[0]['stats_min']),
             'max' => $this->toFloat($results[0]['stats_max']),

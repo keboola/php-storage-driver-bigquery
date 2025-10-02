@@ -140,7 +140,6 @@ final class FloatColumnMetricTest extends BaseCase
             self::COLUMN_FLOAT_NOT_NULLABLE,
             [
                 'avg' => 13830.337667,
-                'mode' => 4.56,
                 'median' => 4.56,
                 'min' => -3.21,
                 'max' => 123456.789,
@@ -159,7 +158,6 @@ final class FloatColumnMetricTest extends BaseCase
             self::COLUMN_FLOAT_NULLABLE,
             [
                 'avg' => 20577.3215,
-                'mode' => 1.23,
                 'median' => 1.23,
                 'min' => -3.21,
                 'max' => 123456.789,
