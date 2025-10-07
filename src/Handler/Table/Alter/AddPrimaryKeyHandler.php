@@ -6,9 +6,9 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Alter;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Table\AddPrimaryKeyCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;

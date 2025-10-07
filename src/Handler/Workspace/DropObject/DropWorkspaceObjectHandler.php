@@ -7,9 +7,9 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\DropObject;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceObjectCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
 final class DropWorkspaceObjectHandler extends BaseHandler

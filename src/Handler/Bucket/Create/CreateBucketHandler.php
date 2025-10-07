@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Create;
 
 use Google\Protobuf\Internal\Message;
+use Keboola\StorageDriver\BigQuery\BigQueryClientHelper;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class CreateBucketHandler extends BaseHandler
 {
@@ -59,7 +60,7 @@ final class CreateBucketHandler extends BaseHandler
             $newBucketDatabaseName,
             [
                 'location' => $credentialsMeta->getRegion(),
-                'retries' => self::DEFAULT_RETRY_OVERRIDE,
+                'retries' => BigQueryClientHelper::DEFAULT_RETRY_OVERRIDE,
             ],
         );
 

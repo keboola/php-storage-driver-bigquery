@@ -6,9 +6,9 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare;
 
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class UnShareBucketHandler extends BaseHandler
 {

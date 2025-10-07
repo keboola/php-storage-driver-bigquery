@@ -7,9 +7,9 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Clear;
 use Google\Cloud\BigQuery\Table;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Workspace\ClearWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Throwable;
 

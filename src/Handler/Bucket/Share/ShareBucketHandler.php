@@ -9,10 +9,10 @@ use Google\Cloud\BigQuery\AnalyticsHub\V1\Listing\BigQueryDatasetSource;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Throwable;
 
 final class ShareBucketHandler extends BaseHandler

@@ -8,11 +8,11 @@ use Google\ApiCore\ApiException;
 use Google\ApiCore\ValidationException;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectIdTooLongException;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Create\ProjectWithProjectIdAlreadyExists;
 use Keboola\StorageDriver\Command\Project\UpdateProjectCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 

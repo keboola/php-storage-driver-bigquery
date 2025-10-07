@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Backend\Remove;
 
 use Google\Protobuf\Internal\Message;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class RemoveBackendHandler extends BaseHandler
 {

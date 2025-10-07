@@ -12,12 +12,11 @@ use Google\Cloud\Iam\V1\TestIamPermissionsResponse;
 use Google\Protobuf\Internal\Message;
 use JsonException;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\InitBackendResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
-use Throwable;
 
 final class InitBackendHandler extends BaseHandler
 {

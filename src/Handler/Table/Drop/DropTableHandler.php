@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Drop;
 
 use Google\Protobuf\Internal\Message;
+use Keboola\StorageDriver\BigQuery\BigQueryClientHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\Handler\BaseHandler;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
-use Throwable;
+use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 
 final class DropTableHandler extends BaseHandler
 {
@@ -53,7 +53,7 @@ final class DropTableHandler extends BaseHandler
         $datasetName = $command->getPath()[0]; // bucket name
         $dateset = $bqClient->dataset($datasetName);
         $table = $dateset->table($command->getTableName());
-        $table->delete(['retries' => self::DEFAULT_RETRY_OVERRIDE]);
+        $table->delete(['retries' => BigQueryClientHelper::DEFAULT_RETRY_OVERRIDE]);
 
         return null;
     }
