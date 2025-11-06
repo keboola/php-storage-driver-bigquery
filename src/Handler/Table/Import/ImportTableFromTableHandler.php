@@ -21,12 +21,14 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
+use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\MappedTableSqlSource;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
@@ -37,6 +39,8 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
+use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
@@ -205,6 +209,19 @@ final class ImportTableFromTableHandler extends BaseHandler
             $source->getSchema(),
             $source->getTableName(),
         ))->getTableDefinition();
+
+        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
+        $importSource = $this->createSqlSourceFromMappings($source, $mappings);
+        $sourceForStageImport = $importSource ?? $source;
+
+        if ($mappings !== []) {
+            $sourceTableDefinition = $this->restrictSourceTableDefinition(
+                $sourceTableDefinition,
+                array_map(static fn($mapping) => $mapping->getSourceColumnName(), $mappings),
+            );
+        }
+
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
             $destinationDefinition = new BigqueryTableDefinition(
@@ -225,7 +242,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $toStageImporter = new ToStageImporter($bqClient);
             try {
                 $importState = $toStageImporter->importToStagingTable(
-                    $source,
+                    $sourceForStageImport,
                     $destinationDefinition,
                     $importOptions,
                 );
@@ -234,9 +251,6 @@ final class ImportTableFromTableHandler extends BaseHandler
             }
             return [null, $importState->getResult()];
         }
-
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
-        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
         // load to staging table
         $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
             $destinationDefinition,
@@ -257,6 +271,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         if ($isColumnIdentical) {
             // if columns are identical we can use COPY statement to make import faster
             $toStageImporter = new CopyImportFromTableToTable($bqClient);
+            $stageImportSource = $source;
         } else {
             $bqClient->runQuery($bqClient->query(
                 (new BigqueryTableQueryBuilder())->getCreateTableCommand(
@@ -268,10 +283,11 @@ final class ImportTableFromTableHandler extends BaseHandler
             ));
             // load to staging table
             $toStageImporter = new ToStageImporter($bqClient);
+            $stageImportSource = $sourceForStageImport;
         }
         try {
             $importState = $toStageImporter->importToStagingTable(
-                $source,
+                $stageImportSource,
                 $stagingTable,
                 $importOptions,
             );
@@ -293,6 +309,75 @@ final class ImportTableFromTableHandler extends BaseHandler
             throw $e;
         }
         return [$stagingTable, $importResult];
+    }
+
+    /**
+     * @param TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings
+     */
+    private function createSqlSourceFromMappings(Table $source, array $mappings): ?SqlSourceInterface
+    {
+        if ($mappings === []) {
+            return null;
+        }
+
+        $columnMappings = [];
+        foreach ($mappings as $mapping) {
+            $columnMappings[] = [
+                'source' => $mapping->getSourceColumnName(),
+                'destination' => $mapping->getDestinationColumnName(),
+            ];
+        }
+
+        return new MappedTableSqlSource(
+            $source->getSchema(),
+            $source->getTableName(),
+            $columnMappings,
+            $source->getPrimaryKeysNames(),
+        );
+    }
+
+    /**
+     * @param array<string> $orderedColumnNames
+     */
+    private function restrictSourceTableDefinition(
+        BigqueryTableDefinition $definition,
+        array $orderedColumnNames,
+    ): BigqueryTableDefinition {
+        if ($orderedColumnNames === []) {
+            return $definition;
+        }
+
+        $selectedColumns = [];
+        foreach ($orderedColumnNames as $columnName) {
+            $selectedColumns[] = $this->getSourceColumnDefinition($definition, $columnName);
+        }
+
+        return new BigqueryTableDefinition(
+            $definition->getSchemaName(),
+            $definition->getTableName(),
+            $definition->isTemporary(),
+            new ColumnCollection($selectedColumns),
+            $definition->getPrimaryKeysNames(),
+        );
+    }
+
+    private function getSourceColumnDefinition(
+        BigqueryTableDefinition $definition,
+        string $columnName,
+    ): BigqueryColumn {
+        /** @var BigqueryColumn $columnDefinition */
+        foreach ($definition->getColumnsDefinitions() as $columnDefinition) {
+            if ($columnDefinition->getColumnName() === $columnName) {
+                return $columnDefinition;
+            }
+        }
+
+        throw new LogicException(sprintf(
+            'Column "%s" was not found in table "%s.%s".',
+            $columnName,
+            $definition->getSchemaName(),
+            $definition->getTableName(),
+        ));
     }
 
     private function importByTableCopy(
