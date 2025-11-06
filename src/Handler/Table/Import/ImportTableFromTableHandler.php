@@ -20,9 +20,10 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
+use Keboola\Db\ImportExport\ImportOptionsInterface;
+use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
-use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
@@ -31,8 +32,12 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\MappedTableSqlSource;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -92,7 +97,10 @@ final class ImportTableFromTableHandler extends BaseHandler
             $queryTags,
         );
 
-        $source = $this->createSource($bqClient, $command);
+        [
+            'table' => $source,
+            'filteredSource' => $filteredSource,
+        ] = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
 
         // Replace is only available in view or clone import
@@ -115,6 +123,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                     $destination,
                     $importOptions,
                     $source,
+                    $filteredSource,
                     $bigqueryImportOptions,
                     $sourceMapping,
                 );
@@ -163,28 +172,53 @@ final class ImportTableFromTableHandler extends BaseHandler
         return $response;
     }
 
+    /**
+     * @return array{table: Table, filteredSource: SqlSourceInterface|null}
+     */
     private function createSource(
         BigQueryClient $bqClient,
         TableImportFromTableCommand $command,
-    ): Table {
+    ): array {
         $sourceMapping = $command->getSource();
         assert($sourceMapping !== null);
+        $schemaName = ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0];
+        $tableName = $sourceMapping->getTableName();
+
         $sourceColumns = [];
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
-        foreach ($sourceMapping->getColumnMappings() as $mapping) {
-            $sourceColumns[] = $mapping->getSourceColumnName();
+        $columnMappings = $sourceMapping->getColumnMappings();
+        if ($columnMappings !== null) {
+            /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
+            foreach ($columnMappings as $mapping) {
+                $sourceColumns[] = $mapping->getSourceColumnName();
+            }
         }
+
         $sourceTableDef = (new BigqueryTableReflection(
             $bqClient,
-            ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
-            $sourceMapping->getTableName(),
+            $schemaName,
+            $tableName,
         ))->getTableDefinition();
-        return new Table(
-            ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
-            $sourceMapping->getTableName(),
+
+        $tableSource = new Table(
+            $schemaName,
+            $tableName,
             $sourceColumns,
             $sourceTableDef->getPrimaryKeysNames(),
         );
+
+        $filteredSource = $this->buildFilteredSelectSource(
+            $bqClient,
+            $sourceMapping,
+            $sourceTableDef,
+            $schemaName,
+            $tableName,
+            $sourceColumns,
+        );
+
+        return [
+            'table' => $tableSource,
+            'filteredSource' => $filteredSource,
+        ];
     }
 
     /**
@@ -197,6 +231,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         Table $source,
         BigqueryImportOptions $importOptions,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        ?SqlSourceInterface $filteredSource,
     ): array {
         /** @var BigqueryTableDefinition $destinationDefinition */
         $destinationDefinition = (new BigqueryTableReflection(
@@ -211,10 +246,14 @@ final class ImportTableFromTableHandler extends BaseHandler
             $source->getTableName(),
         ))->getTableDefinition();
 
+        $columnMappingsField = $sourceMapping->getColumnMappings();
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
-        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
-        $importSource = $this->createSqlSourceFromMappings($source, $mappings);
-        $sourceForStageImport = $importSource ?? $source;
+        $mappings = $columnMappingsField !== null
+            ? iterator_to_array($columnMappingsField->getIterator())
+            : [];
+        $baseStageSource = $filteredSource ?? $source;
+        $importSource = $this->createSqlSourceFromMappings($baseStageSource, $mappings);
+        $sourceForStageImport = $importSource ?? $baseStageSource;
 
         if ($mappings !== []) {
             $sourceTableDefinition = $this->restrictSourceTableDefinition(
@@ -271,7 +310,8 @@ final class ImportTableFromTableHandler extends BaseHandler
             $isColumnIdentical = false;
         }
 
-        if ($isColumnIdentical) {
+        $canUseCopyImporter = $filteredSource === null && $importSource === null;
+        if ($isColumnIdentical && $canUseCopyImporter) {
             // if columns are identical we can use COPY statement to make import faster
             $toStageImporter = new CopyImportFromTableToTable($bqClient);
             $stageImportSource = $source;
@@ -314,10 +354,108 @@ final class ImportTableFromTableHandler extends BaseHandler
         return [$stagingTable, $importResult];
     }
 
+    private function buildFilteredSelectSource(
+        BigQueryClient $bqClient,
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        BigqueryTableDefinition $sourceTableDefinition,
+        string $schemaName,
+        string $tableName,
+        array $sourceColumns,
+    ): ?SelectSource {
+        $filters = $this->createExportFiltersFromSourceMapping($sourceMapping);
+        if ($filters === null) {
+            return null;
+        }
+
+        $queryBuilder = new ExportQueryBuilder($bqClient, new ColumnConverter());
+        $columnsRepeated = ProtobufHelper::arrayToRepeatedString($sourceColumns);
+        $orderBy = new RepeatedField(GPBType::MESSAGE, ExportOrderBy::class);
+
+        $queryData = $queryBuilder->buildQueryFromCommand(
+            ExportQueryBuilder::MODE_SELECT,
+            $filters,
+            $orderBy,
+            $columnsRepeated,
+            $sourceTableDefinition->getColumnsDefinitions(),
+            $schemaName,
+            $tableName,
+            false,
+        );
+
+        $querySql = $queryData->getQuery();
+        if ($filters->getLimit() > 0 && stripos($querySql, 'LIMIT ') === false) {
+            $querySql = sprintf('%s LIMIT %d', $querySql, $filters->getLimit());
+        }
+
+        $selectedColumns = $sourceColumns === []
+            ? $sourceTableDefinition->getColumnsNames()
+            : $sourceColumns;
+
+        return new SelectSource(
+            $querySql,
+            $queryData->getBindings(),
+            $selectedColumns,
+            [],
+            $sourceTableDefinition->getPrimaryKeysNames(),
+        );
+    }
+
+    private function createExportFiltersFromSourceMapping(
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+    ): ?ExportFilters {
+        $limit = (int) $sourceMapping->getLimit();
+        $whereFilters = $sourceMapping->getWhereFilters();
+        $hasWhereFilters = $whereFilters !== null && $whereFilters->count() > 0;
+
+        $changeSince = $this->resolveChangeBoundary($sourceMapping, 'Since');
+        $changeUntil = $this->resolveChangeBoundary($sourceMapping, 'Until');
+
+        if ($limit === 0 && !$hasWhereFilters && $changeSince === '' && $changeUntil === '') {
+            return null;
+        }
+
+        $filters = new ExportFilters();
+        $filters->setLimit($limit);
+        if ($changeSince !== '') {
+            $filters->setChangeSince($changeSince);
+        }
+        if ($changeUntil !== '') {
+            $filters->setChangeUntil($changeUntil);
+        }
+        if ($whereFilters !== null) {
+            $filters->setWhereFilters($whereFilters);
+        }
+
+        return $filters;
+    }
+
+    private function resolveChangeBoundary(
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        string $boundary,
+    ): string {
+        $method = sprintf('getChange%s', $boundary);
+        if (method_exists($sourceMapping, $method)) {
+            $value = (string) $sourceMapping->$method();
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        if ($boundary === 'Since') {
+            $seconds = (int) $sourceMapping->getSeconds();
+            if ($seconds > 0) {
+                $timestamp = max(time() - $seconds, 0);
+                return (string) $timestamp;
+            }
+        }
+
+        return '';
+    }
+
     /**
      * @param TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings
      */
-    private function createSqlSourceFromMappings(Table $source, array $mappings): ?SqlSourceInterface
+    private function createSqlSourceFromMappings(SqlSourceInterface $source, array $mappings): ?SqlSourceInterface
     {
         if ($mappings === []) {
             return null;
@@ -331,11 +469,22 @@ final class ImportTableFromTableHandler extends BaseHandler
             ];
         }
 
+        if ($source instanceof Table) {
+            return new MappedTableSqlSource(
+                $source->getSchema(),
+                $source->getTableName(),
+                $columnMappings,
+                $source->getPrimaryKeysNames(),
+            );
+        }
+
         return new MappedTableSqlSource(
-            $source->getSchema(),
-            $source->getTableName(),
-            $columnMappings,
-            $source->getPrimaryKeysNames(),
+            schema: null,
+            tableName: null,
+            columnMappings: $columnMappings,
+            primaryKeysNames: $source->getPrimaryKeysNames(),
+            baseQuery: $source->getFromStatement(),
+            queryBindings: $source->getQueryBindings(),
         );
     }
 
@@ -424,6 +573,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         CommandDestination $destination,
         ImportOptions $importOptions,
         Table $source,
+        ?SqlSourceInterface $filteredSource,
         BigqueryImportOptions $bigqueryImportOptions,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): Result {
@@ -439,6 +589,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $source,
                 $bigqueryImportOptions,
                 $sourceMapping,
+                $filteredSource,
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));

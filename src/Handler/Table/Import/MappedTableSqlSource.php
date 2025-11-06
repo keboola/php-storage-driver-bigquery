@@ -6,9 +6,12 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
 
 use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use LogicException;
 
 final class MappedTableSqlSource extends SelectSource
 {
+    private const SUBQUERY_ALIAS = '_mapped_source';
+
     /** @var array<int, array{source: string, destination: string}> */
     private array $columnMappings;
 
@@ -17,16 +20,21 @@ final class MappedTableSqlSource extends SelectSource
      * @param string[]|null $primaryKeysNames
      */
     public function __construct(
-        private readonly string $schema,
-        private readonly string $tableName,
+        private readonly ?string $schema,
+        private readonly ?string $tableName,
         array $columnMappings,
         ?array $primaryKeysNames = null,
+        private readonly ?string $baseQuery = null,
+        array $queryBindings = [],
     ) {
+        if ($baseQuery === null && ($schema === null || $tableName === null)) {
+            throw new LogicException('Either base query or schema and tableName must be provided.');
+        }
         $this->columnMappings = $columnMappings;
 
         parent::__construct(
             '',
-            [],
+            $queryBindings,
             array_map(static fn(array $mapping) => $mapping['destination'], $columnMappings),
             [],
             $primaryKeysNames,
@@ -36,10 +44,10 @@ final class MappedTableSqlSource extends SelectSource
     public function getFromStatement(): string
     {
         if ($this->columnMappings === []) {
-            return sprintf(
+            return $this->baseQuery ?? sprintf(
                 'SELECT * FROM %s.%s',
-                BigqueryQuote::quoteSingleIdentifier($this->schema),
-                BigqueryQuote::quoteSingleIdentifier($this->tableName),
+                BigqueryQuote::quoteSingleIdentifier((string) $this->schema),
+                BigqueryQuote::quoteSingleIdentifier((string) $this->tableName),
             );
         }
 
@@ -57,14 +65,13 @@ final class MappedTableSqlSource extends SelectSource
 
     private function buildSelect(bool $castToString): string
     {
-        $quotedSchema = BigqueryQuote::quoteSingleIdentifier($this->schema);
-        $quotedTable = BigqueryQuote::quoteSingleIdentifier($this->tableName);
         $selectParts = [];
+        $sourceAlias = $this->getSourceAlias();
 
         foreach ($this->columnMappings as $mapping) {
             $sourceColumn = sprintf(
                 '%s.%s',
-                $quotedTable,
+                $sourceAlias,
                 BigqueryQuote::quoteSingleIdentifier($mapping['source']),
             );
             if ($castToString) {
@@ -79,10 +86,39 @@ final class MappedTableSqlSource extends SelectSource
         }
 
         return sprintf(
-            'SELECT %s FROM %s.%s',
+            'SELECT %s FROM %s',
             implode(', ', $selectParts),
-            $quotedSchema,
-            $quotedTable,
+            $this->buildFromClause(),
         );
+    }
+
+    private function buildFromClause(): string
+    {
+        if ($this->baseQuery !== null) {
+            return sprintf(
+                '(%s) AS %s',
+                $this->baseQuery,
+                BigqueryQuote::quoteSingleIdentifier(self::SUBQUERY_ALIAS),
+            );
+        }
+
+        return sprintf(
+            '%s.%s',
+            BigqueryQuote::quoteSingleIdentifier((string) $this->schema),
+            BigqueryQuote::quoteSingleIdentifier((string) $this->tableName),
+        );
+    }
+
+    private function getSourceAlias(): string
+    {
+        if ($this->baseQuery !== null) {
+            return BigqueryQuote::quoteSingleIdentifier(self::SUBQUERY_ALIAS);
+        }
+
+        if ($this->tableName === null) {
+            throw new LogicException('Table name must be provided when base query is not used.');
+        }
+
+        return BigqueryQuote::quoteSingleIdentifier($this->tableName);
     }
 }
