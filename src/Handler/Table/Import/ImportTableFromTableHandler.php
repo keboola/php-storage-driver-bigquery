@@ -22,6 +22,7 @@ use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
+use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
@@ -222,6 +223,8 @@ final class ImportTableFromTableHandler extends BaseHandler
             );
         }
 
+        $importOptions = $this->synchronizeTimestampUsage($importOptions, $mappings);
+
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
             $destinationDefinition = new BigqueryTableDefinition(
@@ -378,6 +381,42 @@ final class ImportTableFromTableHandler extends BaseHandler
             $definition->getSchemaName(),
             $definition->getTableName(),
         ));
+    }
+
+    /**
+     * @param TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings
+     */
+    private function synchronizeTimestampUsage(
+        BigqueryImportOptions $importOptions,
+        array $mappings,
+    ): BigqueryImportOptions {
+        if (!$importOptions->useTimestamp()) {
+            return $importOptions;
+        }
+
+        $mappedDestinationColumns = array_map(
+            static fn(TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping) => $mapping->getDestinationColumnName(),
+            $mappings,
+        );
+
+        if (in_array(ToStageImporterInterface::TIMESTAMP_COLUMN_NAME, $mappedDestinationColumns, true)) {
+            return $importOptions;
+        }
+
+        $usingTypes = $importOptions->usingUserDefinedTypes()
+            ? ImportOptionsInterface::USING_TYPES_USER
+            : ImportOptionsInterface::USING_TYPES_STRING;
+
+        return new BigqueryImportOptions(
+            convertEmptyValuesToNull: $importOptions->getConvertEmptyValuesToNull(),
+            isIncremental: $importOptions->isIncremental(),
+            useTimestamp: false,
+            numberOfIgnoredLines: $importOptions->getNumberOfIgnoredLines(),
+            usingTypes: $usingTypes,
+            session: $importOptions->getSession(),
+            importAsNull: $importOptions->importAsNull(),
+            features: $importOptions->features(),
+        );
     }
 
     private function importByTableCopy(

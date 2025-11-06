@@ -4,42 +4,33 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
 
-use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
+use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 
-/**
- * @phpstan-type ColumnMapping array{source: string, destination: string}
- */
-final class MappedTableSqlSource implements SqlSourceInterface
+final class MappedTableSqlSource extends SelectSource
 {
     /** @var array<int, array{source: string, destination: string}> */
     private array $columnMappings;
 
-    /** @param array<int, array{source: string, destination: string}> $columnMappings */
+    /**
+     * @param array<int, array{source: string, destination: string}> $columnMappings
+     * @param string[]|null $primaryKeysNames
+     */
     public function __construct(
         private readonly string $schema,
         private readonly string $tableName,
         array $columnMappings,
-        private readonly ?array $primaryKeysNames = null,
+        ?array $primaryKeysNames = null,
     ) {
         $this->columnMappings = $columnMappings;
-    }
 
-    public function getColumnsNames(): array
-    {
-        if ($this->columnMappings === []) {
-            return [];
-        }
-
-        return array_map(
-            static fn(array $mapping) => $mapping['destination'],
-            $this->columnMappings,
+        parent::__construct(
+            '',
+            [],
+            array_map(static fn(array $mapping) => $mapping['destination'], $columnMappings),
+            [],
+            $primaryKeysNames,
         );
-    }
-
-    public function getPrimaryKeysNames(): ?array
-    {
-        return $this->primaryKeysNames;
     }
 
     public function getFromStatement(): string
@@ -93,10 +84,5 @@ final class MappedTableSqlSource implements SqlSourceInterface
             $quotedSchema,
             $quotedTable,
         );
-    }
-
-    public function getQueryBindings(): array
-    {
-        return [];
     }
 }
