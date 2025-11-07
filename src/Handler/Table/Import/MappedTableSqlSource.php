@@ -18,6 +18,7 @@ final class MappedTableSqlSource extends SelectSource
     /**
      * @param array<int, array{source: string, destination: string}> $columnMappings
      * @param string[]|null $primaryKeysNames
+     * @param array<int, mixed>|array<string, mixed> $queryBindings
      */
     public function __construct(
         private readonly ?string $schema,

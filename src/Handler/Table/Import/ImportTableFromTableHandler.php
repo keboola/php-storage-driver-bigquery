@@ -34,10 +34,10 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Import\MappedTableSqlSource;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ExportQueryBuilder;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportFilters;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ExportOrderBy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -354,6 +354,9 @@ final class ImportTableFromTableHandler extends BaseHandler
         return [$stagingTable, $importResult];
     }
 
+    /**
+     * @param string[] $sourceColumns
+     */
     private function buildFilteredSelectSource(
         BigQueryClient $bqClient,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
@@ -544,7 +547,9 @@ final class ImportTableFromTableHandler extends BaseHandler
         }
 
         $mappedDestinationColumns = array_map(
-            static fn(TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping) => $mapping->getDestinationColumnName(),
+            static function (TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping): string {
+                return $mapping->getDestinationColumnName();
+            },
             $mappings,
         );
 
