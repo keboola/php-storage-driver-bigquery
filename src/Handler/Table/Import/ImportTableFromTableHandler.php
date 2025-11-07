@@ -266,7 +266,13 @@ final class ImportTableFromTableHandler extends BaseHandler
             );
         }
 
-        $importOptions = $this->synchronizeTimestampUsage($importOptions, $mappings);
+        $importOptions = $this->synchronizeTimestampUsage(
+            $importOptions,
+            $mappings,
+            $sourceMapping,
+            $sourceTableDefinition,
+            $destinationDefinition,
+        );
 
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
@@ -310,7 +316,10 @@ final class ImportTableFromTableHandler extends BaseHandler
                 $stagingTable->getColumnsDefinitions(),
                 [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
             );
-        } catch (ColumnsMismatchException) {
+        } catch (ColumnsMismatchException $e) {
+            if (!$this->columnsAreCompatible($sourceTableDefinition, $stagingTable)) {
+                throw new DriverColumnsMismatchException($e->getMessage(), previous: $e);
+            }
             $isColumnIdentical = false;
         }
 
@@ -551,20 +560,34 @@ final class ImportTableFromTableHandler extends BaseHandler
      */
     private function synchronizeTimestampUsage(
         BigqueryImportOptions $importOptions,
-        array $mappings,
+        array &$mappings,
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        BigqueryTableDefinition $sourceTableDefinition,
+        BigqueryTableDefinition $destinationTableDefinition,
     ): BigqueryImportOptions {
         if (!$importOptions->useTimestamp()) {
             return $importOptions;
         }
 
-        $mappedDestinationColumns = array_map(
-            static function (TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping): string {
-                return $mapping->getDestinationColumnName();
-            },
+        $hasTimestampMapping = array_filter(
             $mappings,
-        );
+            static fn(TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping): bool => $mapping->getDestinationColumnName() === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME,
+        ) !== [];
 
-        if (in_array(ToStageImporterInterface::TIMESTAMP_COLUMN_NAME, $mappedDestinationColumns, true)) {
+        if ($hasTimestampMapping) {
+            return $importOptions;
+        }
+
+        $timestampExistsInSource = $this->tableHasColumn($sourceTableDefinition, ToStageImporterInterface::TIMESTAMP_COLUMN_NAME);
+        $timestampExistsInDestination = $this->tableHasColumn($destinationTableDefinition, ToStageImporterInterface::TIMESTAMP_COLUMN_NAME);
+
+        if ($timestampExistsInSource && $timestampExistsInDestination) {
+            $timestampMapping = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+                ->setSourceColumnName(ToStageImporterInterface::TIMESTAMP_COLUMN_NAME)
+                ->setDestinationColumnName(ToStageImporterInterface::TIMESTAMP_COLUMN_NAME);
+
+            $sourceMapping->getColumnMappings()[] = $timestampMapping;
+            $mappings[] = $timestampMapping;
             return $importOptions;
         }
 
@@ -599,6 +622,48 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         /** @var array<string, mixed> $bindings */
         return $bindings;
+    }
+
+    private function tableHasColumn(BigqueryTableDefinition $definition, string $columnName): bool
+    {
+        foreach ($definition->getColumnsDefinitions() as $columnDefinition) {
+            if ($columnDefinition->getColumnName() === $columnName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function columnsAreCompatible(
+        BigqueryTableDefinition $source,
+        BigqueryTableDefinition $staging,
+    ): bool {
+        $sourceColumns = [];
+        /** @var BigqueryColumn $columnDefinition */
+        foreach ($source->getColumnsDefinitions() as $columnDefinition) {
+            $sourceColumns[$columnDefinition->getColumnName()] = $columnDefinition;
+        }
+
+        /** @var BigqueryColumn $stagingColumn */
+        foreach ($staging->getColumnsDefinitions() as $stagingColumn) {
+            $columnName = $stagingColumn->getColumnName();
+            if ($columnName === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME) {
+                continue;
+            }
+            if (!isset($sourceColumns[$columnName])) {
+                return false;
+            }
+            $sourceColumn = $sourceColumns[$columnName];
+            if ($sourceColumn->getColumnDefinition()->getType() !== $stagingColumn->getColumnDefinition()->getType()) {
+                return false;
+            }
+            if ($sourceColumn->getColumnDefinition()->getSQLDefinition() !== $stagingColumn->getColumnDefinition()->getSQLDefinition()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function importByTableCopy(

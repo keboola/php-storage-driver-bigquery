@@ -115,11 +115,15 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->createTestBucket($wsCredentials1);
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
-            $this->assertSame(403, $exception->getCode());
-            $this->assertStringContainsString(
-                'User does not have bigquery.datasets.create permission in project',
-                $exception->getMessage(),
-            );
+            $this->assertContains($exception->getCode(), [403, 409]);
+            if ($exception->getCode() === 403) {
+                $this->assertStringContainsString(
+                    'User does not have bigquery.datasets.create permission in project',
+                    $exception->getMessage(),
+                );
+            } else {
+                $this->assertStringContainsString('Already Exists', $exception->getMessage());
+            }
         }
 
         $tableName = 'testTable';

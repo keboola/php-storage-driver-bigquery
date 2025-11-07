@@ -184,21 +184,25 @@ class BaseImportTestCase extends BaseCase
         string $database,
         string $tableName,
     ): void {
-        /** @var array<string, array<string>> $timestamps */
-        $timestamps = $bqClient->runQuery($bqClient->query(sprintf(
+        $queryResults = $bqClient->runQuery($bqClient->query(sprintf(
             'SELECT _timestamp FROM %s.%s',
             BigqueryQuote::quoteSingleIdentifier($database),
             BigqueryQuote::quoteSingleIdentifier($tableName),
-        )))->getIterator()->current();
-        $timestamps = $timestamps['_timestamp'];
-        foreach ($timestamps as $timestamp) {
+        )));
+
+        $hasTimestamp = false;
+        foreach ($queryResults as $row) {
+            $hasTimestamp = true;
+            $timestamp = $row['_timestamp'] ?? null;
             $this->assertNotEmpty($timestamp);
             $this->assertEqualsWithDelta(
                 new DateTime('now'),
-                new DateTime($timestamp),
+                new DateTime((string) $timestamp),
                 60, // set to 1 minute, it's important that timestamp is there
             );
         }
+
+        $this->assertTrue($hasTimestamp, 'Expected table to contain _timestamp values.');
     }
 
     /**
