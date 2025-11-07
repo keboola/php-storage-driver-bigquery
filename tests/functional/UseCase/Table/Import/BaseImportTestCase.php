@@ -191,13 +191,15 @@ class BaseImportTestCase extends BaseCase
         )));
 
         $hasTimestamp = false;
+        /** @var array<string, mixed> $row */
         foreach ($queryResults as $row) {
             $hasTimestamp = true;
             $timestamp = $row['_timestamp'] ?? null;
             $this->assertNotEmpty($timestamp);
+            $this->assertIsString($timestamp);
             $this->assertEqualsWithDelta(
                 new DateTime('now'),
-                new DateTime((string) $timestamp),
+                new DateTime($timestamp),
                 60, // set to 1 minute, it's important that timestamp is there
             );
         }

@@ -571,15 +571,23 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         $hasTimestampMapping = array_filter(
             $mappings,
-            static fn(TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping): bool => $mapping->getDestinationColumnName() === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME,
+            static fn(
+                TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping,
+            ): bool => $mapping->getDestinationColumnName() === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME,
         ) !== [];
 
         if ($hasTimestampMapping) {
             return $importOptions;
         }
 
-        $timestampExistsInSource = $this->tableHasColumn($sourceTableDefinition, ToStageImporterInterface::TIMESTAMP_COLUMN_NAME);
-        $timestampExistsInDestination = $this->tableHasColumn($destinationTableDefinition, ToStageImporterInterface::TIMESTAMP_COLUMN_NAME);
+        $timestampExistsInSource = $this->tableHasColumn(
+            $sourceTableDefinition,
+            ToStageImporterInterface::TIMESTAMP_COLUMN_NAME,
+        );
+        $timestampExistsInDestination = $this->tableHasColumn(
+            $destinationTableDefinition,
+            ToStageImporterInterface::TIMESTAMP_COLUMN_NAME,
+        );
 
         if ($timestampExistsInSource && $timestampExistsInDestination) {
             $timestampMapping = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
@@ -658,7 +666,9 @@ final class ImportTableFromTableHandler extends BaseHandler
             if ($sourceColumn->getColumnDefinition()->getType() !== $stagingColumn->getColumnDefinition()->getType()) {
                 return false;
             }
-            if ($sourceColumn->getColumnDefinition()->getSQLDefinition() !== $stagingColumn->getColumnDefinition()->getSQLDefinition()) {
+            if ($sourceColumn->getColumnDefinition()->getSQLDefinition()
+                !== $stagingColumn->getColumnDefinition()->getSQLDefinition()
+            ) {
                 return false;
             }
         }
