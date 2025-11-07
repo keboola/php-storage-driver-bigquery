@@ -28,16 +28,19 @@ final class MappedTableSqlSource extends SelectSource
         private readonly ?string $baseQuery = null,
         array $queryBindings = [],
     ) {
-        if (array_is_list($queryBindings)) {
+        if ($queryBindings === []) {
+            /** @var array<string, mixed> $queryBindings */
+            $queryBindings = [];
+        } elseif (array_is_list($queryBindings)) {
             throw new LogicException('Query bindings must use named parameters.');
-        }
-        foreach (array_keys($queryBindings) as $bindingKey) {
-            if (!is_string($bindingKey)) {
-                throw new LogicException('Query bindings must use named parameters.');
+        } else {
+            foreach (array_keys($queryBindings) as $bindingKey) {
+                if (!is_string($bindingKey)) {
+                    throw new LogicException('Query bindings must use named parameters.');
+                }
             }
+            /** @var array<string, mixed> $queryBindings */
         }
-
-        /** @var array<string, mixed> $queryBindings */
 
         if ($baseQuery === null && ($schema === null || $tableName === null)) {
             throw new LogicException('Either base query or schema and tableName must be provided.');

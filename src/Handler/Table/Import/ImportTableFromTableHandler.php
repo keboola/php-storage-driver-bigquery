@@ -590,6 +590,9 @@ final class ImportTableFromTableHandler extends BaseHandler
      */
     private function assertNamedBindings(array $bindings): array
     {
+        if ($bindings === []) {
+            return [];
+        }
         if (array_is_list($bindings)) {
             throw new LogicException('Query bindings must use named parameters.');
         }
