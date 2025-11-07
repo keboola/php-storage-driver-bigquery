@@ -258,6 +258,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         $baseStageSource = $filteredSource ?? $source;
         $importSource = $this->createSqlSourceFromMappings($baseStageSource, $mappings);
         $sourceForStageImport = $importSource ?? $baseStageSource;
+        $hasColumnMappings = $mappings !== [];
 
         if ($mappings !== []) {
             $sourceTableDefinition = $this->restrictSourceTableDefinition(
@@ -287,7 +288,23 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         $isFullImport = $options->getImportType() === ImportType::FULL;
         $insertOnlyDuplicates = $options->getDedupType() === ImportOptions\DedupType::INSERT_DUPLICATES;
-        if ($isFullImport && $insertOnlyDuplicates && !$importOptions->useTimestamp()) {
+        $fastImportWithoutStage = $isFullImport
+            && $insertOnlyDuplicates
+            && !$importOptions->useTimestamp()
+            && !$hasColumnMappings
+            && $filteredSource === null
+            && $importSource === null;
+
+        if ($fastImportWithoutStage) {
+            try {
+                Assert::assertSameColumnsOrdered(
+                    $sourceTableDefinition->getColumnsDefinitions(),
+                    $destinationDefinition->getColumnsDefinitions(),
+                    [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
+                );
+            } catch (ColumnsMismatchException $e) {
+                throw new DriverColumnsMismatchException($e->getMessage(), previous: $e);
+            }
             // when full load is performed with no deduplication only copy data using ToStage class
             // this will skip moving data to stage table
             // this is used on full load into workspace where data are deduplicated already
@@ -317,7 +334,7 @@ final class ImportTableFromTableHandler extends BaseHandler
                 [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
             );
         } catch (ColumnsMismatchException $e) {
-            if (!$this->columnsAreCompatible($sourceTableDefinition, $stagingTable)) {
+            if (!$this->columnsAreCompatible($sourceTableDefinition, $stagingTable, $mappings)) {
                 throw new DriverColumnsMismatchException($e->getMessage(), previous: $e);
             }
             $isColumnIdentical = false;
@@ -643,9 +660,13 @@ final class ImportTableFromTableHandler extends BaseHandler
         return false;
     }
 
+    /**
+     * @param TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings
+     */
     private function columnsAreCompatible(
         BigqueryTableDefinition $source,
         BigqueryTableDefinition $staging,
+        array $mappings,
     ): bool {
         $sourceColumns = [];
         /** @var BigqueryColumn $columnDefinition */
@@ -653,19 +674,33 @@ final class ImportTableFromTableHandler extends BaseHandler
             $sourceColumns[$columnDefinition->getColumnName()] = $columnDefinition;
         }
 
-        /** @var BigqueryColumn $stagingColumn */
-        foreach ($staging->getColumnsDefinitions() as $stagingColumn) {
-            $columnName = $stagingColumn->getColumnName();
-            if ($columnName === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME) {
+        $stagingColumns = [];
+        /** @var BigqueryColumn $columnDefinition */
+        foreach ($staging->getColumnsDefinitions() as $columnDefinition) {
+            $stagingColumns[$columnDefinition->getColumnName()] = $columnDefinition;
+        }
+
+        foreach ($mappings as $mapping) {
+            $destinationColumnName = $mapping->getDestinationColumnName();
+            if ($destinationColumnName === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME) {
                 continue;
             }
-            if (!isset($sourceColumns[$columnName])) {
+
+            $sourceColumnName = $mapping->getSourceColumnName();
+            if (!isset($sourceColumns[$sourceColumnName])) {
                 return false;
             }
-            $sourceColumn = $sourceColumns[$columnName];
+            if (!isset($stagingColumns[$destinationColumnName])) {
+                return false;
+            }
+
+            $sourceColumn = $sourceColumns[$sourceColumnName];
+            $stagingColumn = $stagingColumns[$destinationColumnName];
+
             if ($sourceColumn->getColumnDefinition()->getType() !== $stagingColumn->getColumnDefinition()->getType()) {
                 return false;
             }
+
             if ($sourceColumn->getColumnDefinition()->getSQLDefinition()
                 !== $stagingColumn->getColumnDefinition()->getSQLDefinition()
             ) {
