@@ -18,7 +18,7 @@ final class MappedTableSqlSource extends SelectSource
     /**
      * @param array<int, array{source: string, destination: string}> $columnMappings
      * @param string[]|null $primaryKeysNames
-     * @param array<int, mixed>|array<string, mixed> $queryBindings
+     * @param array<int|string, mixed> $queryBindings
      */
     public function __construct(
         private readonly ?string $schema,
@@ -28,6 +28,17 @@ final class MappedTableSqlSource extends SelectSource
         private readonly ?string $baseQuery = null,
         array $queryBindings = [],
     ) {
+        if (array_is_list($queryBindings)) {
+            throw new LogicException('Query bindings must use named parameters.');
+        }
+        foreach (array_keys($queryBindings) as $bindingKey) {
+            if (!is_string($bindingKey)) {
+                throw new LogicException('Query bindings must use named parameters.');
+            }
+        }
+
+        /** @var array<string, mixed> $queryBindings */
+
         if ($baseQuery === null && ($schema === null || $tableName === null)) {
             throw new LogicException('Either base query or schema and tableName must be provided.');
         }

@@ -548,6 +548,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
 
+        /** @var array<int, array<string, mixed>> $rowsIterator */
         $rowsIterator = iterator_to_array($result->getIterator());
         $this->assertCount(2, $rowsIterator);
         foreach ($rowsIterator as $row) {

@@ -193,6 +193,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             }
         }
 
+        /** @var BigqueryTableDefinition $sourceTableDef */
         $sourceTableDef = (new BigqueryTableReflection(
             $bqClient,
             $schemaName,
@@ -248,9 +249,12 @@ final class ImportTableFromTableHandler extends BaseHandler
 
         $columnMappingsField = $sourceMapping->getColumnMappings();
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
-        $mappings = $columnMappingsField !== null
-            ? iterator_to_array($columnMappingsField->getIterator())
-            : [];
+        $mappings = [];
+        if ($columnMappingsField !== null) {
+            foreach ($columnMappingsField as $mapping) {
+                $mappings[] = $mapping;
+            }
+        }
         $baseStageSource = $filteredSource ?? $source;
         $importSource = $this->createSqlSourceFromMappings($baseStageSource, $mappings);
         $sourceForStageImport = $importSource ?? $baseStageSource;
@@ -357,6 +361,9 @@ final class ImportTableFromTableHandler extends BaseHandler
     /**
      * @param string[] $sourceColumns
      */
+    /**
+     * @param string[] $sourceColumns
+     */
     private function buildFilteredSelectSource(
         BigQueryClient $bqClient,
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
@@ -390,13 +397,15 @@ final class ImportTableFromTableHandler extends BaseHandler
             $querySql = sprintf('%s LIMIT %d', $querySql, $filters->getLimit());
         }
 
+        $bindings = $this->assertNamedBindings($queryData->getBindings());
+
         $selectedColumns = $sourceColumns === []
             ? $sourceTableDefinition->getColumnsNames()
             : $sourceColumns;
 
         return new SelectSource(
             $querySql,
-            $queryData->getBindings(),
+            $bindings,
             $selectedColumns,
             [],
             $sourceTableDefinition->getPrimaryKeysNames(),
@@ -481,13 +490,15 @@ final class ImportTableFromTableHandler extends BaseHandler
             );
         }
 
+        $bindings = $this->assertNamedBindings($source->getQueryBindings());
+
         return new MappedTableSqlSource(
             schema: null,
             tableName: null,
             columnMappings: $columnMappings,
             primaryKeysNames: $source->getPrimaryKeysNames(),
             baseQuery: $source->getFromStatement(),
-            queryBindings: $source->getQueryBindings(),
+            queryBindings: $bindings,
         );
     }
 
@@ -571,6 +582,20 @@ final class ImportTableFromTableHandler extends BaseHandler
             importAsNull: $importOptions->importAsNull(),
             features: $importOptions->features(),
         );
+    }
+
+    /**
+     * @param array<int|string, mixed> $bindings
+     * @return array<string, mixed>
+     */
+    private function assertNamedBindings(array $bindings): array
+    {
+        if (array_is_list($bindings)) {
+            throw new LogicException('Query bindings must use named parameters.');
+        }
+
+        /** @var array<string, mixed> $bindings */
+        return $bindings;
     }
 
     private function importByTableCopy(
