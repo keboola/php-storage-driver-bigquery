@@ -154,11 +154,19 @@ abstract class CommonFilterQueryBuilder
     ): void {
         $columnDefByName = [];
         foreach ($tableColumnsDefinitions as $column) {
-            $columnDefByName[$column->getColumnName()] = $column;
+            $columnDefByName[strtolower($column->getColumnName())] = $column;
         }
 
         foreach ($filters as $whereFilter) {
-            $colDefinition = $columnDefByName[$whereFilter->getColumnsName()]->getColumnDefinition();
+            $columnName = strtolower($whereFilter->getColumnsName());
+            if (!isset($columnDefByName[$columnName])) {
+                throw new QueryBuilderException(sprintf(
+                    'Column "%s" not found on table "%s" for where filter.',
+                    $whereFilter->getColumnsName(),
+                    $tableName,
+                ));
+            }
+            $colDefinition = $columnDefByName[$columnName]->getColumnDefinition();
             $columnBaseType = $colDefinition->getBasetype();
             if ($whereFilter->getDataType() === DataType::STRING) {
                 // default dataType but base type might be not string

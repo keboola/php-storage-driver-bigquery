@@ -18,14 +18,19 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHand
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator as TableWhereFilterOperator;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -547,6 +552,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
 
         $rowsIterator = iterator_to_array($result->getIterator());
         $this->assertCount(2, $rowsIterator);
+        /** @var array{col1: string, col2: string} $row */
         foreach ($rowsIterator as $row) {
             $this->assertSame('keep', $row['col2']);
         }
@@ -1374,5 +1380,470 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertSame('2023-01-01 12:00:00+00', $rows[0]['time']);
         $this->assertSame('2', $rows[1]['id']);
         $this->assertSame('2023-01-01 12:00:00+00', $rows[1]['time']);
+    }
+
+    public function testCopyCreatesDestinationTableWhenMissing(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_copy_src_create';
+        $destinationTableName = $this->getTestHash() . '_copy_dest_create';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('name'),
+                new BigqueryColumn('_timestamp', new Bigquery(Bigquery::TYPE_TIMESTAMP, ['nullable' => false])),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        )));
+
+        $rows = [
+            ['1', 'alpha'],
+            ['2', 'beta'],
+            ['3', 'gamma'],
+        ];
+        $insert = [];
+        foreach ($rows as $row) {
+            $insert[] = sprintf(
+                '(%s, %s, CURRENT_TIMESTAMP())',
+                BigqueryQuote::quote($row[0]),
+                BigqueryQuote::quote($row[1]),
+            );
+        }
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (id, name, `_timestamp`) VALUES %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            implode(',', $insert),
+        )));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        foreach (['id', 'name', '_timestamp'] as $column) {
+            $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+                ->setSourceColumnName($column)
+                ->setDestinationColumnName($column);
+        }
+
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setTimestampColumn('_timestamp')
+                ->setImportAsNull(new RepeatedField(GPBType::STRING)),
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+
+            $destinationReflection = new BigqueryTableReflection(
+                $bqClient,
+                $bucketDatabaseName,
+                $destinationTableName,
+            );
+            $this->assertTrue($destinationReflection->exists());
+            $this->assertSame(3, $destinationReflection->getRowsCount());
+        } finally {
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $tableSourceDef->getSchemaName(),
+                $tableSourceDef->getTableName(),
+            )));
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        }
+    }
+
+    public function testCopyRespectsSecondsWhereFiltersAndLimit(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_copy_src_filters';
+        $destinationTableName = $this->getTestHash() . '_copy_dest_filters';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('name'),
+                new BigqueryColumn('_timestamp', new Bigquery(Bigquery::TYPE_TIMESTAMP, ['nullable' => false])),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (id, name, `_timestamp`) VALUES ' .
+            '(%s, %s, TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 120 SECOND)),' .
+            '(%s, %s, CURRENT_TIMESTAMP()),' .
+            '(%s, %s, CURRENT_TIMESTAMP())',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            BigqueryQuote::quote('old'),
+            BigqueryQuote::quote('first'),
+            BigqueryQuote::quote('recentA'),
+            BigqueryQuote::quote('second'),
+            BigqueryQuote::quote('recentB'),
+            BigqueryQuote::quote('third'),
+        )));
+
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        foreach (['id', 'name', '_timestamp'] as $column) {
+            $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+                ->setSourceColumnName($column)
+                ->setDestinationColumnName($column);
+        }
+
+        $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
+        $whereFilters[] = (new TableWhereFilter())
+            ->setColumnsName('id')
+            ->setOperator(TableWhereFilterOperator::eq)
+            ->setValues(ProtobufHelper::arrayToRepeatedString(['recentA']))
+            ->setDataType(DataType::STRING);
+
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTableName)
+                ->setColumnMappings($columnMappings)
+                ->setWhereFilters($whereFilters)
+                ->setSeconds(60)
+                ->setLimit(1),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setTimestampColumn('_timestamp')
+                ->setImportAsNull(new RepeatedField(GPBType::STRING)),
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmd,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+
+            $result = $bqClient->runQuery($bqClient->query(sprintf(
+                'SELECT id FROM %s.%s',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+            )));
+            /** @var array<array{id: string, name: string, _timestamp: string}> $rows */
+            $rows = iterator_to_array($result->rows());
+            $this->assertCount(1, $rows);
+            $this->assertSame('recentA', $rows[0]['id']);
+        } finally {
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $tableSourceDef->getSchemaName(),
+                $tableSourceDef->getTableName(),
+            )));
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        }
+    }
+
+    public function testIncrementalFailsWhenDestinationMissingColumns(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_copy_src_missing_dest';
+        $destinationTableName = $this->getTestHash() . '_copy_dest_missing_dest';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('name'),
+                new BigqueryColumn('_timestamp', new Bigquery(Bigquery::TYPE_TIMESTAMP, ['nullable' => false])),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (id, name, `_timestamp`) VALUES (%s, %s, CURRENT_TIMESTAMP())',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            BigqueryQuote::quote('1'),
+            BigqueryQuote::quote('alpha'),
+        )));
+
+        $cmdFull = $this->createImportCommand(
+            $bucketDatabaseName,
+            $sourceTableName,
+            $destinationTableName,
+            ['id', 'name', '_timestamp'],
+            ImportOptions\ImportType::FULL,
+            ImportOptions\DedupType::INSERT_DUPLICATES,
+            [],
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $handler(
+            $this->projectCredentials,
+            $cmdFull,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'ALTER TABLE %s.%s ADD COLUMN %s STRING',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            BigqueryQuote::quoteSingleIdentifier('test'),
+        )));
+
+        $cmdIncremental = $this->createImportCommand(
+            $bucketDatabaseName,
+            $sourceTableName,
+            $destinationTableName,
+            ['id', 'name', 'test', '_timestamp'],
+            ImportOptions\ImportType::INCREMENTAL,
+            ImportOptions\DedupType::UPDATE_DUPLICATES,
+            ['id'],
+        );
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmdIncremental,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Incremental load should fail when destination is missing mapped columns.');
+        } catch (ColumnsMismatchException $e) {
+            $this->assertStringContainsString('columns are missing in workspace table', $e->getMessage());
+            $this->assertStringContainsString('test', $e->getMessage());
+        } finally {
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $tableSourceDef->getSchemaName(),
+                $tableSourceDef->getTableName(),
+            )));
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        }
+    }
+
+    public function testIncrementalFailsWhenSourceMissingColumns(): void
+    {
+        $sourceTableName = $this->getTestHash() . '_copy_src_missing_source';
+        $destinationTableName = $this->getTestHash() . '_copy_dest_missing_source';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        $tableSourceDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $sourceTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('name'),
+                new BigqueryColumn('_timestamp', new Bigquery(Bigquery::TYPE_TIMESTAMP, ['nullable' => false])),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
+            $tableSourceDef->getSchemaName(),
+            $tableSourceDef->getTableName(),
+            $tableSourceDef->getColumnsDefinitions(),
+            $tableSourceDef->getPrimaryKeysNames(),
+        )));
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (id, name, `_timestamp`) VALUES (%s, %s, CURRENT_TIMESTAMP())',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            BigqueryQuote::quote('1'),
+            BigqueryQuote::quote('alpha'),
+        )));
+
+        $cmdFull = $this->createImportCommand(
+            $bucketDatabaseName,
+            $sourceTableName,
+            $destinationTableName,
+            ['id', 'name', '_timestamp'],
+            ImportOptions\ImportType::FULL,
+            ImportOptions\DedupType::INSERT_DUPLICATES,
+            [],
+        );
+
+        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $handler(
+            $this->projectCredentials,
+            $cmdFull,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'ALTER TABLE %s.%s DROP COLUMN %s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+            BigqueryQuote::quoteSingleIdentifier('name'),
+        )));
+
+        $cmdIncremental = $this->createImportCommand(
+            $bucketDatabaseName,
+            $sourceTableName,
+            $destinationTableName,
+            ['id', '_timestamp'],
+            ImportOptions\ImportType::INCREMENTAL,
+            ImportOptions\DedupType::UPDATE_DUPLICATES,
+            ['id'],
+        );
+
+        try {
+            $handler(
+                $this->projectCredentials,
+                $cmdIncremental,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Incremental load should fail when source is missing mapped columns.');
+        } catch (ColumnsMismatchException $e) {
+            $this->assertStringContainsString('columns are missing in source table', $e->getMessage());
+            $this->assertStringContainsString('name', $e->getMessage());
+        } finally {
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $tableSourceDef->getSchemaName(),
+                $tableSourceDef->getTableName(),
+            )));
+            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        }
+    }
+
+    /**
+     * @param string[] $columns
+     * @param string[] $dedupColumns
+     */
+    private function createImportCommand(
+        string $schema,
+        string $sourceTable,
+        string $destinationTable,
+        array $columns,
+        int $importType,
+        int $dedupType,
+        array $dedupColumns,
+    ): TableImportFromTableCommand {
+        $cmd = new TableImportFromTableCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $schema;
+        $columnMappings = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
+        foreach ($columns as $column) {
+            $columnMappings[] = (new TableImportFromTableCommand\SourceTableMapping\ColumnMapping())
+                ->setSourceColumnName($column)
+                ->setDestinationColumnName($column);
+        }
+        $cmd->setSource(
+            (new TableImportFromTableCommand\SourceTableMapping())
+                ->setPath($path)
+                ->setTableName($sourceTable)
+                ->setColumnMappings($columnMappings),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTable),
+        );
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportType($importType)
+                ->setDedupType($dedupType)
+                ->setDedupColumnsNames(ProtobufHelper::arrayToRepeatedString($dedupColumns))
+                ->setTimestampColumn('_timestamp')
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setImportAsNull(new RepeatedField(GPBType::STRING)),
+        );
+
+        return $cmd;
     }
 }
