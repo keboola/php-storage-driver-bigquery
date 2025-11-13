@@ -564,13 +564,24 @@ final class ImportTableFromTableHandler extends BaseHandler
             assert($tableDefinition instanceof BigqueryTableDefinition);
             return $tableDefinition;
         } catch (TableNotExistsReflectionException $e) {
-            $this->createDestinationTable(
-                $bqClient,
-                $schemaName,
-                $tableName,
-                $expectedColumns,
-                ProtobufHelper::repeatedStringToArray($importOptions->getDedupColumnsNames()),
+            // For VIEW and CLONE imports, the table/view will be created by the respective method
+            // Don't create it here to avoid conflicts
+            $isViewOrClone = in_array(
+                $importOptions->getImportType(),
+                [ImportType::VIEW, ImportType::PBCLONE],
+                true,
             );
+
+            if (!$isViewOrClone) {
+                $this->createDestinationTable(
+                    $bqClient,
+                    $schemaName,
+                    $tableName,
+                    $expectedColumns,
+                    ProtobufHelper::repeatedStringToArray($importOptions->getDedupColumnsNames()),
+                );
+            }
+
             return new BigqueryTableDefinition(
                 $schemaName,
                 $tableName,
