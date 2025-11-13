@@ -108,8 +108,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $expectedDestinationColumns,
         );
 
-        if (
-            $importOptions->getImportType() === ImportType::INCREMENTAL
+        if ($importOptions->getImportType() === ImportType::INCREMENTAL
             && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
         ) {
             $this->validateIncrementalDestinationTable(
@@ -289,6 +288,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         $columns = [];
         $whereFilters = $sourceMapping->getWhereFilters();
         if ($whereFilters !== null && $whereFilters->count() > 0) {
+            /** @var \Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter $filter */
             foreach ($whereFilters as $filter) {
                 $columns[] = $filter->getColumnsName();
             }
@@ -613,10 +613,15 @@ final class ImportTableFromTableHandler extends BaseHandler
         $actualColumnsFiltered = array_filter(
             $actualColumns,
             fn($key) => !in_array($key, $systemColumns, true),
-            ARRAY_FILTER_USE_KEY
+            ARRAY_FILTER_USE_KEY,
         );
 
-        $missingInSource = array_values(array_diff(array_keys($actualColumnsFiltered), array_keys($expectedColumnsNormalized)));
+        $missingInSource = array_values(
+            array_diff(
+                array_keys($actualColumnsFiltered),
+                array_keys($expectedColumnsNormalized),
+            ),
+        );
         if ($missingInSource !== []) {
             throw new DriverColumnsMismatchException(sprintf(
                 'Some columns are missing in source table %s. Missing columns: %s',

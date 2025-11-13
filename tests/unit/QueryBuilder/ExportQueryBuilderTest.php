@@ -464,6 +464,7 @@ class ExportQueryBuilderTest extends TestCase
                      ],
                      'fulltextSearch' => [
                          'xxx',
+                         // @phpcs:ignore
                          'SELECT * FROM `some_schema`.`some_table` WHERE (`some_table`.`name` LIKE \'%xxx%\') OR (`some_table`.`Iso` LIKE \'%xxx%\')',
                          [],
                      ],

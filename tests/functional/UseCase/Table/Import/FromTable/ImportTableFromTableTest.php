@@ -2002,7 +2002,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($sourceTableName)
                 ->setColumnMappings($columnMappings)
-                ->setWhereFilters($whereFilters)
+                ->setWhereFilters($whereFilters),
         );
         $cmd->setDestination(
             (new Table())
@@ -2011,7 +2011,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportOptions\ImportType::FULL),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -2030,9 +2030,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $data = $bqClient->runQuery($bqClient->query(sprintf(
             'SELECT * FROM %s.%s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($destinationTableName)
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )))->getIterator()->current();
 
+        assert(is_array($data));
         $this->assertCount(2, $data);
         $this->assertSame('1', $data['Id']);
         $this->assertSame('test', $data['Name']);
