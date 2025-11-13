@@ -95,7 +95,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             $queryTags,
         );
 
-        [$source, $sourceTableDefinition] = $this->createSource($bqClient, $command);
+        [$source, $sourceTableDefinition, $fullSourceTableDefinition] = $this->createSource($bqClient, $command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
         $expectedDestinationColumns = $this->buildDestinationColumnsFromMapping(
             $sourceTableDefinition,
@@ -108,13 +108,14 @@ final class ImportTableFromTableHandler extends BaseHandler
             $expectedDestinationColumns,
         );
 
-        if ($importOptions->getImportType() === ImportType::INCREMENTAL
+        if (
+            $importOptions->getImportType() === ImportType::INCREMENTAL
             && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
         ) {
             $this->validateIncrementalDestinationTable(
                 $destinationDefinition,
                 $expectedDestinationColumns,
-                $sourceTableDefinition,
+                $fullSourceTableDefinition,
             );
         }
 
@@ -191,7 +192,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     }
 
     /**
-     * @return array{0: SqlSourceInterface, 1: BigqueryTableDefinition}
+     * @return array{0: SqlSourceInterface, 1: BigqueryTableDefinition, 2: BigqueryTableDefinition}
      */
     private function createSource(
         BigQueryClient $bqClient,
@@ -216,9 +217,18 @@ final class ImportTableFromTableHandler extends BaseHandler
         );
         $isFullColumnSet = $this->isFullColumnSet($sourceColumns, $sourceTableDefinition);
         if ($this->shouldUseSelectSource($sourceMapping, $isFullColumnSet)) {
+            // For SELECT queries with WHERE filters, we need to include WHERE filter columns
+            // in the definition for validation, but NOT in the actual SELECT list
+            $whereFilterColumns = $this->getWhereFilterColumns($sourceMapping);
+            $allColumnsForValidation = array_unique(array_merge($sourceColumns, $whereFilterColumns));
+            $definitionForQuery = $this->filterSourceDefinition(
+                $sourceTableDefinition,
+                $allColumnsForValidation,
+            );
+
             $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
             $queryResponse = $queryBuilder->buildSelectSourceSql(
-                $effectiveSourceDefinition,
+                $definitionForQuery,
                 $sourceColumns,
                 $sourceMapping,
             );
@@ -239,7 +249,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             );
         }
 
-        return [$source, $effectiveSourceDefinition];
+        return [$source, $effectiveSourceDefinition, $sourceTableDefinition];
     }
 
     /**
@@ -268,6 +278,22 @@ final class ImportTableFromTableHandler extends BaseHandler
         }
 
         return $definitionColumns;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getWhereFilterColumns(
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+    ): array {
+        $columns = [];
+        $whereFilters = $sourceMapping->getWhereFilters();
+        if ($whereFilters !== null && $whereFilters->count() > 0) {
+            foreach ($whereFilters as $filter) {
+                $columns[] = $filter->getColumnsName();
+            }
+        }
+        return $columns;
     }
 
     /**
@@ -582,7 +608,15 @@ final class ImportTableFromTableHandler extends BaseHandler
         $actualColumns = $this->normalizeColumnsByName($destinationDefinition->getColumnsDefinitions());
         $expectedColumnsNormalized = $this->normalizeColumnsByName($expectedColumns);
 
-        $missingInSource = array_values(array_diff(array_keys($actualColumns), array_keys($expectedColumnsNormalized)));
+        // Exclude system columns like _timestamp from validation as they're auto-managed
+        $systemColumns = ['_timestamp'];
+        $actualColumnsFiltered = array_filter(
+            $actualColumns,
+            fn($key) => !in_array($key, $systemColumns, true),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        $missingInSource = array_values(array_diff(array_keys($actualColumnsFiltered), array_keys($expectedColumnsNormalized)));
         if ($missingInSource !== []) {
             throw new DriverColumnsMismatchException(sprintf(
                 'Some columns are missing in source table %s. Missing columns: %s',
@@ -657,6 +691,14 @@ final class ImportTableFromTableHandler extends BaseHandler
         /** @var BigqueryDefinition $actualDef */
         $actualDef = $actual->getColumnDefinition();
 
+        // For workspace string tables, destination columns are always STRING type
+        // regardless of source type, so allow any type -> STRING conversion
+        // Also be lenient with nullability and length for string tables
+        if (strcasecmp($actualDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
+            return true;
+        }
+
+        // For typed tables, require exact type match
         if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
             return false;
         }
