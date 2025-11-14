@@ -1995,7 +1995,8 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $whereFilters[] = (new TableWhereFilter())
             ->setColumnsName('iso')
             ->setOperator(Operator::eq)
-            ->setValues(ProtobufHelper::arrayToRepeatedString(['cz']));
+            ->setValues(ProtobufHelper::arrayToRepeatedString(['cz']))
+            ->setDataType(DataType::STRING);
 
         $cmd->setSource(
             (new TableImportFromTableCommand\SourceTableMapping())
