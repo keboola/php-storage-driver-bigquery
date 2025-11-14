@@ -85,7 +85,6 @@ final class ImportTableFromTableHandler extends BaseHandler
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
-        assert($runtimeOptions->getMeta() === null);
 
         // Validate required command fields
         $sourceMapping = $command->getSource();
@@ -150,16 +149,19 @@ final class ImportTableFromTableHandler extends BaseHandler
             }
         }
 
-        // Execute import based on type
-        $importResult = $this->executeImport(
+        // Create import context and execute
+        $context = ImportContext::create(
             $bqClient,
             $destination,
             $destinationDefinition,
             $importOptions,
-            $sourceContext,
+            $sourceContext->source,
+            $sourceContext->effectiveDefinition,
             $bigqueryImportOptions,
             $sourceMapping,
         );
+
+        $importResult = $this->executeImport($context);
 
         // Build and return response
         return $this->buildResponse($bqClient, $destination, $importResult);
@@ -168,46 +170,22 @@ final class ImportTableFromTableHandler extends BaseHandler
     /**
      * Execute import operation based on import type
      */
-    private function executeImport(
-        BigQueryClient $bqClient,
-        CommandDestination $destination,
-        BigqueryTableDefinition $destinationDefinition,
-        ImportOptions $importOptions,
-        SourceContext $sourceContext,
-        BigqueryImportOptions $bigqueryImportOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ): Result {
-        switch ($importOptions->getImportType()) {
+    private function executeImport(ImportContext $context): Result
+    {
+        switch ($context->importOptions->getImportType()) {
             case ImportType::FULL:
             case ImportType::INCREMENTAL:
-                return $this->importByTableCopy(
-                    $bqClient,
-                    $destination,
-                    $destinationDefinition,
-                    $importOptions,
-                    $sourceContext->source,
-                    $sourceContext->effectiveDefinition,
-                    $bigqueryImportOptions,
-                    $sourceMapping,
-                );
+                return $this->importByTableCopy($context);
             case ImportType::VIEW:
-                assert($sourceContext->source instanceof Table);
-                return $this->createView(
-                    $bqClient,
-                    $destination,
-                    $sourceContext->source,
-                );
+                assert($context->source instanceof Table);
+                return $this->createView($context->bqClient, $context->destination, $context->source);
             case ImportType::PBCLONE:
-                assert($sourceContext->source instanceof Table);
-                return $this->clone(
-                    $bqClient,
-                    $destination,
-                    $sourceContext->source,
-                );
+                assert($context->source instanceof Table);
+                return $this->clone($context->bqClient, $context->destination, $context->source);
             default:
                 throw new LogicException(sprintf(
                     'Unknown import type "%s".',
-                    $importOptions->getImportType(),
+                    $context->importOptions->getImportType(),
                 ));
         }
     }
@@ -241,194 +219,6 @@ final class ImportTableFromTableHandler extends BaseHandler
         $response->setTimers($timers);
 
         return $response;
-    }
-
-    /**
-     * @return array{0: SqlSourceInterface, 1: BigqueryTableDefinition, 2: BigqueryTableDefinition}
-     */
-    private function createSource(
-        BigQueryClient $bqClient,
-        TableImportFromTableCommand $command,
-    ): array {
-        $sourceMapping = $command->getSource();
-        assert($sourceMapping !== null);
-        $sourceDataset = ProtobufHelper::repeatedStringToArray($sourceMapping->getPath());
-        assert(isset($sourceDataset[0]), 'TableImportFromTableCommand.source.path is required.');
-
-        $sourceTableDefinition = (new BigqueryTableReflection(
-            $bqClient,
-            $sourceDataset[0],
-            $sourceMapping->getTableName(),
-        ))->getTableDefinition();
-        assert($sourceTableDefinition instanceof BigqueryTableDefinition);
-
-        $sourceColumns = $this->getSourceColumns($sourceMapping, $sourceTableDefinition);
-        $effectiveSourceDefinition = $this->filterSourceDefinition(
-            $sourceTableDefinition,
-            $sourceColumns,
-        );
-        $isFullColumnSet = $this->isFullColumnSet($sourceColumns, $sourceTableDefinition);
-        if ($this->shouldUseSelectSource($sourceMapping, $isFullColumnSet)) {
-            // For SELECT queries with WHERE filters, we need to include WHERE filter columns
-            // in the definition for validation, but NOT in the actual SELECT list
-            $whereFilterColumns = $this->getWhereFilterColumns($sourceMapping);
-            $allColumnsForValidation = array_unique(array_merge($sourceColumns, $whereFilterColumns));
-            $definitionForQuery = $this->filterSourceDefinition(
-                $sourceTableDefinition,
-                $allColumnsForValidation,
-            );
-
-            $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
-            $queryResponse = $queryBuilder->buildSelectSourceSql(
-                $definitionForQuery,
-                $sourceColumns,
-                $sourceMapping,
-            );
-            $source = new SelectSource(
-                $queryResponse->getQuery(),
-                // @phpstan-ignore-next-line argument.type incompatible types in library for PHPStan
-                $queryResponse->getBindings(),
-                $sourceColumns,
-                [],
-                $effectiveSourceDefinition->getPrimaryKeysNames(),
-            );
-        } else {
-            $source = new Table(
-                $effectiveSourceDefinition->getSchemaName(),
-                $effectiveSourceDefinition->getTableName(),
-                $sourceColumns,
-                $effectiveSourceDefinition->getPrimaryKeysNames(),
-            );
-        }
-
-        return [$source, $effectiveSourceDefinition, $sourceTableDefinition];
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getSourceColumns(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        BigqueryTableDefinition $sourceTableDefinition,
-    ): array {
-        $columns = [];
-        $columnMappingsField = $sourceMapping->getColumnMappings();
-        if ($columnMappingsField !== null) {
-            /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
-            foreach ($columnMappingsField->getIterator() as $mapping) {
-                $columns[] = $mapping->getSourceColumnName();
-            }
-        }
-        if ($columns !== []) {
-            return $columns;
-        }
-
-        $definitionColumns = [];
-        /** @var BigqueryColumn $column */
-        foreach ($sourceTableDefinition->getColumnsDefinitions() as $column) {
-            $definitionColumns[] = $column->getColumnName();
-        }
-
-        return $definitionColumns;
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getWhereFilterColumns(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ): array {
-        $columns = [];
-        $whereFilters = $sourceMapping->getWhereFilters();
-        if ($whereFilters !== null && $whereFilters->count() > 0) {
-            /** @var \Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter $filter */
-            foreach ($whereFilters as $filter) {
-                $columns[] = $filter->getColumnsName();
-            }
-        }
-        return $columns;
-    }
-
-    /**
-     * @param string[] $columns
-     */
-    private function filterSourceDefinition(
-        BigqueryTableDefinition $sourceDefinition,
-        array $columns,
-    ): BigqueryTableDefinition {
-        if ($columns === []) {
-            return $sourceDefinition;
-        }
-
-        $columnMap = [];
-        /** @var BigqueryColumn $column */
-        foreach ($sourceDefinition->getColumnsDefinitions() as $column) {
-            $columnMap[strtolower($column->getColumnName())] = $column;
-        }
-
-        $filtered = [];
-        foreach ($columns as $columnName) {
-            $column = $columnMap[strtolower($columnName)] ?? null;
-            if ($column === null) {
-                throw new DriverColumnsMismatchException(sprintf(
-                    'Column "%s" not found in source table %s.%s.',
-                    $columnName,
-                    $sourceDefinition->getSchemaName(),
-                    $sourceDefinition->getTableName(),
-                ));
-            }
-            $filtered[] = $column;
-        }
-
-        return new BigqueryTableDefinition(
-            $sourceDefinition->getSchemaName(),
-            $sourceDefinition->getTableName(),
-            $sourceDefinition->isTemporary(),
-            new ColumnCollection($filtered),
-            $sourceDefinition->getPrimaryKeysNames(),
-        );
-    }
-
-    /**
-     * @param string[] $columns
-     */
-    private function isFullColumnSet(
-        array $columns,
-        BigqueryTableDefinition $sourceDefinition,
-    ): bool {
-        if ($columns === []) {
-            return true;
-        }
-
-        $sourceColumns = [];
-        /** @var BigqueryColumn $column */
-        foreach ($sourceDefinition->getColumnsDefinitions() as $column) {
-            $sourceColumns[] = strtolower($column->getColumnName());
-        }
-
-        if (count($columns) !== count($sourceColumns)) {
-            return false;
-        }
-
-        foreach ($columns as $index => $columnName) {
-            if ($sourceColumns[$index] !== strtolower($columnName)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function shouldUseSelectSource(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        bool $isFullColumnSet,
-    ): bool {
-        $whereFilters = $sourceMapping->getWhereFilters();
-        $hasWhereFilters = $whereFilters !== null && $whereFilters->count() > 0;
-        return !$isFullColumnSet
-            || (int) $sourceMapping->getSeconds() > 0
-            || (int) $sourceMapping->getLimit() > 0
-            || $hasWhereFilters;
     }
 
     /**
@@ -534,277 +324,21 @@ final class ImportTableFromTableHandler extends BaseHandler
         return [$stagingTable, $importResult];
     }
 
-    private function buildDestinationColumnsFromMapping(
-        BigqueryTableDefinition $sourceTableDefinition,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ): ColumnCollection {
-        $sourceColumns = [];
-        /** @var BigqueryColumn $column */
-        foreach ($sourceTableDefinition->getColumnsDefinitions() as $column) {
-            $sourceColumns[strtolower($column->getColumnName())] = $column;
-        }
-
-        $definitions = [];
-        $columnMappingsField = $sourceMapping->getColumnMappings();
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
-        $mappings = iterator_to_array($columnMappingsField->getIterator());
-        if ($mappings === []) {
-            /** @var BigqueryColumn $column */
-            foreach ($sourceTableDefinition->getColumnsDefinitions() as $column) {
-                $definitions[] = $this->cloneColumnWithName($column, $column->getColumnName());
-            }
-            return new ColumnCollection($definitions);
-        }
-
-        $missingColumns = [];
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
-        foreach ($mappings as $mapping) {
-            $sourceColumn = $sourceColumns[strtolower($mapping->getSourceColumnName())] ?? null;
-            if ($sourceColumn === null) {
-                $missingColumns[] = $mapping->getSourceColumnName();
-                continue;
-            }
-            $definitions[] = $this->cloneColumnWithName($sourceColumn, $mapping->getDestinationColumnName());
-        }
-
-        if ($missingColumns !== []) {
-            throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in source table %s. Missing columns: %s',
-                sprintf('%s.%s', $sourceTableDefinition->getSchemaName(), $sourceTableDefinition->getTableName()),
-                implode(',', $missingColumns),
-            ));
-        }
-
-        return new ColumnCollection($definitions);
-    }
-
-    private function cloneColumnWithName(BigqueryColumn $column, string $newName): BigqueryColumn
+    private function importByTableCopy(ImportContext $context): Result
     {
-        /** @var BigqueryDefinition $definition */
-        $definition = $column->getColumnDefinition();
-        $options = [
-            'length' => $definition->getLength(),
-            'nullable' => $definition->isNullable(),
-            'default' => $definition->getDefault(),
-        ];
-        if (method_exists($definition, 'getFieldAsArray') && $definition->getFieldAsArray() !== null) {
-            $options['fieldAsArray'] = $definition->getFieldAsArray();
-        }
-
-        return new BigqueryColumn(
-            $newName,
-            new BigqueryDefinition(
-                $definition->getType(),
-                $options,
-            ),
-        );
-    }
-
-    private function resolveDestinationDefinition(
-        BigQueryClient $bqClient,
-        CommandDestination $destination,
-        ImportOptions $importOptions,
-        ColumnCollection $expectedColumns,
-    ): BigqueryTableDefinition {
-        $path = ProtobufHelper::repeatedStringToArray($destination->getPath());
-        assert(isset($path[0]), 'TableImportFromTableCommand.destination.path is required.');
-        $schemaName = $path[0];
-        $tableName = $destination->getTableName();
-
-        $reflection = new BigqueryTableReflection($bqClient, $schemaName, $tableName);
-        try {
-            $tableDefinition = $reflection->getTableDefinition();
-            assert($tableDefinition instanceof BigqueryTableDefinition);
-            return $tableDefinition;
-        } catch (TableNotExistsReflectionException $e) {
-            // For VIEW and CLONE imports, the table/view will be created by the respective method
-            // Don't create it here to avoid conflicts
-            $isViewOrClone = in_array(
-                $importOptions->getImportType(),
-                [ImportType::VIEW, ImportType::PBCLONE],
-                true,
-            );
-
-            if (!$isViewOrClone) {
-                $this->createDestinationTable(
-                    $bqClient,
-                    $schemaName,
-                    $tableName,
-                    $expectedColumns,
-                    ProtobufHelper::repeatedStringToArray($importOptions->getDedupColumnsNames()),
-                );
-            }
-
-            return new BigqueryTableDefinition(
-                $schemaName,
-                $tableName,
-                false,
-                $expectedColumns,
-                ProtobufHelper::repeatedStringToArray($importOptions->getDedupColumnsNames()),
-            );
-        }
-    }
-
-    /**
-     * @param string[] $primaryKeys
-     */
-    private function createDestinationTable(
-        BigQueryClient $bqClient,
-        string $schemaName,
-        string $tableName,
-        ColumnCollection $columns,
-        array $primaryKeys,
-    ): void {
-        $sql = (new BigqueryTableQueryBuilder())->getCreateTableCommand(
-            $schemaName,
-            $tableName,
-            $columns,
-            $primaryKeys,
-        );
-        $bqClient->runQuery($bqClient->query($sql));
-    }
-
-    private function validateIncrementalDestinationTable(
-        BigqueryTableDefinition $destinationDefinition,
-        ColumnCollection $expectedColumns,
-        BigqueryTableDefinition $sourceDefinition,
-    ): void {
-        $actualColumns = $this->normalizeColumnsByName($destinationDefinition->getColumnsDefinitions());
-        $expectedColumnsNormalized = $this->normalizeColumnsByName($expectedColumns);
-
-        // Exclude system columns like _timestamp from validation as they're auto-managed
-        $systemColumns = ['_timestamp'];
-        $actualColumnsFiltered = array_filter(
-            $actualColumns,
-            fn($key) => !in_array($key, $systemColumns, true),
-            ARRAY_FILTER_USE_KEY,
-        );
-
-        $missingInSource = array_values(
-            array_diff(
-                array_keys($actualColumnsFiltered),
-                array_keys($expectedColumnsNormalized),
-            ),
-        );
-        if ($missingInSource !== []) {
-            throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in source table %s. Missing columns: %s',
-                sprintf('%s.%s', $sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-                implode(',', array_map(
-                    fn(string $key) => $actualColumns[$key]->getColumnName(),
-                    $missingInSource,
-                )),
-            ));
-        }
-
-        $missingInWorkspace = array_values(
-            array_diff(
-                array_keys($expectedColumnsNormalized),
-                array_keys($actualColumns),
-            ),
-        );
-        if ($missingInWorkspace !== []) {
-            throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in workspace table %s. Missing columns: %s',
-                sprintf('%s.%s', $destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
-                implode(',', array_map(
-                    fn(string $key) => $expectedColumnsNormalized[$key]->getColumnName(),
-                    $missingInWorkspace,
-                )),
-            ));
-        }
-
-        $definitionErrors = [];
-        foreach ($expectedColumnsNormalized as $name => $expectedColumn) {
-            $actualColumn = $actualColumns[$name];
-            if (!$this->columnDefinitionsMatch($expectedColumn, $actualColumn)) {
-                /** @var BigqueryDefinition $expectedDef */
-                $expectedDef = $expectedColumn->getColumnDefinition();
-                /** @var BigqueryDefinition $actualDef */
-                $actualDef = $actualColumn->getColumnDefinition();
-                $definitionErrors[] = sprintf(
-                    '\'%s\' mapping \'%s\' / \'%s\'',
-                    $actualColumn->getColumnName(),
-                    $expectedDef->getSQLDefinition(),
-                    $actualDef->getSQLDefinition(),
-                );
-            }
-        }
-
-        if ($definitionErrors !== []) {
-            throw new DriverColumnsMismatchException(sprintf(
-                'Column definitions mismatch. Details: %s',
-                implode('; ', $definitionErrors),
-            ));
-        }
-    }
-
-    /**
-     * @return array<string, BigqueryColumn>
-     */
-    private function normalizeColumnsByName(ColumnCollection $columns): array
-    {
-        $normalized = [];
-        /** @var BigqueryColumn $column */
-        foreach ($columns as $column) {
-            $normalized[strtolower($column->getColumnName())] = $column;
-        }
-
-        return $normalized;
-    }
-
-    private function columnDefinitionsMatch(BigqueryColumn $expected, BigqueryColumn $actual): bool
-    {
-        /** @var BigqueryDefinition $expectedDef */
-        $expectedDef = $expected->getColumnDefinition();
-        /** @var BigqueryDefinition $actualDef */
-        $actualDef = $actual->getColumnDefinition();
-
-        // For workspace string tables, destination columns are always STRING type
-        // regardless of source type, so allow any type -> STRING conversion
-        // Also be lenient with nullability and length for string tables
-        if (strcasecmp($actualDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
-            return true;
-        }
-
-        // For typed tables, require exact type match
-        if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
-            return false;
-        }
-
-        if ($expectedDef->isNullable() !== $actualDef->isNullable()) {
-            return false;
-        }
-
-        $expectedLength = (string) ($expectedDef->getLength() ?? '');
-        $actualLength = (string) ($actualDef->getLength() ?? '');
-
-        return $expectedLength === $actualLength;
-    }
-
-    private function importByTableCopy(
-        BigQueryClient $bqClient,
-        CommandDestination $destination,
-        BigqueryTableDefinition $destinationDefinition,
-        ImportOptions $importOptions,
-        SqlSourceInterface $source,
-        BigqueryTableDefinition $sourceTableDefinition,
-        BigqueryImportOptions $bigqueryImportOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ): Result {
         $stagingTable = null;
         try {
             [
                 $stagingTable,
                 $importResult,
             ] = $this->import(
-                $bqClient,
-                $destinationDefinition,
-                $importOptions,
-                $source,
-                $sourceTableDefinition,
-                $bigqueryImportOptions,
-                $sourceMapping,
+                $context->bqClient,
+                $context->destinationDefinition,
+                $context->importOptions,
+                $context->source,
+                $context->sourceTableDefinition,
+                $context->bigqueryImportOptions,
+                $context->sourceMapping,
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
@@ -813,7 +347,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         } finally {
             if ($stagingTable !== null) {
                 try {
-                    $bqClient->runQuery($bqClient->query(
+                    $context->bqClient->runQuery($context->bqClient->query(
                         (new BigqueryTableQueryBuilder())->getDropTableCommand(
                             $stagingTable->getSchemaName(),
                             $stagingTable->getTableName(),
