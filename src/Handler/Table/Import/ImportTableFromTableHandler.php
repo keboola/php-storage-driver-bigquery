@@ -55,11 +55,21 @@ use Throwable;
 final class ImportTableFromTableHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
+    private ?ImportSourceFactory $sourceFactory;
+    private ?ColumnMappingService $columnMappingService;
+    private ?ImportDestinationManager $destinationManager;
 
-    public function __construct(GCPClientManager $clientManager)
-    {
+    public function __construct(
+        GCPClientManager $clientManager,
+        ?ImportSourceFactory $sourceFactory = null,
+        ?ColumnMappingService $columnMappingService = null,
+        ?ImportDestinationManager $destinationManager = null,
+    ) {
         parent::__construct();
         $this->clientManager = $clientManager;
+        $this->sourceFactory = $sourceFactory;
+        $this->columnMappingService = $columnMappingService;
+        $this->destinationManager = $destinationManager;
     }
 
     /**
@@ -75,10 +85,9 @@ final class ImportTableFromTableHandler extends BaseHandler
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
         assert($command instanceof TableImportFromTableCommand);
-
         assert($runtimeOptions->getMeta() === null);
 
-        // validate
+        // Validate required command fields
         $sourceMapping = $command->getSource();
         assert($sourceMapping !== null, 'TableImportFromFileCommand.source is required.');
         $destination = $command->getDestination();
@@ -95,30 +104,41 @@ final class ImportTableFromTableHandler extends BaseHandler
             $queryTags,
         );
 
-        [$source, $sourceTableDefinition, $fullSourceTableDefinition] = $this->createSource($bqClient, $command);
+        // Instantiate services if not injected (for backward compatibility)
+        $sourceFactory = $this->sourceFactory ?? new ImportSourceFactory($bqClient);
+        $columnMapping = $this->columnMappingService ?? new ColumnMappingService();
+        $destinationManager = $this->destinationManager ?? new ImportDestinationManager($bqClient);
+
+        // Create source using factory
+        $sourceContext = $sourceFactory->createFromCommand($command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
-        $expectedDestinationColumns = $this->buildDestinationColumnsFromMapping(
-            $sourceTableDefinition,
+
+        // Build destination columns from source and mapping
+        $expectedDestinationColumns = $columnMapping->buildDestinationColumns(
+            $sourceContext->effectiveDefinition,
             $sourceMapping,
         );
-        $destinationDefinition = $this->resolveDestinationDefinition(
-            $bqClient,
+
+        // Resolve or create destination table
+        $destinationDefinition = $destinationManager->resolveDestination(
             $destination,
             $importOptions,
             $expectedDestinationColumns,
         );
 
-        if ($importOptions->getImportType() === ImportType::INCREMENTAL
+        // Validate incremental destination if needed
+        if (
+            $importOptions->getImportType() === ImportType::INCREMENTAL
             && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
         ) {
-            $this->validateIncrementalDestinationTable(
+            $destinationManager->validateIncrementalDestination(
                 $destinationDefinition,
                 $expectedDestinationColumns,
-                $fullSourceTableDefinition,
+                $sourceContext->fullDefinition,
             );
         }
 
-        // Replace is only available in view or clone import
+        // Handle REPLACE mode for VIEW/PBCLONE imports
         $shouldDropTableIfExists = $importOptions->getCreateMode() === ImportOptions\CreateMode::REPLACE
             && in_array($importOptions->getImportType(), [ImportType::VIEW, ImportType::PBCLONE], true);
 
@@ -130,43 +150,76 @@ final class ImportTableFromTableHandler extends BaseHandler
             }
         }
 
+        // Execute import based on type
+        $importResult = $this->executeImport(
+            $bqClient,
+            $destination,
+            $destinationDefinition,
+            $importOptions,
+            $sourceContext,
+            $bigqueryImportOptions,
+            $sourceMapping,
+        );
+
+        // Build and return response
+        return $this->buildResponse($bqClient, $destination, $importResult);
+    }
+
+    /**
+     * Execute import operation based on import type
+     */
+    private function executeImport(
+        BigQueryClient $bqClient,
+        CommandDestination $destination,
+        BigqueryTableDefinition $destinationDefinition,
+        ImportOptions $importOptions,
+        SourceContext $sourceContext,
+        BigqueryImportOptions $bigqueryImportOptions,
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+    ): Result {
         switch ($importOptions->getImportType()) {
             case ImportType::FULL:
             case ImportType::INCREMENTAL:
-                $importResult = $this->importByTableCopy(
+                return $this->importByTableCopy(
                     $bqClient,
                     $destination,
                     $destinationDefinition,
                     $importOptions,
-                    $source,
-                    $sourceTableDefinition,
+                    $sourceContext->source,
+                    $sourceContext->effectiveDefinition,
                     $bigqueryImportOptions,
                     $sourceMapping,
                 );
-                break;
             case ImportType::VIEW:
-                assert($source instanceof Table);
-                $importResult = $this->createView(
+                assert($sourceContext->source instanceof Table);
+                return $this->createView(
                     $bqClient,
                     $destination,
-                    $source,
+                    $sourceContext->source,
                 );
-                break;
             case ImportType::PBCLONE:
-                assert($source instanceof Table);
-                $importResult = $this->clone(
+                assert($sourceContext->source instanceof Table);
+                return $this->clone(
                     $bqClient,
                     $destination,
-                    $source,
+                    $sourceContext->source,
                 );
-                break;
             default:
                 throw new LogicException(sprintf(
                     'Unknown import type "%s".',
                     $importOptions->getImportType(),
                 ));
         }
+    }
 
+    /**
+     * Build response with import results
+     */
+    private function buildResponse(
+        BigQueryClient $bqClient,
+        CommandDestination $destination,
+        Result $importResult,
+    ): TableImportResponse {
         $response = new TableImportResponse();
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
