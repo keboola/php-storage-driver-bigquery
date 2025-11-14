@@ -26,5 +26,6 @@ final readonly class SourceContext
         public BigqueryTableDefinition $effectiveDefinition,
         public BigqueryTableDefinition $fullDefinition,
         public array $selectedColumns,
-    ) {}
+    ) {
+    }
 }

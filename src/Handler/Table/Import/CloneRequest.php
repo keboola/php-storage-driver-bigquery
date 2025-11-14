@@ -22,5 +22,6 @@ final readonly class CloneRequest
     public function __construct(
         public CommandDestination $destination,
         public Table $source,
-    ) {}
+    ) {
+    }
 }

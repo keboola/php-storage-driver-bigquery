@@ -51,7 +51,7 @@ final class ImportDestinationManager
     public function resolveDestination(
         CommandDestination $destination,
         ImportOptions $importOptions,
-        ColumnCollection $expectedColumns
+        ColumnCollection $expectedColumns,
     ): BigqueryTableDefinition {
         $path = ProtobufHelper::repeatedStringToArray($destination->getPath());
         assert(isset($path[0]), 'TableImportFromTableCommand.destination.path is required.');
@@ -70,7 +70,7 @@ final class ImportDestinationManager
                 $schemaName,
                 $tableName,
                 $importOptions,
-                $expectedColumns
+                $expectedColumns,
             );
         }
     }
@@ -91,10 +91,10 @@ final class ImportDestinationManager
     public function validateIncrementalDestination(
         BigqueryTableDefinition $destinationDefinition,
         ColumnCollection $expectedColumns,
-        BigqueryTableDefinition $sourceDefinition
+        BigqueryTableDefinition $sourceDefinition,
     ): void {
         $actualColumns = $this->normalizeColumnsByName(
-            $destinationDefinition->getColumnsDefinitions()
+            $destinationDefinition->getColumnsDefinitions(),
         );
         $expectedColumnsNormalized = $this->normalizeColumnsByName($expectedColumns);
 
@@ -109,18 +109,18 @@ final class ImportDestinationManager
         $this->validateNoMissingSourceColumns(
             $actualColumnsFiltered,
             $expectedColumnsNormalized,
-            $sourceDefinition
+            $sourceDefinition,
         );
 
         $this->validateNoMissingDestinationColumns(
             $expectedColumnsNormalized,
             $actualColumns,
-            $destinationDefinition
+            $destinationDefinition,
         );
 
         $this->validateColumnDefinitions(
             $expectedColumnsNormalized,
-            $actualColumns
+            $actualColumns,
         );
     }
 
@@ -136,7 +136,7 @@ final class ImportDestinationManager
         string $schemaName,
         string $tableName,
         ColumnCollection $columns,
-        array $primaryKeys
+        array $primaryKeys,
     ): void {
         $sql = (new BigqueryTableQueryBuilder())->getCreateTableCommand(
             $schemaName,
@@ -164,7 +164,7 @@ final class ImportDestinationManager
         string $schemaName,
         string $tableName,
         ImportOptions $importOptions,
-        ColumnCollection $expectedColumns
+        ColumnCollection $expectedColumns,
     ): BigqueryTableDefinition {
         // For VIEW and CLONE imports, table will be created by respective method
         // Don't create it here to avoid conflicts
@@ -180,7 +180,7 @@ final class ImportDestinationManager
                 $tableName,
                 $expectedColumns,
                 ProtobufHelper::repeatedStringToArray(
-                    $importOptions->getDedupColumnsNames()
+                    $importOptions->getDedupColumnsNames(),
                 ),
             );
         }
@@ -191,7 +191,7 @@ final class ImportDestinationManager
             false,
             $expectedColumns,
             ProtobufHelper::repeatedStringToArray(
-                $importOptions->getDedupColumnsNames()
+                $importOptions->getDedupColumnsNames(),
             ),
         );
     }
@@ -207,7 +207,7 @@ final class ImportDestinationManager
     private function validateNoMissingSourceColumns(
         array $actualColumnsFiltered,
         array $expectedColumnsNormalized,
-        BigqueryTableDefinition $sourceDefinition
+        BigqueryTableDefinition $sourceDefinition,
     ): void {
         $missingInSource = array_values(
             array_diff(
@@ -219,7 +219,7 @@ final class ImportDestinationManager
         if ($missingInSource !== []) {
             $missingColumnNames = array_map(
                 fn(string $key) => $actualColumnsFiltered[$key]->getColumnName(),
-                $missingInSource
+                $missingInSource,
             );
 
             throw new DriverColumnsMismatchException(sprintf(
@@ -242,7 +242,7 @@ final class ImportDestinationManager
     private function validateNoMissingDestinationColumns(
         array $expectedColumnsNormalized,
         array $actualColumns,
-        BigqueryTableDefinition $destinationDefinition
+        BigqueryTableDefinition $destinationDefinition,
     ): void {
         $missingInWorkspace = array_values(
             array_diff(
@@ -254,7 +254,7 @@ final class ImportDestinationManager
         if ($missingInWorkspace !== []) {
             $missingColumnNames = array_map(
                 fn(string $key) => $expectedColumnsNormalized[$key]->getColumnName(),
-                $missingInWorkspace
+                $missingInWorkspace,
             );
 
             throw new DriverColumnsMismatchException(sprintf(
@@ -275,7 +275,7 @@ final class ImportDestinationManager
      */
     private function validateColumnDefinitions(
         array $expectedColumnsNormalized,
-        array $actualColumns
+        array $actualColumns,
     ): void {
         $definitionErrors = [];
 
@@ -285,7 +285,7 @@ final class ImportDestinationManager
             if (!$this->columnDefinitionsMatch($expectedColumn, $actualColumn)) {
                 $definitionErrors[] = $this->buildDefinitionErrorMessage(
                     $expectedColumn,
-                    $actualColumn
+                    $actualColumn,
                 );
             }
         }
@@ -310,7 +310,7 @@ final class ImportDestinationManager
      */
     private function columnDefinitionsMatch(
         BigqueryColumn $expected,
-        BigqueryColumn $actual
+        BigqueryColumn $actual,
     ): bool {
         /** @var BigqueryDefinition $expectedDef */
         $expectedDef = $expected->getColumnDefinition();
@@ -348,7 +348,7 @@ final class ImportDestinationManager
      */
     private function buildDefinitionErrorMessage(
         BigqueryColumn $expected,
-        BigqueryColumn $actual
+        BigqueryColumn $actual,
     ): string {
         /** @var BigqueryDefinition $expectedDef */
         $expectedDef = $expected->getColumnDefinition();

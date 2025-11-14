@@ -11,23 +11,22 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
-use Keboola\Datatype\Definition\Bigquery as BigqueryDatatype;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportSourceFactory;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\SourceContext;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderResponse;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\TableImportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
-use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
-use Keboola\TableBackendUtils\Column\ColumnCollection;
 use PHPUnit\Framework\TestCase;
 
 class ImportSourceFactoryTest extends TestCase
 {
+    /**
+     * @param array<array{name: string, type: string, mode: string}> $columns
+     */
     private function createMockBigQueryClient(array $columns): BigQueryClient
     {
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -50,11 +49,15 @@ class ImportSourceFactoryTest extends TestCase
         return $bqClient;
     }
 
+    /**
+     * @param array<string, string> $columnMappings
+     * @param array<string, string|array<string>> $whereFilters
+     */
     private function createMockCommand(
         array $columnMappings = [],
         array $whereFilters = [],
         int $limit = 0,
-        int $seconds = 0
+        int $seconds = 0,
     ): TableImportFromTableCommand {
         $command = $this->createMock(TableImportFromTableCommand::class);
 
@@ -70,7 +73,10 @@ class ImportSourceFactoryTest extends TestCase
         $sourceMapping->method('getSeconds')->willReturn($seconds);
 
         // Mock column mappings with real RepeatedField
-        $mappingsRepeated = new RepeatedField(GPBType::MESSAGE, TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class);
+        $mappingsRepeated = new RepeatedField(
+            GPBType::MESSAGE,
+            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+        );
         if (!empty($columnMappings)) {
             foreach ($columnMappings as $source => $dest) {
                 $mapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class);
@@ -90,7 +96,7 @@ class ImportSourceFactoryTest extends TestCase
 
                 // Mock the values as RepeatedField
                 $filterValues = new RepeatedField(GPBType::STRING);
-                foreach ((array)$values as $value) {
+                foreach ((array) $values as $value) {
                     $filterValues[] = $value;
                 }
                 $filter->method('getValues')->willReturn($filterValues);

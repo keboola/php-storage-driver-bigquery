@@ -39,7 +39,8 @@ final readonly class ImportContext
         public BigqueryTableDefinition $sourceTableDefinition,
         public BigqueryImportOptions $bigqueryImportOptions,
         public TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ) {}
+    ) {
+    }
 
     /**
      * Creates import context from individual parameters.

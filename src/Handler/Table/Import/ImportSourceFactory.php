@@ -33,12 +33,12 @@ final class ImportSourceFactory
 
     public function __construct(
         BigQueryClient $bqClient,
-        ?TableImportQueryBuilder $queryBuilder = null
+        ?TableImportQueryBuilder $queryBuilder = null,
     ) {
         $this->bqClient = $bqClient;
         $this->queryBuilder = $queryBuilder ?? new TableImportQueryBuilder(
             $bqClient,
-            new ColumnConverter()
+            new ColumnConverter(),
         );
     }
 
@@ -53,7 +53,7 @@ final class ImportSourceFactory
      * @throws DriverColumnsMismatchException When specified columns don't exist in source table
      */
     public function createFromCommand(
-        TableImportFromTableCommand $command
+        TableImportFromTableCommand $command,
     ): SourceContext {
         $sourceMapping = $command->getSource();
         assert($sourceMapping !== null);
@@ -67,7 +67,7 @@ final class ImportSourceFactory
         // Create filtered definition with only selected columns
         $effectiveDefinition = $this->filterSourceDefinition(
             $fullSourceDefinition,
-            $sourceColumns
+            $sourceColumns,
         );
 
         // Decide between Table and SelectSource
@@ -75,14 +75,14 @@ final class ImportSourceFactory
             $sourceMapping,
             $fullSourceDefinition,
             $effectiveDefinition,
-            $sourceColumns
+            $sourceColumns,
         );
 
         return new SourceContext(
             source: $source,
             effectiveDefinition: $effectiveDefinition,
             fullDefinition: $fullSourceDefinition,
-            selectedColumns: $sourceColumns
+            selectedColumns: $sourceColumns,
         );
     }
 
@@ -93,7 +93,7 @@ final class ImportSourceFactory
      * @return BigqueryTableDefinition The complete table definition
      */
     private function getSourceTableDefinition(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): BigqueryTableDefinition {
         $sourceDataset = ProtobufHelper::repeatedStringToArray($sourceMapping->getPath());
         assert(isset($sourceDataset[0]), 'TableImportFromTableCommand.source.path is required.');
@@ -117,7 +117,7 @@ final class ImportSourceFactory
      */
     private function extractSourceColumns(
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        BigqueryTableDefinition $sourceDefinition
+        BigqueryTableDefinition $sourceDefinition,
     ): array {
         $columns = [];
         $columnMappingsField = $sourceMapping->getColumnMappings();
@@ -152,7 +152,7 @@ final class ImportSourceFactory
      */
     private function filterSourceDefinition(
         BigqueryTableDefinition $sourceDefinition,
-        array $columns
+        array $columns,
     ): BigqueryTableDefinition {
         if ($columns === []) {
             return $sourceDefinition;
@@ -199,7 +199,7 @@ final class ImportSourceFactory
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
         BigqueryTableDefinition $fullDefinition,
         BigqueryTableDefinition $effectiveDefinition,
-        array $sourceColumns
+        array $sourceColumns,
     ): SqlSourceInterface {
         $isFullColumnSet = $this->isFullColumnSet($sourceColumns, $fullDefinition);
 
@@ -208,7 +208,7 @@ final class ImportSourceFactory
                 $sourceMapping,
                 $fullDefinition,
                 $effectiveDefinition,
-                $sourceColumns
+                $sourceColumns,
             );
         }
 
@@ -237,18 +237,18 @@ final class ImportSourceFactory
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
         BigqueryTableDefinition $fullDefinition,
         BigqueryTableDefinition $effectiveDefinition,
-        array $sourceColumns
+        array $sourceColumns,
     ): SelectSource {
         // For WHERE filters, include filter columns in definition for validation
         // but NOT in the actual SELECT list
         $whereFilterColumns = $this->extractWhereFilterColumns($sourceMapping);
         $allColumnsForValidation = array_unique(
-            array_merge($sourceColumns, $whereFilterColumns)
+            array_merge($sourceColumns, $whereFilterColumns),
         );
 
         $definitionForQuery = $this->filterSourceDefinition(
             $fullDefinition,
-            $allColumnsForValidation
+            $allColumnsForValidation,
         );
 
         $queryResponse = $this->queryBuilder->buildSelectSourceSql(
@@ -277,7 +277,7 @@ final class ImportSourceFactory
      * @return string[] Column names used in WHERE filters
      */
     private function extractWhereFilterColumns(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): array {
         $columns = [];
         $whereFilters = $sourceMapping->getWhereFilters();
@@ -303,7 +303,7 @@ final class ImportSourceFactory
      */
     private function isFullColumnSet(
         array $columns,
-        BigqueryTableDefinition $sourceDefinition
+        BigqueryTableDefinition $sourceDefinition,
     ): bool {
         if ($columns === []) {
             return true;
@@ -343,7 +343,7 @@ final class ImportSourceFactory
      */
     private function shouldUseSelectSource(
         TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-        bool $isFullColumnSet
+        bool $isFullColumnSet,
     ): bool {
         $whereFilters = $sourceMapping->getWhereFilters();
         $hasWhereFilters = $whereFilters !== null && $whereFilters->count() > 0;

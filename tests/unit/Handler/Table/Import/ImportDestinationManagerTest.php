@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\UnitTests\Handler\Table\Import;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
+use Google\Cloud\BigQuery\QueryJobConfiguration;
 use Google\Cloud\BigQuery\QueryResults;
 use Google\Cloud\BigQuery\Table as BQTable;
 use Google\Protobuf\Internal\GPBType;
@@ -19,11 +20,13 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDesti
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
-use Keboola\TableBackendUtils\TableNotExistsReflectionException;
 use PHPUnit\Framework\TestCase;
 
 class ImportDestinationManagerTest extends TestCase
 {
+    /**
+     * @param array<array{name: string, type: string, mode: string}> $columns
+     */
     private function createMockBigQueryClient(bool $tableExists = true, array $columns = []): BigQueryClient
     {
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -48,7 +51,7 @@ class ImportDestinationManagerTest extends TestCase
         $bqClient->method('dataset')->willReturn($dataset);
 
         // Mock query() to return a query configuration
-        $query = $this->createMock(\Google\Cloud\BigQuery\QueryJobConfiguration::class);
+        $query = $this->createMock(QueryJobConfiguration::class);
         $bqClient->method('query')->willReturn($query);
 
         // Mock runQuery for table creation
@@ -71,9 +74,12 @@ class ImportDestinationManagerTest extends TestCase
         return $destination;
     }
 
+    /**
+     * @param array<string> $dedupColumns
+     */
     private function createMockImportOptions(
         int $importType = ImportType::FULL,
-        array $dedupColumns = []
+        array $dedupColumns = [],
     ): ImportOptions {
         $options = $this->createMock(ImportOptions::class);
         $options->method('getImportType')->willReturn($importType);
@@ -88,13 +94,16 @@ class ImportDestinationManagerTest extends TestCase
         return $options;
     }
 
+    /**
+     * @param array<string, string> $columns
+     */
     private function createColumnCollection(array $columns): ColumnCollection
     {
         $columnObjects = [];
         foreach ($columns as $name => $type) {
             $columnObjects[] = new BigqueryColumn(
                 $name,
-                new BigqueryDatatype($type, ['nullable' => true])
+                new BigqueryDatatype($type, ['nullable' => true]),
             );
         }
         return new ColumnCollection($columnObjects);
@@ -184,7 +193,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            ['id']
+            ['id'],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -192,7 +201,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -222,7 +231,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            ['id']
+            ['id'],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -230,7 +239,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -261,7 +270,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            ['id']
+            ['id'],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -269,7 +278,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -300,7 +309,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            []
+            [],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -308,7 +317,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -339,7 +348,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            []
+            [],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -347,7 +356,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -378,7 +387,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            []
+            [],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -386,7 +395,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
@@ -404,7 +413,7 @@ class ImportDestinationManagerTest extends TestCase
         $queryResults = $this->createMock(QueryResults::class);
 
         // Create a mock query object to be passed to runQuery
-        $query = $this->createMock(\Google\Cloud\BigQuery\QueryJobConfiguration::class);
+        $query = $this->createMock(QueryJobConfiguration::class);
 
         // Mock the query() method to return the query config
         $bqClient->method('query')->willReturn($query);
@@ -446,7 +455,7 @@ class ImportDestinationManagerTest extends TestCase
             'dest_table',
             false,
             $destColumns,
-            []
+            [],
         );
 
         $sourceDefinition = new BigqueryTableDefinition(
@@ -454,7 +463,7 @@ class ImportDestinationManagerTest extends TestCase
             'source_table',
             false,
             $sourceColumns,
-            []
+            [],
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);

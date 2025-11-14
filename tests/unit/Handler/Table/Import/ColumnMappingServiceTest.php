@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\UnitTests\Handler\Table\Import;
 
+use ArrayIterator;
+use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery as BigqueryDatatype;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnMappingService;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
@@ -15,6 +17,9 @@ use PHPUnit\Framework\TestCase;
 
 class ColumnMappingServiceTest extends TestCase
 {
+    /**
+     * @param array<string, array{type: string, nullable?: bool, length?: string, default?: string}> $columns
+     */
     private function createSourceDefinition(array $columns): BigqueryTableDefinition
     {
         $columnObjects = [];
@@ -31,7 +36,7 @@ class ColumnMappingServiceTest extends TestCase
 
             $columnObjects[] = new BigqueryColumn(
                 $name,
-                new BigqueryDatatype($config['type'], $options)
+                new BigqueryDatatype($config['type'], $options),
             );
         }
 
@@ -40,15 +45,18 @@ class ColumnMappingServiceTest extends TestCase
             'source_table',
             false,
             new ColumnCollection($columnObjects),
-            []
+            [],
         );
     }
 
+    /**
+     * @param array<string, string> $columnMappings
+     */
     private function createMockSourceMapping(array $columnMappings = []): TableImportFromTableCommand\SourceTableMapping
     {
         $sourceMapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping::class);
 
-        $mappingsRepeated = $this->createMock(\Google\Protobuf\Internal\RepeatedField::class);
+        $mappingsRepeated = $this->createMock(RepeatedField::class);
 
         if (!empty($columnMappings)) {
             $mappings = [];
@@ -58,9 +66,9 @@ class ColumnMappingServiceTest extends TestCase
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappings[] = $mapping;
             }
-            $mappingsRepeated->method('getIterator')->willReturn(new \ArrayIterator($mappings));
+            $mappingsRepeated->method('getIterator')->willReturn(new ArrayIterator($mappings));
         } else {
-            $mappingsRepeated->method('getIterator')->willReturn(new \ArrayIterator([]));
+            $mappingsRepeated->method('getIterator')->willReturn(new ArrayIterator([]));
         }
 
         $sourceMapping->method('getColumnMappings')->willReturn($mappingsRepeated);
@@ -355,8 +363,7 @@ class ColumnMappingServiceTest extends TestCase
         $sourceDefinition = $this->createSourceDefinition($sourceColumns);
         // Map same source column to multiple destinations
         $sourceMapping = $this->createMockSourceMapping([
-            'id' => 'user_id',
-            'id' => 'account_id', // Same source, different dest
+            'id' => 'account_id', // PHP arrays can't have duplicate keys, second value wins
         ]);
 
         $service = new ColumnMappingService();

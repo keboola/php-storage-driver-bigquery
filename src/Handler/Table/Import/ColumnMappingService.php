@@ -38,7 +38,7 @@ final class ColumnMappingService
      */
     public function buildDestinationColumns(
         BigqueryTableDefinition $sourceTableDefinition,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): ColumnCollection {
         $sourceColumns = $this->buildSourceColumnMap($sourceTableDefinition);
         $mappings = $this->extractMappings($sourceMapping);
@@ -58,7 +58,7 @@ final class ColumnMappingService
      * @return array<string, BigqueryColumn> Map of lowercase column names to column objects
      */
     private function buildSourceColumnMap(
-        BigqueryTableDefinition $sourceTableDefinition
+        BigqueryTableDefinition $sourceTableDefinition,
     ): array {
         $sourceColumns = [];
         /** @var BigqueryColumn $column */
@@ -75,7 +75,7 @@ final class ColumnMappingService
      * @return TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] Array of column mappings
      */
     private function extractMappings(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping
+        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
     ): array {
         $columnMappingsField = $sourceMapping->getColumnMappings();
         /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
@@ -90,14 +90,14 @@ final class ColumnMappingService
      * @return ColumnCollection Collection with all source columns
      */
     private function buildIdentityMapping(
-        BigqueryTableDefinition $sourceTableDefinition
+        BigqueryTableDefinition $sourceTableDefinition,
     ): ColumnCollection {
         $definitions = [];
         /** @var BigqueryColumn $column */
         foreach ($sourceTableDefinition->getColumnsDefinitions() as $column) {
             $definitions[] = $this->cloneColumnWithName(
                 $column,
-                $column->getColumnName()
+                $column->getColumnName(),
             );
         }
         return new ColumnCollection($definitions);
@@ -118,7 +118,7 @@ final class ColumnMappingService
     private function buildMappedColumns(
         array $sourceColumns,
         array $mappings,
-        BigqueryTableDefinition $sourceTableDefinition
+        BigqueryTableDefinition $sourceTableDefinition,
     ): ColumnCollection {
         $definitions = [];
         $missingColumns = [];
@@ -134,7 +134,7 @@ final class ColumnMappingService
 
             $definitions[] = $this->cloneColumnWithName(
                 $sourceColumn,
-                $mapping->getDestinationColumnName()
+                $mapping->getDestinationColumnName(),
             );
         }
 
@@ -165,7 +165,7 @@ final class ColumnMappingService
      */
     private function cloneColumnWithName(
         BigqueryColumn $column,
-        string $newName
+        string $newName,
     ): BigqueryColumn {
         /** @var BigqueryDefinition $definition */
         $definition = $column->getColumnDefinition();
@@ -177,8 +177,7 @@ final class ColumnMappingService
         ];
 
         // Handle fieldAsArray if it exists (for STRUCT/ARRAY types)
-        if (
-            method_exists($definition, 'getFieldAsArray')
+        if (method_exists($definition, 'getFieldAsArray')
             && $definition->getFieldAsArray() !== null
         ) {
             $options['fieldAsArray'] = $definition->getFieldAsArray();

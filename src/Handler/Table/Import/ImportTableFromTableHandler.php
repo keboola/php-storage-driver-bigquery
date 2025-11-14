@@ -10,7 +10,6 @@ use Google\Cloud\Core\Exception\ConflictException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
-use Keboola\Datatype\Definition\Bigquery as BigqueryDefinition;
 use Keboola\Db\Import\Result;
 use Keboola\Db\ImportExport\Backend\Assert;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryException;
@@ -21,7 +20,6 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
-use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -31,8 +29,6 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersExcept
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\TableImportQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
@@ -42,13 +38,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
-use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
-use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
-use Keboola\TableBackendUtils\TableNotExistsReflectionException;
 use LogicException;
 use Throwable;
 
@@ -126,8 +119,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         );
 
         // Validate incremental destination if needed
-        if (
-            $importOptions->getImportType() === ImportType::INCREMENTAL
+        if ($importOptions->getImportType() === ImportType::INCREMENTAL
             && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
         ) {
             $destinationManager->validateIncrementalDestination(
