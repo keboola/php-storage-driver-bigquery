@@ -426,6 +426,31 @@ class ExportTableToFileTest extends BaseCase
                 ['1', '2022-01-01 12:00:01 UTC'],
             ],
         ];
+        yield 'filter changedSince + changedUntil as whereFilter' => [
+            [ // input
+                'exportOptions' => new ExportOptions([
+                    'isCompressed' => false,
+                    'columnsToExport' => ['col1', '_timestamp'],
+                    'filters' => new ImportExportShared\ExportFilters([
+                        'whereFilters' => [
+                            new TableWhereFilter([
+                                'columnsName' => '_timestamp',
+                                'operator' => Operator::ge,
+                                'values' => ['1641038401'],
+                            ]),
+                            new TableWhereFilter([
+                                'columnsName' => '_timestamp',
+                                'operator' => Operator::lt,
+                                'values' => ['1641038402'],
+                            ]),
+                        ],
+                    ]),
+                ]),
+            ],
+            [ // expected data
+                ['1', '2022-01-01 12:00:01 UTC'],
+            ],
+        ];
         yield 'filter simple where' => [
             [ // input
                 'exportOptions' => new ExportOptions([
