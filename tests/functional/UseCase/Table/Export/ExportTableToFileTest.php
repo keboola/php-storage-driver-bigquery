@@ -437,11 +437,13 @@ class ExportTableToFileTest extends BaseCase
                                 'columnsName' => '_timestamp',
                                 'operator' => Operator::ge,
                                 'values' => ['1641038401'],
+                                'dataType' => DataType::TIMESTAMP,
                             ]),
                             new TableWhereFilter([
                                 'columnsName' => '_timestamp',
                                 'operator' => Operator::lt,
                                 'values' => ['1641038402'],
+                                'dataType' => DataType::TIMESTAMP,
                             ]),
                         ],
                     ]),
