@@ -91,8 +91,16 @@ abstract class CommonFilterQueryBuilder
                 case $filter->getDataType() === DataType::DOUBLE:
                     $realDatatype = Bigquery::TYPE_FLOAT64;
                     break;
+                case $filter->getDataType() === DataType::TIMESTAMP:
+                    $realDatatype = Bigquery::TYPE_TIMESTAMP;
+                    break;
             }
         }
+
+        if ($filter->getDataType() === DataType::TIMESTAMP) {
+            $value = $this->getTimestampFormatted($value);
+        }
+
         return sprintf(
             'SAFE_CAST(%s AS %s)',
             $query->createNamedParameter($value, $filter->getDataType()),

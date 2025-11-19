@@ -17,6 +17,7 @@ class ColumnConverter
         DataType::BIGINT,
         DataType::REAL,
         DataType::DECIMAL,
+        DataType::TIMESTAMP,
     ];
     public const DATA_TYPES_MAP = [
         DataType::STRING => Bigquery::TYPE_STRING,
@@ -25,6 +26,7 @@ class ColumnConverter
         DataType::BIGINT => Bigquery::TYPE_BIGINT,
         DataType::REAL => Bigquery::TYPE_NUMERIC,
         DataType::DECIMAL => Bigquery::TYPE_DECIMAL,
+        DataType::TIMESTAMP => Bigquery::TYPE_TIMESTAMP,
     ];
 
     /**
