@@ -140,7 +140,7 @@ final class ColumnMappingService
 
         if ($missingColumns !== []) {
             throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in source table %s.%s. Missing columns: %s',
+                'Some columns are missing in source table "%s"."%s". Missing columns: "%s"',
                 $sourceTableDefinition->getSchemaName(),
                 $sourceTableDefinition->getTableName(),
                 implode(',', $missingColumns),

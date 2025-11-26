@@ -165,7 +165,7 @@ final class ImportSourceFactory
             $column = $columnMap[strtolower($columnName)] ?? null;
             if ($column === null) {
                 throw new DriverColumnsMismatchException(sprintf(
-                    'Column "%s" not found in source table %s.%s.',
+                    'Column "%s" not found in source table "%s"."%s".',
                     $columnName,
                     $sourceDefinition->getSchemaName(),
                     $sourceDefinition->getTableName(),

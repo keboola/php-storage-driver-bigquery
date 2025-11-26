@@ -223,7 +223,7 @@ final class ImportDestinationManager
             );
 
             throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in source table %s.%s. Missing columns: %s',
+                'Some columns are missing in source table "%s"."%s". Missing columns: "%s"',
                 $sourceDefinition->getSchemaName(),
                 $sourceDefinition->getTableName(),
                 implode(',', $missingColumnNames),
@@ -258,7 +258,7 @@ final class ImportDestinationManager
             );
 
             throw new DriverColumnsMismatchException(sprintf(
-                'Some columns are missing in workspace table %s.%s. Missing columns: %s',
+                'Some columns are missing in workspace table "%s"."%s". Missing columns: "%s"',
                 $destinationDefinition->getSchemaName(),
                 $destinationDefinition->getTableName(),
                 implode(',', $missingColumnNames),
