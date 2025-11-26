@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 
 use Generator;
+use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -67,7 +68,31 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
+            ]),
+            [],
+        );
+
         $qb = new BigqueryTableQueryBuilder();
+
+        try {
+            // cleanup
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -90,16 +115,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-            ]),
-            [],
-        );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
@@ -158,14 +173,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     /**
@@ -191,7 +198,32 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            [],
+        );
+
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -214,17 +246,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
-            ]),
-            [],
-        );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
@@ -288,14 +309,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     public function testImportTableFromTableWithoutTimestampInMapping(): void
@@ -316,7 +329,30 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $destinationDefinition = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+            ]),
+            [],
+        );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $sourceDefinition->getSchemaName(),
             $sourceDefinition->getTableName(),
@@ -345,16 +381,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insertValues),
         )));
 
-        $destinationDefinition = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col2'),
-            ]),
-            [],
-        );
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $destinationDefinition->getSchemaName(),
             $destinationDefinition->getTableName(),
@@ -413,13 +439,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         );
         $destinationRef = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $destinationRef->getRowsCount());
-
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
-        ));
     }
 
     public function testImportTableFromTableWithFiltersAndLimit(): void
@@ -440,7 +459,31 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $destinationDefinition = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            [],
+        );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $sourceDefinition->getSchemaName(),
             $sourceDefinition->getTableName(),
@@ -470,17 +513,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insertValues),
         )));
 
-        $destinationDefinition = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col2'),
-                BigqueryColumn::createTimestampColumn('_timestamp'),
-            ]),
-            [],
-        );
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $destinationDefinition->getSchemaName(),
             $destinationDefinition->getTableName(),
@@ -555,13 +587,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         foreach ($rowsIterator as $row) {
             $this->assertSame('keep', $row['col2']);
         }
-
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
-        ));
     }
 
     /**
@@ -587,7 +612,31 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
+                BigqueryColumn::createTimestampColumn('_timestamp'),
+            ]),
+            [],
+        );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -612,17 +661,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $sourceTableName);
         $this->assertSame(5, $ref->getRowsCount());
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
-            ]),
-            [],
-        );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
@@ -708,14 +746,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 'col4' => '2',
             ],
         ], $data);
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     // simulate output mapping load table to table with requirePartition filter
@@ -869,7 +899,31 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                BigqueryColumn::createGenericColumn('col3'),
+            ]),
+            [],
+        );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -893,17 +947,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col2'),
-                BigqueryColumn::createGenericColumn('col3'),
-            ]),
-            [],
-        );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
@@ -961,14 +1004,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             $this->fail('should fail because of nulls in required field');
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field col3 cannot be null', $e->getMessage());
-        } finally {
-            // cleanup
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-            ));
         }
     }
 
@@ -1400,6 +1435,19 @@ class ImportTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -1464,31 +1512,20 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $handler = new ImportTableFromTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
-        try {
-            $handler(
-                $this->projectCredentials,
-                $cmd,
-                [],
-                new RuntimeOptions(['runId' => $this->testRunId]),
-            );
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
 
-            $destinationReflection = new BigqueryTableReflection(
-                $bqClient,
-                $bucketDatabaseName,
-                $destinationTableName,
-            );
-            $this->assertTrue($destinationReflection->exists());
-            $this->assertSame(3, $destinationReflection->getRowsCount());
-        } finally {
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $tableSourceDef->getSchemaName(),
-                $tableSourceDef->getTableName(),
-            )));
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $destinationTableName,
-            )));
-        }
+        $destinationReflection = new BigqueryTableReflection(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+        );
+        $this->assertTrue($destinationReflection->exists());
+        $this->assertSame(3, $destinationReflection->getRowsCount());
     }
 
     public function testCopyRespectsSecondsWhereFiltersAndLimit(): void
@@ -1510,6 +1547,19 @@ class ImportTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -1579,33 +1629,22 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $handler = new ImportTableFromTableHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
-        try {
-            $handler(
-                $this->projectCredentials,
-                $cmd,
-                [],
-                new RuntimeOptions(['runId' => $this->testRunId]),
-            );
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
 
-            $result = $bqClient->runQuery($bqClient->query(sprintf(
-                'SELECT id FROM %s.%s',
-                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-            )));
-            /** @var array<array{id: string, name: string, _timestamp: string}> $rows */
-            $rows = iterator_to_array($result->rows());
-            $this->assertCount(1, $rows);
-            $this->assertSame('recentA', $rows[0]['id']);
-        } finally {
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $tableSourceDef->getSchemaName(),
-                $tableSourceDef->getTableName(),
-            )));
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $destinationTableName,
-            )));
-        }
+        $result = $bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT id FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($destinationTableName),
+        )));
+        /** @var array<array{id: string, name: string, _timestamp: string}> $rows */
+        $rows = iterator_to_array($result->rows());
+        $this->assertCount(1, $rows);
+        $this->assertSame('recentA', $rows[0]['id']);
     }
 
     public function testIncrementalFailsWhenDestinationMissingColumns(): void
@@ -1627,6 +1666,19 @@ class ImportTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -1690,15 +1742,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } catch (ColumnsMismatchException $e) {
             $this->assertStringContainsString('columns are missing in workspace table', $e->getMessage());
             $this->assertStringContainsString('test', $e->getMessage());
-        } finally {
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $tableSourceDef->getSchemaName(),
-                $tableSourceDef->getTableName(),
-            )));
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $destinationTableName,
-            )));
         }
     }
 
@@ -1721,6 +1764,19 @@ class ImportTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -1784,15 +1840,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         } catch (ColumnsMismatchException $e) {
             $this->assertStringContainsString('columns are missing in source table', $e->getMessage());
             $this->assertStringContainsString('name', $e->getMessage());
-        } finally {
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $tableSourceDef->getSchemaName(),
-                $tableSourceDef->getTableName(),
-            )));
-            $bqClient->runQuery($bqClient->query($qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $destinationTableName,
-            )));
         }
     }
 
@@ -1815,7 +1862,30 @@ class ImportTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
+        $tableDestDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $destinationTableName,
+            true,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
+            ]),
+            [],
+        );
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup
+        try {
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
+            ));
+            $bqClient->runQuery($bqClient->query(
+                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
+            ));
+        } catch (NotFoundException $e) {
+            // OK, do nothing
+        }
+
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
             $tableSourceDef->getTableName(),
@@ -1838,16 +1908,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
-        $tableDestDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $destinationTableName,
-            true,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('col1'),
-                BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-            ]),
-            [],
-        );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
@@ -1906,14 +1966,6 @@ class ImportTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     public function testImportTableFromTableWithFilterOnNonSelectedColumn(): void

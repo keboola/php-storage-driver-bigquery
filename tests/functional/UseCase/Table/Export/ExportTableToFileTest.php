@@ -76,8 +76,11 @@ class ExportTableToFileTest extends BaseCase
             str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
-        // create table
+        // cleanup
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
+
+        // create table
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         $this->clearGCSBucketDir(
@@ -121,10 +124,6 @@ class ExportTableToFileTest extends BaseCase
                 $csvData,
             );
         }
-
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
     /**
@@ -216,10 +215,6 @@ class ExportTableToFileTest extends BaseCase
             $exportDir,
         );
         $this->assertSame($expectedFiles, $files['files']);
-
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
     }
 
     public function testExportTableToFileLimitColumns(): void
@@ -231,8 +226,11 @@ class ExportTableToFileTest extends BaseCase
             str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
-        // create table
+        // cleanup
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
+
+        // create table
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         // clear files
@@ -308,10 +306,6 @@ class ExportTableToFileTest extends BaseCase
             // data are not trimmed because IE lib doesn't do so. TD serves them in raw form prefixed by space
             $csvData,
         );
-
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
     public function simpleExportProvider(): Generator
@@ -955,8 +949,11 @@ class ExportTableToFileTest extends BaseCase
             str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
-        // CREATE TABLE with TIMESTAMP column
+        // cleanup
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($bucketDatabaseName, $tableName, $bqClient);
+
+        // CREATE TABLE with TIMESTAMP column
         $tableDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $tableName,
@@ -1109,8 +1106,5 @@ class ExportTableToFileTest extends BaseCase
             ],
             $csvData,
         );
-
-        // Cleanup
-        $this->dropSourceTable($bucketDatabaseName, $tableName, $bqClient);
     }
 }
