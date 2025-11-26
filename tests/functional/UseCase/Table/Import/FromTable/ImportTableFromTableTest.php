@@ -347,7 +347,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
             ));
             $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
+                $qb->getDropTableCommand(
+                    $destinationDefinition->getSchemaName(),
+                    $destinationDefinition->getTableName(),
+                ),
             ));
         } catch (NotFoundException $e) {
             // OK, do nothing
@@ -478,7 +481,10 @@ class ImportTableFromTableTest extends BaseImportTestCase
                 $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
             ));
             $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($destinationDefinition->getSchemaName(), $destinationDefinition->getTableName()),
+                $qb->getDropTableCommand(
+                    $destinationDefinition->getSchemaName(),
+                    $destinationDefinition->getTableName(),
+                ),
             ));
         } catch (NotFoundException $e) {
             // OK, do nothing
