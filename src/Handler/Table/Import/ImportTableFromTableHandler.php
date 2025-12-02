@@ -275,8 +275,25 @@ final class ImportTableFromTableHandler extends BaseHandler
             $isColumnIdentical = false;
         }
 
-        if ($isColumnIdentical && $source instanceof Table) {
-            // if columns are identical we can use COPY statement to make import faster
+        // Determine if we need deduplication
+        // COPY optimization copies all rows including duplicates, which is problematic when:
+        // - Import type is INCREMENTAL (merging with existing data)
+        // - Dedup type is UPDATE_DUPLICATES (need to merge duplicate PK values)
+        // - Dedup columns are specified (PK columns exist)
+        // In this case, the source table may contain duplicates that need deterministic resolution.
+        $needsDeduplication = (
+            $options->getImportType() === ImportType::INCREMENTAL &&
+            $options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES &&
+            count($dedupColumns) > 0
+        );
+
+        if ($isColumnIdentical && $source instanceof Table && !$needsDeduplication) {
+            // OPTIMIZATION: use BigQuery native COPY to transfer table to staging
+            // COPY copies all rows including duplicates, which is safe when:
+            // - FULL imports (destination is empty, dedup happens later if needed)
+            // - INSERT_DUPLICATES mode (duplicates already handled in source)
+            // - Incremental without dedup (duplicates are allowed)
+            // NOT safe when: Incremental + UPDATE_DUPLICATES (source may have dups, need deterministic dedup)
             $toStageImporter = new CopyImportFromTableToTable($bqClient);
         } else {
             $bqClient->runQuery($bqClient->query(
@@ -287,7 +304,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                     [],
                 ),
             ));
-            // load to staging table
+            // Use standard SQL-based import with INSERT INTO ... SELECT
+            // This provides more control for column transformations, filters, and deduplication
             $toStageImporter = new ToStageImporter($bqClient);
         }
         try {
