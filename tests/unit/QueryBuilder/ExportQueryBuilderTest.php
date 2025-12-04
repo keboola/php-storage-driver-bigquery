@@ -174,6 +174,36 @@ class ExportQueryBuilderTest extends TestCase
             ],
         ];
 
+        yield 'case insensitive where filter on non-selected column' => [
+            new PreviewTableCommand([
+                'path' => ['some_schema'],
+                'tableName' => 'some_table',
+                'columns' => ['id'],
+                'filters' => new ExportFilters([
+                    'limit' => 0,
+                    'changeSince' => '',
+                    'changeUntil' => '',
+                    'fulltextSearch' => '',
+                    'whereFilters' => [
+                        new TableWhereFilter([
+                            'columnsName' => 'iso',
+                            'operator' => Operator::eq,
+                            'values' => ['US'],
+                            'dataType' => DataType::STRING,
+                        ]),
+                    ],
+                ]),
+                'orderBy' => [],
+            ]),
+            <<<SQL
+            SELECT `some_table`.`id` FROM `some_schema`.`some_table` 
+            WHERE `some_table`.`iso` = @dcValue1
+            SQL,
+            [
+                'dcValue1' => 'US',
+            ],
+        ];
+
         yield 'search + more columns' => [
             new PreviewTableCommand([
                 'path' => ['some_schema'],
@@ -192,7 +222,7 @@ class ExportQueryBuilderTest extends TestCase
             // @codingStandardsIgnoreStart
             <<<SQL
             SELECT `some_table`.`id`, `some_table`.`name`, `some_table`.`height`, `some_table`.`birth_at` FROM `some_schema`.`some_table` 
-            WHERE `some_table`.`name` LIKE '%foo%'
+            WHERE (`some_table`.`name` LIKE '%foo%') OR (`some_table`.`Iso` LIKE '%foo%')
             SQL,
             // @codingStandardsIgnoreEnd
             [],
@@ -434,7 +464,8 @@ class ExportQueryBuilderTest extends TestCase
                      ],
                      'fulltextSearch' => [
                          'xxx',
-                         'SELECT * FROM `some_schema`.`some_table` WHERE `some_table`.`name` LIKE \'%xxx%\'',
+                         // @phpcs:ignore
+                         'SELECT * FROM `some_schema`.`some_table` WHERE (`some_table`.`name` LIKE \'%xxx%\') OR (`some_table`.`Iso` LIKE \'%xxx%\')',
                          [],
                      ],
                      'whereFilters' => [
@@ -741,6 +772,11 @@ class ExportQueryBuilderTest extends TestCase
         ]));
         $tableInfoColumns[] = new BigqueryColumn('birth_at', new Bigquery(Bigquery::TYPE_DATE, [
             'length' => '',
+            'nullable' => true,
+            'default' => '',
+        ]));
+        $tableInfoColumns[] = new BigqueryColumn('Iso', new Bigquery(Bigquery::TYPE_STRING, [
+            'length' => '3',
             'nullable' => true,
             'default' => '',
         ]));

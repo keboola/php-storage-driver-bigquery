@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\ExecuteQuery;
 
-use Google\Cloud\BigQuery\QueryJobConfiguration;
-use Google\Protobuf\Internal\GPBType;
-use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\Handler\ExecuteQuery\ExecuteQueryHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\ExecuteQuery\ExecuteQueryCommand;
@@ -28,8 +25,7 @@ class QueryLabelsTest extends BaseCase
         $this->projectCredentials = $this->projects[0][0];
 
         // create workspace
-        [
-            ,
+        [,
             $workspaceResponse,
         ] = $this->createTestWorkspace($this->projectCredentials, $this->projects[0][1]);
 
@@ -48,12 +44,6 @@ class QueryLabelsTest extends BaseCase
         $handler = new ExecuteQueryHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
-        // Get BigQuery client to check job metadata later
-        $bqClient = $this->clientManager->getBigQueryClient(
-            $this->testRunId,
-            $this->projectCredentials,
-        );
-
         // Execute query with run_id and branch_id labels
         $response = $handler(
             $this->projectCredentials,
@@ -67,6 +57,13 @@ class QueryLabelsTest extends BaseCase
         $this->assertEquals(Status::Success, $response->getStatus());
         $this->assertNotNull($response->getData());
         $this->assertStringContainsString('successfully', $response->getMessage());
+
+        // Get BigQuery client WITH queryTags to properly check job labels
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->projectCredentials,
+            [QueryTagKey::BRANCH_ID->value => '123-branch'],
+        );
 
         // Get the most recent job
         $jobs = iterator_to_array($bqClient->jobs(['maxResults' => 1]));

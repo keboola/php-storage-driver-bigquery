@@ -154,11 +154,19 @@ abstract class CommonFilterQueryBuilder
     ): void {
         $columnDefByName = [];
         foreach ($tableColumnsDefinitions as $column) {
-            $columnDefByName[$column->getColumnName()] = $column;
+            $columnDefByName[strtolower($column->getColumnName())] = $column;
         }
 
         foreach ($filters as $whereFilter) {
-            $colDefinition = $columnDefByName[$whereFilter->getColumnsName()]->getColumnDefinition();
+            $columnName = strtolower($whereFilter->getColumnsName());
+            if (!isset($columnDefByName[$columnName])) {
+                throw new QueryBuilderException(sprintf(
+                    'Column "%s" not found on table "%s" for where filter.',
+                    $whereFilter->getColumnsName(),
+                    $tableName,
+                ));
+            }
+            $colDefinition = $columnDefByName[$columnName]->getColumnDefinition();
             $columnBaseType = $colDefinition->getBasetype();
             if ($whereFilter->getDataType() === DataType::STRING) {
                 // default dataType but base type might be not string
@@ -179,6 +187,7 @@ abstract class CommonFilterQueryBuilder
                     $tableName,
                     $columnBaseType,
                     $colDefinition->getType(),
+                    $columnName,
                 );
             } else {
                 $this->processMultipleValue(
@@ -188,6 +197,7 @@ abstract class CommonFilterQueryBuilder
                     $query,
                     $columnBaseType,
                     $colDefinition->getType(),
+                    $columnName,
                 );
             }
         }
@@ -238,6 +248,7 @@ abstract class CommonFilterQueryBuilder
         string $tableName,
         string $baseType,
         string $realDatatype,
+        string $columnName,
     ): void {
         // Scenarios:
         //
@@ -254,14 +265,14 @@ abstract class CommonFilterQueryBuilder
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+                BigqueryQuote::quoteSingleIdentifier($columnName),
             );
             $value = $this->convertNonStringValue($filter, $value, $query, $realDatatype);
         } elseif ($filter->getDataType() !== DataType::STRING) {
             // scenario 1
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
-                $filter->getColumnsName(),
+                $columnName,
                 $filter->getDataType(),
             );
             $value = $this->convertNonStringValue($filter, $value, $query);
@@ -270,7 +281,7 @@ abstract class CommonFilterQueryBuilder
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+                BigqueryQuote::quoteSingleIdentifier($columnName),
             );
             $value = $query->createNamedParameter($value, $filter->getDataType());
         }
@@ -295,6 +306,7 @@ abstract class CommonFilterQueryBuilder
         QueryBuilder $query,
         string $baseType,
         string $realDatatype,
+        string $columnName,
     ): void {
         if (!array_key_exists($filter->getOperator(), self::OPERATOR_MULTI_VALUE)) {
             throw new QueryBuilderException(
@@ -306,7 +318,7 @@ abstract class CommonFilterQueryBuilder
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+                BigqueryQuote::quoteSingleIdentifier($columnName),
             );
             $values = array_map(
                 fn(string $value) => $this->convertNonStringValue($filter, $value, $query, $realDatatype),
@@ -316,7 +328,7 @@ abstract class CommonFilterQueryBuilder
         } elseif ($filter->getDataType() !== DataType::STRING) {
             $columnSql = $this->columnConverter->convertColumnByDataType(
                 $tableName,
-                $filter->getColumnsName(),
+                $columnName,
                 $filter->getDataType(),
             );
             $values = array_map(fn(string $value) => $this->convertNonStringValue($filter, $value, $query), $values);
@@ -325,7 +337,7 @@ abstract class CommonFilterQueryBuilder
             $columnSql = sprintf(
                 '%s.%s',
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName()),
+                BigqueryQuote::quoteSingleIdentifier($columnName),
             );
             $param = $query->createNamedParameter($values, Connection::PARAM_STR_ARRAY);
         }
