@@ -72,7 +72,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => true])),
                 new BigqueryColumn('amount', new Bigquery(Bigquery::TYPE_NUMERIC, ['nullable' => true])),
             ],
-            ['id']
+            ['id'],
         );
 
         // Insert test data (no NULLs, so import to NOT NULL destination will succeed)
@@ -92,7 +92,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                 new BigqueryColumn('amount', new Bigquery(Bigquery::TYPE_NUMERIC, ['nullable' => false])),
             ],
-            ['id']
+            ['id'],
         );
 
         // Pre-populate destination with some data
@@ -121,13 +121,13 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
 
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $dedupColumns = new RepeatedField(GPBType::STRING);
@@ -138,7 +138,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupColumns)
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -147,7 +147,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(['runId' => $this->testRunId])
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         // Verify import succeeded
@@ -164,7 +164,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             if (in_array($col->getColumnName(), ['id', 'name', 'amount'], true)) {
                 $this->assertFalse(
                     $col->getColumnDefinition()->isNullable(),
-                    sprintf('Destination column %s should remain NOT NULL', $col->getColumnName())
+                    sprintf('Destination column %s should remain NOT NULL', $col->getColumnName()),
                 );
             }
         }
@@ -197,7 +197,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                 new BigqueryColumn('value', new Bigquery(Bigquery::TYPE_FLOAT64, ['nullable' => false])),
             ],
-            ['id']
+            ['id'],
         );
 
         $this->insertTestData($bqClient, $bucketDatabaseName, $sourceTableName, [
@@ -215,7 +215,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => true])),
                 new BigqueryColumn('value', new Bigquery(Bigquery::TYPE_FLOAT64, ['nullable' => true])),
             ],
-            ['id']
+            ['id'],
         );
 
         // Execute import
@@ -237,13 +237,13 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
 
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $dedupColumns = new RepeatedField(GPBType::STRING);
@@ -254,7 +254,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupColumns)
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -263,7 +263,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(['runId' => $this->testRunId])
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         // Verify import succeeded
@@ -300,7 +300,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 new BigqueryColumn('category', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                 new BigqueryColumn('quantity', new Bigquery(Bigquery::TYPE_INT, ['nullable' => false])),
             ],
-            ['id']
+            ['id'],
         );
 
         $this->insertTestData($bqClient, $bucketDatabaseName, $originalTableName, [
@@ -314,7 +314,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($viewName),
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($originalTableName)
+            BigqueryQuote::quoteSingleIdentifier($originalTableName),
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -323,7 +323,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
         foreach ($viewRef->getColumnsDefinitions() as $col) {
             $this->assertTrue(
                 $col->getColumnDefinition()->isNullable(),
-                sprintf('VIEW column %s should be nullable', $col->getColumnName())
+                sprintf('VIEW column %s should be nullable', $col->getColumnName()),
             );
         }
 
@@ -333,7 +333,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($intermediateTableName),
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($viewName)
+            BigqueryQuote::quoteSingleIdentifier($viewName),
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -342,7 +342,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
         foreach ($intermediateRef->getColumnsDefinitions() as $col) {
             $this->assertTrue(
                 $col->getColumnDefinition()->isNullable(),
-                sprintf('Intermediate table column %s should be nullable', $col->getColumnName())
+                sprintf('Intermediate table column %s should be nullable', $col->getColumnName()),
             );
         }
 
@@ -371,13 +371,13 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($intermediateTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
 
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($originalTableName)
+                ->setTableName($originalTableName),
         );
 
         $dedupColumns = new RepeatedField(GPBType::STRING);
@@ -388,7 +388,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupColumns)
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE),
         );
 
         $handler = new ImportTableFromTableHandler($this->clientManager);
@@ -399,7 +399,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(['runId' => $this->testRunId])
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         // Verify import succeeded
@@ -415,7 +415,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             if (in_array($col->getColumnName(), ['id', 'category', 'quantity'], true)) {
                 $this->assertFalse(
                     $col->getColumnDefinition()->isNullable(),
-                    sprintf('Original table column %s should remain NOT NULL', $col->getColumnName())
+                    sprintf('Original table column %s should remain NOT NULL', $col->getColumnName()),
                 );
             }
         }
@@ -425,7 +425,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
         $sql = sprintf(
             'DROP VIEW %s.%s',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($viewName)
+            BigqueryQuote::quoteSingleIdentifier($viewName),
         );
         $bqClient->runQuery($bqClient->query($sql));
         $this->dropTable($bqClient, $bucketDatabaseName, $intermediateTableName);
@@ -436,9 +436,6 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
      *
      * Note: Named createTableWithNullability to avoid conflict with base class methods
      *
-     * @param BigQueryClient $bqClient
-     * @param string $schemaName
-     * @param string $tableName
      * @param BigqueryColumn[] $columns
      * @param string[] $primaryKeys
      */
@@ -447,14 +444,14 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
         string $schemaName,
         string $tableName,
         array $columns,
-        array $primaryKeys
+        array $primaryKeys,
     ): void {
         $tableDef = new BigqueryTableDefinition(
             $schemaName,
             $tableName,
             false,
             new ColumnCollection($columns),
-            $primaryKeys
+            $primaryKeys,
         );
 
         $qb = new BigqueryTableQueryBuilder();
@@ -462,7 +459,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             $tableDef->getSchemaName(),
             $tableDef->getTableName(),
             $tableDef->getColumnsDefinitions(),
-            $tableDef->getPrimaryKeysNames()
+            $tableDef->getPrimaryKeysNames(),
         );
 
         $bqClient->runQuery($bqClient->query($sql));
@@ -473,16 +470,13 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
      *
      * Note: Named insertTestData to avoid potential conflicts
      *
-     * @param BigQueryClient $bqClient
-     * @param string $schemaName
-     * @param string $tableName
      * @param array<array<mixed>> $rows
      */
     private function insertTestData(
         BigQueryClient $bqClient,
         string $schemaName,
         string $tableName,
-        array $rows
+        array $rows,
     ): void {
         foreach ($rows as $row) {
             $quotedValues = [];
@@ -498,7 +492,7 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
                 'INSERT %s.%s VALUES (%s)',
                 BigqueryQuote::quoteSingleIdentifier($schemaName),
                 BigqueryQuote::quoteSingleIdentifier($tableName),
-                implode(', ', $quotedValues)
+                implode(', ', $quotedValues),
             );
 
             $bqClient->runQuery($bqClient->query($sql));
@@ -508,19 +502,16 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
     /**
      * Helper: Drop a table.
      *
-     * @param BigQueryClient $bqClient
-     * @param string $schemaName
-     * @param string $tableName
      */
     private function dropTable(
         BigQueryClient $bqClient,
         string $schemaName,
-        string $tableName
+        string $tableName,
     ): void {
         $sql = sprintf(
             'DROP TABLE %s.%s',
             BigqueryQuote::quoteSingleIdentifier($schemaName),
-            BigqueryQuote::quoteSingleIdentifier($tableName)
+            BigqueryQuote::quoteSingleIdentifier($tableName),
         );
 
         $bqClient->runQuery($bqClient->query($sql));

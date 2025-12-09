@@ -54,7 +54,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 class ImportVariantColumnTypesTest extends BaseImportTestCase
 {
     /**
-     * @return Generator<string,array{array<array{name: string, type: string, nullable: bool}>, array<array<string|null>>, int}>
+     * phpcs:disable
+     * @return Generator<string,array{array<array{name: string, type: string, nullable: bool}>, array<array<string|null>>, int}}
+     * phpcs:enable
      */
     public function columnConfigAndImportTypeProvider(): Generator
     {
@@ -234,7 +236,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
     public function testImportWithVariantColumnTypes(
         array $columns,
         array $testData,
-        int $importType
+        int $importType,
     ): void {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_src';
@@ -247,7 +249,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $bucketDatabaseName,
             $sourceTableName,
             $columns,
-            $bqClient
+            $bqClient,
         );
 
         // Insert test data
@@ -256,7 +258,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $sourceTableName,
             $columns,
             $testData,
-            $bqClient
+            $bqClient,
         );
 
         // Create destination table with same columns (only for FULL import, not VIEW)
@@ -265,7 +267,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                 $bucketDatabaseName,
                 $destinationTableName,
                 $columns,
-                $bqClient
+                $bqClient,
             );
         }
 
@@ -289,20 +291,20 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             (new TableImportFromTableCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName)
-                ->setColumnMappings($columnMappings)
+                ->setColumnMappings($columnMappings),
         );
 
         $cmd->setDestination(
             (new Table())
                 ->setPath($path)
-                ->setTableName($destinationTableName)
+                ->setTableName($destinationTableName),
         );
 
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType($importType)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE) // Required for typed tables!
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE), // Required for typed tables!
         );
 
         // Execute import
@@ -312,7 +314,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $this->projectCredentials,
             $cmd,
             [],
-            new RuntimeOptions(['runId' => $this->testRunId])
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
 
         // Verify response
@@ -353,7 +355,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $this->assertSame(
                 $this->normalizeType($expectedColumn['type']),
                 $columnDef->getType(),
-                sprintf('Column %s type should be %s', $expectedColumn['name'], $expectedColumn['type'])
+                sprintf('Column %s type should be %s', $expectedColumn['name'], $expectedColumn['type']),
             );
 
             /*
@@ -381,8 +383,8 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                     $columnDef->isNullable(),
                     sprintf(
                         'Column %s in VIEW should be nullable (BigQuery views do not preserve NOT NULL constraints)',
-                        $expectedColumn['name']
-                    )
+                        $expectedColumn['name'],
+                    ),
                 );
             } else {
                 // For FULL imports: Assert nullability matches source configuration
@@ -392,8 +394,8 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                     sprintf(
                         'Column %s nullability should be %s in physical table',
                         $expectedColumn['name'],
-                        $expectedColumn['nullable'] ? 'true' : 'false'
-                    )
+                        $expectedColumn['nullable'] ? 'true' : 'false',
+                    ),
                 );
             }
         }
@@ -439,8 +441,8 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                 $column['name'],
                 new Bigquery(
                     $column['type'],
-                    ['nullable' => $column['nullable']]
-                )
+                    ['nullable' => $column['nullable']],
+                ),
             );
         }
 
@@ -454,7 +456,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
         string $schemaName,
         string $tableName,
         array $columns,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): void {
         $columnCollection = $this->buildColumnCollection($columns);
 
@@ -463,7 +465,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $tableName,
             false,
             $columnCollection,
-            []
+            [],
         );
 
         $qb = new BigqueryTableQueryBuilder();
@@ -471,7 +473,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
             $tableDef->getSchemaName(),
             $tableDef->getTableName(),
             $tableDef->getColumnsDefinitions(),
-            $tableDef->getPrimaryKeysNames()
+            $tableDef->getPrimaryKeysNames(),
         );
 
         $bqClient->runQuery($bqClient->query($sql));
@@ -486,12 +488,12 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
         string $tableName,
         array $columns,
         array $testData,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): void {
         $columnNames = array_map(fn($col) => $col['name'], $columns);
         $quotedColumnNames = array_map(
             fn($name) => BigqueryQuote::quoteSingleIdentifier($name),
-            $columnNames
+            $columnNames,
         );
 
         foreach ($testData as $row) {
@@ -504,7 +506,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                     $quotedValues[] = BigqueryQuote::quote($value);
                 } else {
                     // Numeric types (int, float) are not quoted
-                    $quotedValues[] = (string)$value;
+                    $quotedValues[] = (string) $value;
                 }
             }
 
@@ -513,7 +515,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
                 BigqueryQuote::quoteSingleIdentifier($schemaName),
                 BigqueryQuote::quoteSingleIdentifier($tableName),
                 implode(', ', $quotedColumnNames),
-                implode(', ', $quotedValues)
+                implode(', ', $quotedValues),
             );
 
             $bqClient->runQuery($bqClient->query($sql));
@@ -524,14 +526,14 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
         string $schemaName,
         string $tableName,
         bool $isView,
-        BigQueryClient $bqClient
+        BigQueryClient $bqClient,
     ): void {
         $objectType = $isView ? 'VIEW' : 'TABLE';
         $sql = sprintf(
             'DROP %s %s.%s',
             $objectType,
             BigqueryQuote::quoteSingleIdentifier($schemaName),
-            BigqueryQuote::quoteSingleIdentifier($tableName)
+            BigqueryQuote::quoteSingleIdentifier($tableName),
         );
 
         $bqClient->runQuery($bqClient->query($sql));
