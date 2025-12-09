@@ -214,8 +214,8 @@ class BaseImportTestCase extends BaseCase
         if (count($columns) === 0) {
             $result = $client->runQuery($client->query(sprintf(
                 'SELECT * FROM %s.%s',
-                $schemaName,
-                $tableName,
+                BigqueryQuote::quoteSingleIdentifier($schemaName),
+                BigqueryQuote::quoteSingleIdentifier($tableName),
             )));
         } else {
             $result = $client->runQuery($client->query(sprintf(

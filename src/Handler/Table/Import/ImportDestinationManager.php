@@ -81,7 +81,12 @@ final class ImportDestinationManager
      * Ensures:
      * - All destination columns (except system columns) exist in source
      * - All expected columns exist in destination
-     * - Column definitions match (type, nullable, length)
+     * - Column definitions match (type and length)
+     *
+     * Note: Nullability differences are allowed because:
+     * 1. BigQuery VIEWs don't preserve NOT NULL constraints
+     * 2. BigQuery enforces NOT NULL at INSERT time, not schema validation
+     * 3. This enables valid flows like: Table(NOT NULL) → VIEW → Table → Table(NOT NULL)
      *
      * @param BigqueryTableDefinition $destinationDefinition Actual destination table definition
      * @param ColumnCollection $expectedColumns Expected columns from source
@@ -302,7 +307,10 @@ final class ImportDestinationManager
      * Checks if two column definitions match.
      *
      * For workspace string tables, allows any type -> STRING conversion.
-     * For typed tables, requires exact type, nullability, and length match.
+     * For typed tables, requires exact type and length match.
+     *
+     * Note: Nullability differences are allowed to support BigQuery VIEW limitations.
+     * See inline comments in method body for detailed explanation.
      *
      * @param BigqueryColumn $expected Expected column definition
      * @param BigqueryColumn $actual Actual column definition
@@ -329,9 +337,24 @@ final class ImportDestinationManager
             return false;
         }
 
-        if ($expectedDef->isNullable() !== $actualDef->isNullable()) {
-            return false;
-        }
+        /*
+         * NULLABILITY VALIDATION
+         * ----------------------
+         * We allow mismatches in nullability for the following reasons:
+         *
+         * 1. BigQuery VIEWs don't preserve NOT NULL constraints - all columns become nullable
+         *    This means a flow like: Table(NOT NULL) → VIEW(nullable) → Table(nullable) → Table(NOT NULL)
+         *    would fail validation even though it's a valid use case
+         *
+         * 2. BigQuery enforces NOT NULL at INSERT/UPDATE time, not at schema level
+         *    - Source nullable → Dest NOT NULL: Safe, will fail on actual NULL values during insert
+         *    - Source NOT NULL → Dest nullable: Safe, no data loss
+         *
+         * 3. The strict equality check was causing false positives for legitimate imports
+         *
+         * Therefore, we allow nullability differences and rely on BigQuery's runtime enforcement.
+         */
+        // Removed: if ($expectedDef->isNullable() !== $actualDef->isNullable()) { return false; }
 
         $expectedLength = (string) ($expectedDef->getLength() ?? '');
         $actualLength = (string) ($actualDef->getLength() ?? '');
