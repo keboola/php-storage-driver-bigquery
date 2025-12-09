@@ -332,8 +332,12 @@ final class ImportDestinationManager
             return true;
         }
 
-        // For typed tables, require exact type match
-        if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
+        // For typed tables, require type match (with normalization for aliases)
+        // Normalize types to handle BigQuery type aliases (INT/INT64/INTEGER/BIGINT all represent integers)
+        $expectedType = self::normalizeType($expectedDef->getType());
+        $actualType = self::normalizeType($actualDef->getType());
+
+        if (strcasecmp($expectedType, $actualType) !== 0) {
             return false;
         }
 
@@ -360,6 +364,40 @@ final class ImportDestinationManager
         $actualLength = (string) ($actualDef->getLength() ?? '');
 
         return $expectedLength === $actualLength;
+    }
+
+    /**
+     * Normalize BigQuery type to its canonical form.
+     *
+     * BigQuery supports multiple type aliases that are semantically identical.
+     * This method normalizes them to prevent false validation failures.
+     *
+     * Uses BigQuery's REST_API_TYPES_MAP which maps type aliases to canonical forms:
+     * - INT, SMALLINT, BIGINT, TINYINT, BYTEINT → INT64
+     * - DECIMAL → NUMERIC
+     * - BIGDECIMAL → BIGNUMERIC
+     *
+     * Additional normalization for INTEGER:
+     * - Both INT64 and INTEGER are valid in BigQuery and may be returned by reflection
+     * - We normalize both to INTEGER for consistency with BigQuery's storage representation
+     *
+     * @param string $type The type to normalize
+     * @return string The canonical type
+     */
+    private static function normalizeType(string $type): string
+    {
+        $normalized = strtoupper($type);
+
+        // Apply REST API normalization first
+        $normalized = BigqueryDefinition::REST_API_TYPES_MAP[$normalized] ?? $normalized;
+
+        // BigQuery may return either INT64 or INTEGER for integer types
+        // Normalize INT64 to INTEGER to match BigQuery's actual storage representation
+        if ($normalized === 'INT64') {
+            $normalized = 'INTEGER';
+        }
+
+        return $normalized;
     }
 
     /**
