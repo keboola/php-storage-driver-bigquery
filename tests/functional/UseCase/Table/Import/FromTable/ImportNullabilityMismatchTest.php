@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
+use InvalidArgumentException;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -483,8 +484,12 @@ class ImportNullabilityMismatchTest extends BaseImportTestCase
             foreach ($row as $value) {
                 if (is_string($value)) {
                     $quotedValues[] = BigqueryQuote::quote($value);
-                } else {
+                } elseif ($value === null) {
+                    $quotedValues[] = 'NULL';
+                } elseif (is_scalar($value)) {
                     $quotedValues[] = (string) $value;
+                } else {
+                    throw new InvalidArgumentException('Unsupported value type');
                 }
             }
 

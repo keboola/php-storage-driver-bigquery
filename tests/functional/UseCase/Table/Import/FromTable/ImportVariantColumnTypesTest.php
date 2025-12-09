@@ -55,7 +55,7 @@ class ImportVariantColumnTypesTest extends BaseImportTestCase
 {
     /**
      * phpcs:disable
-     * @return Generator<string,array{array<array{name: string, type: string, nullable: bool}>, array<array<string|null>>, int}}
+     * @return Generator<string, array{array<array{name: string, type: string, nullable: bool}>, array<array<string|int|float|null>>, int}>
      * phpcs:enable
      */
     public function columnConfigAndImportTypeProvider(): Generator
