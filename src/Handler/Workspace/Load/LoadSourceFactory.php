@@ -273,17 +273,23 @@ final class LoadSourceFactory
      * These columns may not be in the SELECT list but need to be included
      * in the table definition for validation purposes.
      *
-     * Note: LoadTableToWorkspaceCommand doesn't support WHERE filters,
-     * so this always returns an empty array.
-     *
      * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @return string[] Column names used in WHERE filters
      */
     private function extractWhereFilterColumns(
         LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): array {
-        // WHERE filters are not supported in workspace loads
-        return [];
+        $columns = [];
+        $whereFilters = $sourceMapping->getWhereFilters();
+
+        if ($whereFilters !== null && $whereFilters->count() > 0) {
+            /** @var \Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter $filter */
+            foreach ($whereFilters as $filter) {
+                $columns[] = $filter->getColumnsName();
+            }
+        }
+
+        return $columns;
     }
 
     /**
@@ -327,11 +333,10 @@ final class LoadSourceFactory
      *
      * SelectSource is needed when:
      * - Not all columns are selected
-     * - WHERE filters are present (if supported)
-     * - LIMIT is specified (if supported)
-     * - Time travel (seconds) is used (if supported)
+     * - WHERE filters are present
+     * - LIMIT is specified
      *
-     * Note: LoadTableToWorkspaceCommand doesn't support WHERE filters, LIMIT, or time travel
+     * Note: Time travel (seconds) is not supported in LoadTableToWorkspaceCommand
      *
      * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @param bool $isFullColumnSet Whether all columns are selected in order
@@ -341,9 +346,12 @@ final class LoadSourceFactory
         LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
         bool $isFullColumnSet,
     ): bool {
-        // For workspace loads, we only use SelectSource if not all columns are selected
-        // WHERE filters, LIMIT, and time travel (seconds) are not supported in workspace loads
-        return !$isFullColumnSet;
+        $whereFilters = $sourceMapping->getWhereFilters();
+        $hasWhereFilters = $whereFilters !== null && $whereFilters->count() > 0;
+
+        return !$isFullColumnSet
+            || (int) $sourceMapping->getLimit() > 0
+            || $hasWhereFilters;
     }
 
     /**
