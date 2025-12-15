@@ -76,11 +76,8 @@ class ExportTableToFileTest extends BaseCase
             str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
-
         // create table
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         $this->clearGCSBucketDir(
@@ -124,6 +121,10 @@ class ExportTableToFileTest extends BaseCase
                 $csvData,
             );
         }
+
+        // cleanup
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
     /**
@@ -215,6 +216,10 @@ class ExportTableToFileTest extends BaseCase
             $exportDir,
         );
         $this->assertSame($expectedFiles, $files['files']);
+
+        // cleanup
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
     }
 
     public function testExportTableToFileLimitColumns(): void
@@ -226,11 +231,8 @@ class ExportTableToFileTest extends BaseCase
             str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
         );
 
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
-
         // create table
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $sourceTableDef = $this->createSourceTable($bucketDatabaseName, $sourceTableName, $bqClient);
 
         // clear files
@@ -306,6 +308,10 @@ class ExportTableToFileTest extends BaseCase
             // data are not trimmed because IE lib doesn't do so. TD serves them in raw form prefixed by space
             $csvData,
         );
+
+        // cleanup
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $this->dropSourceTable($sourceTableDef->getSchemaName(), $sourceTableDef->getTableName(), $bqClient);
     }
 
     public function simpleExportProvider(): Generator
@@ -938,173 +944,5 @@ class ExportTableToFileTest extends BaseCase
                 $e->getMessage(),
             );
         }
-    }
-
-    public function testExportTableWithTimestampFilterUsingUnixTimestamp(): void
-    {
-        $tableName = $this->getTestHash() . '_Test_table_timestamp_filter';
-        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
-        $exportDir = sprintf(
-            'export/%s/',
-            str_replace([' ', '"', '\''], ['-', '_', '_'], $this->getTestHash()),
-        );
-
-        // cleanup
-        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
-        $this->dropSourceTable($bucketDatabaseName, $tableName, $bqClient);
-
-        // CREATE TABLE with TIMESTAMP column
-        $tableDef = new BigqueryTableDefinition(
-            $bucketDatabaseName,
-            $tableName,
-            false,
-            new ColumnCollection([
-                BigqueryColumn::createGenericColumn('id'),
-                BigqueryColumn::createGenericColumn('name'),
-                new BigqueryColumn('created_at', new Bigquery(Bigquery::TYPE_TIMESTAMP)),
-            ]),
-            [],
-        );
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getCreateTableCommand(
-            $tableDef->getSchemaName(),
-            $tableDef->getTableName(),
-            $tableDef->getColumnsDefinitions(),
-            $tableDef->getPrimaryKeysNames(),
-        );
-        $bqClient->runQuery($bqClient->query($sql));
-
-        // Insert test data with known timestamps
-        // Unix timestamps:
-        // 1640995200 = 2022-01-01 00:00:00 UTC
-        // 1641081600 = 2022-01-02 00:00:00 UTC
-        // 1641168000 = 2022-01-03 00:00:00 UTC
-        $insert = [
-            "('1', 'Alice', TIMESTAMP_SECONDS(1640995200))",
-            "('2', 'Bob', TIMESTAMP_SECONDS(1641081600))",
-            "('3', 'Charlie', TIMESTAMP_SECONDS(1641168000))",
-        ];
-
-        $bqClient->runQuery($bqClient->query(sprintf(
-            'INSERT INTO %s.%s VALUES %s',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($tableName),
-            implode(',', $insert),
-        )));
-
-        $this->clearGCSBucketDir(
-            (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir,
-        );
-
-        // Test 1: Filter with eq operator using unix timestamp (as string since protobuf values are strings)
-        $response = $this->exportTable(
-            $bucketDatabaseName,
-            $tableName,
-            [
-                'exportOptions' => new ExportOptions([
-                    'isCompressed' => false,
-                    'columnsToExport' => ['id', 'name'],
-                    'filters' => new ImportExportShared\ExportFilters([
-                        'whereFilters' => [
-                            new TableWhereFilter([
-                                'columnsName' => 'created_at',
-                                'operator' => Operator::eq,
-                                'values' => ['1641081600'], // 2022-01-02 00:00:00 UTC
-                                'dataType' => DataType::TIMESTAMP,
-                            ]),
-                        ],
-                    ]),
-                ]),
-            ],
-            $exportDir,
-        );
-
-        $this->assertInstanceOf(TableExportToFileResponse::class, $response);
-        $csvData = $this->getExportAsCsv((string) getenv('BQ_BUCKET_NAME'), $exportDir);
-        $this->assertEqualsArrays(
-            [
-                ['2', 'Bob'],
-            ],
-            $csvData,
-        );
-
-        // Cleanup for next test
-        $this->clearGCSBucketDir(
-            (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir,
-        );
-
-        // Test 2: Filter with ge operator
-        $response = $this->exportTable(
-            $bucketDatabaseName,
-            $tableName,
-            [
-                'exportOptions' => new ExportOptions([
-                    'isCompressed' => false,
-                    'columnsToExport' => ['id', 'name'],
-                    'filters' => new ImportExportShared\ExportFilters([
-                        'whereFilters' => [
-                            new TableWhereFilter([
-                                'columnsName' => 'created_at',
-                                'operator' => Operator::ge,
-                                'values' => ['1641081600'], // >= 2022-01-02 00:00:00 UTC
-                                'dataType' => DataType::TIMESTAMP,
-                            ]),
-                        ],
-                    ]),
-                ]),
-            ],
-            $exportDir,
-        );
-
-        $this->assertInstanceOf(TableExportToFileResponse::class, $response);
-        $csvData = $this->getExportAsCsv((string) getenv('BQ_BUCKET_NAME'), $exportDir);
-        $this->assertEqualsArrays(
-            [
-                ['2', 'Bob'],
-                ['3', 'Charlie'],
-            ],
-            $csvData,
-        );
-
-        // Cleanup for next test
-        $this->clearGCSBucketDir(
-            (string) getenv('BQ_BUCKET_NAME'),
-            $exportDir,
-        );
-
-        // Test 3: Filter with lt operator
-        $response = $this->exportTable(
-            $bucketDatabaseName,
-            $tableName,
-            [
-                'exportOptions' => new ExportOptions([
-                    'isCompressed' => false,
-                    'columnsToExport' => ['id', 'name'],
-                    'filters' => new ImportExportShared\ExportFilters([
-                        'whereFilters' => [
-                            new TableWhereFilter([
-                                'columnsName' => 'created_at',
-                                'operator' => Operator::lt,
-                                'values' => ['1641168000'], // < 2022-01-03 00:00:00 UTC
-                                'dataType' => DataType::TIMESTAMP,
-                            ]),
-                        ],
-                    ]),
-                ]),
-            ],
-            $exportDir,
-        );
-
-        $this->assertInstanceOf(TableExportToFileResponse::class, $response);
-        $csvData = $this->getExportAsCsv((string) getenv('BQ_BUCKET_NAME'), $exportDir);
-        $this->assertEqualsArrays(
-            [
-                ['1', 'Alice'],
-                ['2', 'Bob'],
-            ],
-            $csvData,
-        );
     }
 }

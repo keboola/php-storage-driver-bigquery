@@ -205,10 +205,10 @@ class ExportQueryBuilder extends CommonFilterQueryBuilder
     private function isFilterUsed(?ExportFilters $filters): bool
     {
         return $filters !== null && (
-            $filters->getChangeSince() !== ''
-            || $filters->getChangeUntil() !== ''
-            || $filters->getFulltextSearch() !== ''
-            || $filters->getWhereFilters()->count() > 0
+                $filters->getChangeSince() !== ''
+                || $filters->getChangeUntil() !== ''
+                || $filters->getFulltextSearch() !== ''
+                || $filters->getWhereFilters()->count() > 0
             );
     }
 }
