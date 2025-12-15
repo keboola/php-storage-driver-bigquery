@@ -12,8 +12,8 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
@@ -520,4 +520,3 @@ class LoadViewCloneTest extends BaseCase
         $this->assertCount($expectedRowsCount, $result);
     }
 }
-
