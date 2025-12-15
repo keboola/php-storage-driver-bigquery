@@ -249,4 +249,107 @@ class BaseImportTestCase extends BaseCase
         yield 'typed ' => [true,];
         yield 'string table ' => [false,];
     }
+
+    /**
+     * Creates an empty table (no rows) for edge case testing
+     */
+    protected function createEmptyTable(
+        string $bucketDatabaseName,
+        string $tableName,
+        BigQueryClient $bqClient,
+    ): BigqueryTableDefinition {
+        $tableDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $tableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col2'),
+                BigqueryColumn::createGenericColumn('col3'),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableDef->getSchemaName(),
+            $tableDef->getTableName(),
+            $tableDef->getColumnsDefinitions(),
+            $tableDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        return $tableDef;
+    }
+
+    /**
+     * Creates a table with special characters in name for identifier testing
+     */
+    protected function createTableWithSpecialChars(
+        string $bucketDatabaseName,
+        string $baseTableName,
+        BigQueryClient $bqClient,
+    ): BigqueryTableDefinition {
+        // BigQuery allows various characters in table names when quoted
+        $tableName = $baseTableName . '_with-dash';
+        $tableDef = new BigqueryTableDefinition(
+            $bucketDatabaseName,
+            $tableName,
+            false,
+            new ColumnCollection([
+                BigqueryColumn::createGenericColumn('col1'),
+                BigqueryColumn::createGenericColumn('col-with-dash'),
+                BigqueryColumn::createGenericColumn('col3'),
+            ]),
+            [],
+        );
+        $qb = new BigqueryTableQueryBuilder();
+        $sql = $qb->getCreateTableCommand(
+            $tableDef->getSchemaName(),
+            $tableDef->getTableName(),
+            $tableDef->getColumnsDefinitions(),
+            $tableDef->getPrimaryKeysNames(),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        // Add one row of data
+        $sql = sprintf(
+            'INSERT %s.%s (`col1`, `col-with-dash`, `col3`) VALUES (%s, %s, %s)',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+            BigqueryQuote::quote('value1'),
+            BigqueryQuote::quote('value2'),
+            BigqueryQuote::quote('value3'),
+        );
+        $bqClient->runQuery($bqClient->query($sql));
+        return $tableDef;
+    }
+
+    /**
+     * Verifies if a table is a VIEW or a regular table
+     */
+    protected function verifyTableIsView(
+        BigQueryClient $bqClient,
+        string $datasetName,
+        string $tableName,
+    ): bool {
+        $dataset = $bqClient->dataset($datasetName);
+        $table = $dataset->table($tableName);
+        $info = $table->info();
+        return $info['type'] === 'VIEW';
+    }
+
+    /**
+     * Gets the row count of a table quickly
+     */
+    protected function getTableRowCount(
+        BigQueryClient $bqClient,
+        string $datasetName,
+        string $tableName,
+    ): int {
+        $result = $bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT COUNT(*) as count FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($datasetName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+        )));
+        $row = iterator_to_array($result)[0];
+        return (int) $row['count'];
+    }
 }
