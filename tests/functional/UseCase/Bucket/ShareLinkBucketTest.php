@@ -249,7 +249,7 @@ class ShareLinkBucketTest extends BaseCase
             $sourceProjectId,
             BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-            '1234',
+            $this->getTestHash(),
         );
         $listing = $analyticHubClient->getListing($formattedName);
         $this->assertNotNull($listing->getName());
@@ -339,7 +339,7 @@ class ShareLinkBucketTest extends BaseCase
             $sourceProjectId,
             BaseCase::DEFAULT_LOCATION,
             $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-            '12345',
+            $this->getTestHash(),
         );
         $listing = $analyticHubClient->getListing($formattedName);
         $this->assertNotNull($listing->getName());
