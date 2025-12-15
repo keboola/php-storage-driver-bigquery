@@ -437,7 +437,7 @@ class LoadViewCloneTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceBucketId('1234567')
+            ->setSourceBucketId($this->getTestHash())
             ->setSourceProjectReadOnlyRoleName($this->projects[0][1]->getProjectReadOnlyRoleName());
 
         $meta = new Any();

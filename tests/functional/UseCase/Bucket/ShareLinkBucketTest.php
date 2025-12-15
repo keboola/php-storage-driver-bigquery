@@ -111,7 +111,7 @@ class ShareLinkBucketTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceBucketId('123456')
+            ->setSourceBucketId($this->getTestHash())
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
@@ -230,7 +230,7 @@ class ShareLinkBucketTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceBucketId('1234')
+            ->setSourceBucketId($this->getTestHash())
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
@@ -293,7 +293,7 @@ class ShareLinkBucketTest extends BaseCase
         $command = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
             ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceBucketId('12345')
+            ->setSourceBucketId($this->getTestHash())
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
