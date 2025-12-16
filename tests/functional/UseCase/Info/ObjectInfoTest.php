@@ -8,6 +8,7 @@ use Google\Cloud\BigQuery\Connection\V1\Client\ConnectionServiceClient;
 use Google\Cloud\BigQuery\Connection\V1\CloudResourceProperties;
 use Google\Cloud\BigQuery\Connection\V1\Connection;
 use Google\Cloud\BigQuery\Connection\V1\CreateConnectionRequest;
+use Google\Cloud\Core\Exception\ServiceException;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -552,7 +553,7 @@ SQL,
             try {
                 $bucket->iam()->setPolicy($policy);
                 break;
-            } catch (\Google\Cloud\Core\Exception\ServiceException $e) {
+            } catch (ServiceException $e) {
                 if ($e->getCode() === 412 && $attempt < $maxRetries) {
                     usleep(100000 * $attempt); // exponential backoff: 100ms, 200ms, 300ms, 400ms
                     continue;
