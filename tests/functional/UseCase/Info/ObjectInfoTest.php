@@ -536,16 +536,30 @@ SQL,
         assert($bqBucketName !== false, 'BQ_BUCKET_NAME env var is not set');
         $bucket = $storageClient->bucket($bqBucketName);
 
-        $policy = $bucket->iam()->policy();
+        // Retry logic for IAM policy updates to handle concurrent modification (412 errors)
+        // When multiple tests run in parallel, they may try to update the same bucket's IAM policy
+        // If the policy changes between read and write, setPolicy() fails with 412 (ETag mismatch)
+        $maxRetries = 5;
         $role = 'roles/storage.objectViewer';
-        $policy['bindings'][] = [
-            'role' => $role,
-            'members' => [
-                'serviceAccount:' . $connectionServiceAccountEmail,
-            ],
-        ];
-
-        $bucket->iam()->setPolicy($policy);
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            $policy = $bucket->iam()->policy();
+            $policy['bindings'][] = [
+                'role' => $role,
+                'members' => [
+                    'serviceAccount:' . $connectionServiceAccountEmail,
+                ],
+            ];
+            try {
+                $bucket->iam()->setPolicy($policy);
+                break;
+            } catch (\Google\Cloud\Core\Exception\ServiceException $e) {
+                if ($e->getCode() === 412 && $attempt < $maxRetries) {
+                    usleep(100000 * $attempt); // exponential backoff: 100ms, 200ms, 300ms, 400ms
+                    continue;
+                }
+                throw $e;
+            }
+        }
         return $response;
     }
 

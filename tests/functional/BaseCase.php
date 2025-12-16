@@ -476,8 +476,9 @@ class BaseCase extends TestCase
 
     protected function getTestHash(): string
     {
-        // Include full test name with data provider suffix for uniqueness
-        $name = $this->getName(true);
+        // Include class name and full test name with data provider suffix for uniqueness
+        // This ensures tests in different classes with the same method name don't collide
+        $name = static::class . '::' . $this->getName(true);
         // Create a raw binary sha256 hash and base64 encode it.
         $hash = base64_encode(hash('sha256', $name, true));
         // Trim base64 padding characters from the end.
