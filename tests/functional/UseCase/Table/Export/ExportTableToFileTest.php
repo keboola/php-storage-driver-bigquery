@@ -128,15 +128,20 @@ class ExportTableToFileTest extends BaseCase
 
     /**
      * @dataProvider slicedExportProvider
-     * @param string[] $expectedFiles
+     * @param string[] $expectedFileNames file names without the hash directory prefix
      */
-    public function testExportTableToSlicedFile(bool $isCompressed, array $expectedFiles): void
+    public function testExportTableToSlicedFile(bool $isCompressed, array $expectedFileNames): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table_export_sliced';
         $exportDir = sprintf(
             'export/%s/',
             $this->getTestHash(),
+        );
+        // Build expected file paths dynamically using the test hash
+        $expectedFiles = array_map(
+            fn(string $fileName) => sprintf('export/%s/%s', $this->getTestHash(), $fileName),
+            $expectedFileNames,
         );
 
         // cleanup
@@ -654,20 +659,21 @@ class ExportTableToFileTest extends BaseCase
 
     public function slicedExportProvider(): Generator
     {
+        // File names only - the full path with hash is built dynamically in the test
         yield 'plain csv' => [
             false, // compression
             [
-                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/exp000000000000.csv',
-                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/exp000000000001.csv',
-                'export/jhI5z4EM9Zm7mMp1kIwThGmkZQsZlVAIPAAGgDjxCs/expmanifest',
+                'exp000000000000.csv',
+                'exp000000000001.csv',
+                'expmanifest',
             ],
         ];
         yield 'gzipped csv' => [
             true, // compression
             [
-                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/exp000000000000.csv.gz',
-                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/exp000000000001.csv.gz',
-                'export/hQVOw83J1ZVYlGmBKm5G3IbiAhAgtkAIAACNHYZ4lgs/expmanifest',
+                'exp000000000000.csv.gz',
+                'exp000000000001.csv.gz',
+                'expmanifest',
             ],
         ];
     }
