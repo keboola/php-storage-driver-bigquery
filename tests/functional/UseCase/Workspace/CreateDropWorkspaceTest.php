@@ -15,8 +15,10 @@ use Google\Service\Exception as GoogleServiceException;
 use Keboola\CsvOptions\CsvOptions;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\Helper;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
@@ -111,8 +113,25 @@ class CreateDropWorkspaceTest extends BaseCase
             $this->log,
         );
 
+        // Test that workspace user cannot create datasets
+        // Use a unique bucket name and direct handler call (without cleanup step)
+        // to ensure we get a clean 403 permission error, not 409 conflict
+        $uniqueBucketId = 'ws_permission_test_' . uniqid();
+        $handler = new CreateBucketHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setBucketId($uniqueBucketId);
+        $meta = new Any();
+        $meta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
+        $command->setMeta($meta);
         try {
-            $this->createTestBucket($wsCredentials1);
+            $handler(
+                $wsCredentials1,
+                $command,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
             $this->fail('The workspace user should not have the right to create a new dataset.');
         } catch (ServiceException $exception) {
             $this->assertSame(403, $exception->getCode());
