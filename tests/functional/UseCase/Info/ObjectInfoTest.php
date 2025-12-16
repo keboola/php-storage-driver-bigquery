@@ -26,6 +26,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 use Traversable;
 
 class ObjectInfoTest extends BaseCase
@@ -540,9 +544,18 @@ SQL,
         // Retry logic for IAM policy updates to handle concurrent modification (412 errors)
         // When multiple tests run in parallel, they may try to update the same bucket's IAM policy
         // If the policy changes between read and write, setPolicy() fails with 412 (ETag mismatch)
-        $maxRetries = 5;
         $role = 'roles/storage.objectViewer';
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
+            // Only retry on 412 (ETag mismatch / concurrent modification)
+            return $e instanceof ServiceException && $e->getCode() === 412;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // 1s
+            1.8,
+            10_000, // 10s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($bucket, $role, $connectionServiceAccountEmail): void {
             $policy = $bucket->iam()->policy();
             $policy['bindings'][] = [
                 'role' => $role,
@@ -550,17 +563,8 @@ SQL,
                     'serviceAccount:' . $connectionServiceAccountEmail,
                 ],
             ];
-            try {
-                $bucket->iam()->setPolicy($policy);
-                break;
-            } catch (ServiceException $e) {
-                if ($e->getCode() === 412 && $attempt < $maxRetries) {
-                    usleep(100000 * $attempt); // exponential backoff: 100ms, 200ms, 300ms, 400ms
-                    continue;
-                }
-                throw $e;
-            }
-        }
+            $bucket->iam()->setPolicy($policy);
+        });
         return $response;
     }
 

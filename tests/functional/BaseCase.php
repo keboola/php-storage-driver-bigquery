@@ -47,6 +47,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 use Throwable;
@@ -368,40 +371,36 @@ class BaseCase extends TestCase
         }
 
         // Try deletion with retry
-        $maxRetries = 3;
-        $lastException = null;
-        for ($i = 0; $i < $maxRetries; $i++) {
-            try {
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($datasetName): bool {
+            $this->log->add(sprintf(
+                'dropTestBucket retry for %s: %s',
+                $datasetName,
+                $e->getMessage(),
+            ));
+            return true;
+        }, 3);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // 1s
+            1.8,
+            10_000, // 10s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+        try {
+            $proxy->call(function () use ($bqClient, $datasetName): void {
                 $bqClient->dataset($datasetName)->delete(['deleteContents' => true]);
-                // Verify deletion - need fresh reference to check actual state
-                // @phpstan-ignore booleanNot.alwaysFalse (exists() result changes after delete)
-                if (!$bqClient->dataset($datasetName)->exists()) {
-                    return;
-                }
-                // Dataset still exists, wait and retry
-                usleep(500000); // 0.5 second
-            } catch (Throwable $e) {
-                $lastException = $e;
+            });
+        } catch (Throwable $e) {
+            // Final check - if dataset still exists, log warning but don't fail
+            // This allows the test to attempt to create the bucket which will give a clearer error
+            // @phpstan-ignore if.alwaysTrue (exists() result changes after delete)
+            if ($bqClient->dataset($datasetName)->exists()) {
                 $this->log->add(sprintf(
-                    'dropTestBucket attempt %d failed for %s: %s',
-                    $i + 1,
+                    'Warning: Failed to delete dataset %s. Last error: %s',
                     $datasetName,
                     $e->getMessage(),
                 ));
-                usleep(500000); // 0.5 second before retry
             }
-        }
-
-        // Final check - if dataset still exists, log warning but don't fail
-        // This allows the test to attempt to create the bucket which will give a clearer error
-        // @phpstan-ignore if.alwaysTrue (exists() result changes after delete)
-        if ($bqClient->dataset($datasetName)->exists()) {
-            $this->log->add(sprintf(
-                'Warning: Failed to delete dataset %s after %d attempts. Last error: %s',
-                $datasetName,
-                $maxRetries,
-                $lastException !== null ? $lastException->getMessage() : 'Dataset still exists',
-            ));
         }
     }
 
