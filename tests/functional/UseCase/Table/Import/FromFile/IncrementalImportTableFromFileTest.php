@@ -18,7 +18,6 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportS
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
-use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 /**
@@ -34,6 +33,9 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // create tables
         if ($isTypedTable) {
@@ -129,10 +131,5 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
                 'col3' => '3',
             ],
         ], $data);
-
-        // cleanup
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
     }
 }

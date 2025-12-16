@@ -100,6 +100,17 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
     public function testRegisterBucket(): void
     {
+        // cleanup at beginning - delete linked dataset if it exists from previous failed run
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
+        $linkedDataset = $mainBqClient->dataset('123_test_external');
+        try {
+            if ($linkedDataset->exists()) {
+                $linkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore - dataset might not exist or deletion might fail
+        }
+
         // prepare test external table
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
         $externalTableName = md5($this->getName()) . '_Test_table';

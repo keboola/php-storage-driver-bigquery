@@ -32,6 +32,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use Throwable;
 
 /**
  * @group Import
@@ -62,6 +63,22 @@ class ImportViewCloneTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName . '_dest');
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            try {
+                $bqClient->runQuery($bqClient->query(sprintf(
+                    'DROP VIEW IF EXISTS `%s`.`%s`',
+                    $bucketDatabaseName,
+                    $sourceTableName . '_dest',
+                )));
+            } catch (Throwable) {
+                // ignore if view doesn't exist
+            }
+        }
+
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -156,7 +173,22 @@ class ImportViewCloneTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
-        $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            try {
+                $bqClient->runQuery($bqClient->query(sprintf(
+                    'DROP VIEW IF EXISTS `%s`.`%s`',
+                    $bucketDatabaseName,
+                    $destinationTableName,
+                )));
+            } catch (Throwable) {
+                // ignore if view doesn't exist
+            }
+        }
+
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -213,31 +245,6 @@ class ImportViewCloneTest extends BaseCase
             $destinationTableName,
             3,
         );
-
-        // cleanup
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
-                sprintf(
-                    'DROP VIEW %s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                ),
-            ));
-        } else {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand(
-                    $bucketDatabaseName,
-                    $destinationTableName,
-                ),
-            ));
-        }
-
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $sourceTableName,
-            ),
-        ));
     }
 
     /**
@@ -261,6 +268,20 @@ class ImportViewCloneTest extends BaseCase
             $targetProjectResponse,
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $workspaceResponse->getWorkspaceObjectName(), $destinationTableName);
+        if ($importType === ImportOptions\ImportType::VIEW) {
+            try {
+                $bqClient->runQuery($bqClient->query(sprintf(
+                    'DROP VIEW IF EXISTS `%s`.`%s`',
+                    $workspaceResponse->getWorkspaceObjectName(),
+                    $destinationTableName,
+                )));
+            } catch (Throwable) {
+                // ignore if view doesn't exist
+            }
+        }
 
         // import
         $cmd = new TableImportFromTableCommand();
@@ -346,23 +367,6 @@ class ImportViewCloneTest extends BaseCase
             3,
         );
 
-        // cleanup
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
-                sprintf(
-                    'DROP VIEW %s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                ),
-            ));
-        } else {
-            $bqClient->runQuery($bqClient->query(
-                (new BigqueryTableQueryBuilder())->getDropTableCommand(
-                    $workspaceResponse->getWorkspaceObjectName(),
-                    $destinationTableName,
-                ),
-            ));
-        }
         $cleanUp();
     }
 

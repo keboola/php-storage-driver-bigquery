@@ -43,6 +43,7 @@ use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
@@ -361,11 +362,46 @@ class BaseCase extends TestCase
         $nameGenerator = new NameGenerator($this->getStackPrefix());
         $datasetName = $nameGenerator->createObjectNameForBucketInProject($bucketId, $branchId);
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
-        $dataset = $bqClient->dataset($datasetName);
-        try {
-            $dataset->delete(['deleteContents' => true]);
-        } catch (Throwable) {
-            // ignore
+
+        if (!$bqClient->dataset($datasetName)->exists()) {
+            return;
+        }
+
+        // Try deletion with retry
+        $maxRetries = 3;
+        $lastException = null;
+        for ($i = 0; $i < $maxRetries; $i++) {
+            try {
+                $bqClient->dataset($datasetName)->delete(['deleteContents' => true]);
+                // Verify deletion - need fresh reference to check actual state
+                // @phpstan-ignore booleanNot.alwaysFalse (exists() result changes after delete)
+                if (!$bqClient->dataset($datasetName)->exists()) {
+                    return;
+                }
+                // Dataset still exists, wait and retry
+                usleep(500000); // 0.5 second
+            } catch (Throwable $e) {
+                $lastException = $e;
+                $this->log->add(sprintf(
+                    'dropTestBucket attempt %d failed for %s: %s',
+                    $i + 1,
+                    $datasetName,
+                    $e->getMessage(),
+                ));
+                usleep(500000); // 0.5 second before retry
+            }
+        }
+
+        // Final check - if dataset still exists, log warning but don't fail
+        // This allows the test to attempt to create the bucket which will give a clearer error
+        // @phpstan-ignore if.alwaysTrue (exists() result changes after delete)
+        if ($bqClient->dataset($datasetName)->exists()) {
+            $this->log->add(sprintf(
+                'Warning: Failed to delete dataset %s after %d attempts. Last error: %s',
+                $datasetName,
+                $maxRetries,
+                $lastException !== null ? $lastException->getMessage() : 'Dataset still exists',
+            ));
         }
     }
 
@@ -779,5 +815,25 @@ class BaseCase extends TestCase
     {
         yield [BaseCase::DEFAULT_LOCATION];
         yield [BaseCase::EU_LOCATION];
+    }
+
+    /**
+     * Drop table if it exists (idempotent cleanup).
+     * Use this at the beginning of tests to clean up any leftover tables from previous failed runs.
+     */
+    protected function dropTableIfExists(
+        BigQueryClient $bqClient,
+        string $databaseName,
+        string $tableName,
+    ): void {
+        $dataset = $bqClient->dataset($databaseName);
+        $table = $dataset->table($tableName);
+        if (!$table->exists()) {
+            return;
+        }
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($databaseName, $tableName),
+        ));
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace\Load;
 
 use Generator;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -32,6 +33,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use Throwable;
 use const JSON_THROW_ON_ERROR;
 
 class LoadViewCloneTest extends BaseCase
@@ -60,6 +62,20 @@ class LoadViewCloneTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
+
+        // cleanup at beginning
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName . '_dest');
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $bucketDatabaseName,
+                $sourceTableName . '_dest',
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
+        }
+
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -155,6 +171,20 @@ class LoadViewCloneTest extends BaseCase
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $qb = new BigqueryTableQueryBuilder();
+
+        // cleanup at beginning
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
+        }
+
         $this->createSourceTable(
             $bucketDatabaseName,
             $sourceTableName,
@@ -211,31 +241,6 @@ class LoadViewCloneTest extends BaseCase
             $destinationTableName,
             3,
         );
-
-        // cleanup
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
-                sprintf(
-                    'DROP VIEW %s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                ),
-            ));
-        } else {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand(
-                    $bucketDatabaseName,
-                    $destinationTableName,
-                ),
-            ));
-        }
-
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand(
-                $bucketDatabaseName,
-                $sourceTableName,
-            ),
-        ));
     }
 
     /**
@@ -259,6 +264,18 @@ class LoadViewCloneTest extends BaseCase
             $targetProjectResponse,
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
+
+        // cleanup at beginning
+        $this->dropTableIfExists($bqClient, $workspaceResponse->getWorkspaceObjectName(), $destinationTableName);
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $workspaceResponse->getWorkspaceObjectName(),
+                $destinationTableName,
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
+        }
 
         // import
         $cmd = new LoadTableToWorkspaceCommand();
@@ -344,23 +361,6 @@ class LoadViewCloneTest extends BaseCase
             3,
         );
 
-        // cleanup
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            $bqClient->runQuery($bqClient->query(
-                sprintf(
-                    'DROP VIEW %s.%s',
-                    BigqueryQuote::quoteSingleIdentifier($workspaceResponse->getWorkspaceObjectName()),
-                    BigqueryQuote::quoteSingleIdentifier($destinationTableName),
-                ),
-            ));
-        } else {
-            $bqClient->runQuery($bqClient->query(
-                (new BigqueryTableQueryBuilder())->getDropTableCommand(
-                    $workspaceResponse->getWorkspaceObjectName(),
-                    $destinationTableName,
-                ),
-            ));
-        }
         $cleanUp();
     }
 
@@ -416,6 +416,20 @@ class LoadViewCloneTest extends BaseCase
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
+        // cleanup at beginning - delete linked dataset in target project if it exists
+        $targetBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[1][0]);
+        $linkedDataset = $targetBqClient->dataset($linkedBucketSchemaName);
+        try {
+            if ($linkedDataset->exists()) {
+                $linkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore - linked dataset might not exist
+        }
+
+        // cleanup source table if it exists from previous run
+        $this->dropTableIfExists($sourceBqClient, $bucketDatabaseName, 'sharedTable');
+
         // create source table to be shared
         $this->createSourceTable(
             $bucketDatabaseName,
@@ -432,6 +446,23 @@ class LoadViewCloneTest extends BaseCase
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
+
+        // cleanup existing listing if it exists (might reference a deleted dataset)
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->projects[0][0]);
+        $dataExchangeId = $this->projects[0][1]->getProjectReadOnlyRoleName();
+        $listingId = $this->getTestHash();
+        try {
+            $listingName = AnalyticsHubServiceClient::listingName(
+                $sourceProjectId,
+                self::DEFAULT_LOCATION,
+                $dataExchangeId,
+                $listingId,
+            );
+            $analyticHubClient->deleteListing($listingName);
+        } catch (Throwable) {
+            // ignore - listing might not exist
+        }
+
         $handler = new ShareBucketHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())

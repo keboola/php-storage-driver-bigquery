@@ -41,6 +41,10 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -194,6 +198,10 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -300,19 +308,5 @@ SQL,
         $timestamps = $timestamps[0];
         $this->assertIsArray($timestamps);
         $this->assertSame($nOfUpdatedTimestamps, array_values($timestamps)[0]);
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            (new BigqueryTableQueryBuilder())->getDropTableCommand(
-                $tableSourceDef->getSchemaName(),
-                $tableSourceDef->getTableName(),
-            ),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            (new BigqueryTableQueryBuilder())->getDropTableCommand(
-                $tableDestDef->getSchemaName(),
-                $tableDestDef->getTableName(),
-            ),
-        ));
     }
 }

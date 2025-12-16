@@ -53,6 +53,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -156,14 +160,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     /**
@@ -176,6 +172,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -286,14 +286,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
 
         $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     /**
@@ -306,6 +298,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
@@ -440,14 +436,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 'col4' => '2',
             ],
         ], $data);
-
-        // cleanup
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-        ));
-        $bqClient->runQuery($bqClient->query(
-            $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-        ));
     }
 
     // simulate output mapping load table to table with requirePartition filter
@@ -456,6 +444,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $tableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatasetName, $tableName);
+        $this->dropTableIfExists($bqClient, $bucketDatasetName, $destinationTableName);
 
         // CREATE TABLE
         $handler = new CreateTableHandler($this->clientManager);
@@ -583,6 +576,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -693,14 +690,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             $this->fail('should fail because of nulls in required field');
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field col3 cannot be null', $e->getMessage());
-        } finally {
-            // cleanup
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-            ));
         }
     }
 
@@ -984,6 +973,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create source table with typed columns
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -1120,6 +1113,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $sourceTableName,
@@ -1132,18 +1129,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
@@ -1231,6 +1216,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_copy_test';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $qb = new BigqueryTableQueryBuilder();
 
         // Source and destination have IDENTICAL structure
@@ -1244,14 +1234,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
-
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
 
         $sql = $qb->getCreateTableCommand(
             $sourceDefinition->getSchemaName(),
@@ -1290,17 +1272,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             ]),
             [],
         );
-
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand(
-                    $destinationDefinition->getSchemaName(),
-                    $destinationDefinition->getTableName(),
-                ),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
 
         $sql = $qb->getCreateTableCommand(
             $destinationDefinition->getSchemaName(),
@@ -1420,18 +1391,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             ['pk_col' => '3', 'value_col' => 'third_value'],
             ['pk_col' => '4', 'value_col' => 'keep_this'],
         ], $data, 'Data should be correctly imported via SQL path');
-
-        // Cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $sourceTableName),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
     }
 
     public function testImportTableFromTableWithPrimaryKeyScenarios(): void
@@ -1441,6 +1400,12 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $autoCreateTableName = $this->getTestHash() . '_pk_test_auto_create';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $autoCreateTableName);
+
         $qb = new BigqueryTableQueryBuilder();
 
         // Scenario 1: Create source table with composite primary keys
@@ -1455,15 +1420,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             ]),
             ['id', 'name'], // Composite PRIMARY KEYS
         );
-
-        // Cleanup if exists
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
 
         // Create source table
         $sql = $qb->getCreateTableCommand(
@@ -1517,15 +1473,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             ]),
             ['id', 'name'], // Composite PRIMARY KEYS
         );
-
-        // Cleanup if exists
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
 
         // Create destination table
         $sql = $qb->getCreateTableCommand(
@@ -1675,15 +1622,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $this->assertSame('4', (string) $row['count'], 'Four rows should have updated timestamps');
 
         // Scenario 4: Test auto-creation of destination with primary keys
-        // Cleanup if exists
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $autoCreateTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
-
         $cmd2 = new LoadTableToWorkspaceCommand();
         $path2 = new RepeatedField(GPBType::STRING);
         $path2[] = $bucketDatabaseName;
@@ -1766,21 +1704,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             $autoCreatedPks,
             'Auto-created table should have primary keys based on dedup columns',
         );
-
-        // Cleanup test tables
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $sourceTableName),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $autoCreateTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK
-        }
     }
 
     public function testImportTableFromTableWithoutTimestampInMapping(): void
@@ -1789,6 +1712,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_no_ts';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         $sourceDefinition = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -1812,21 +1739,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand(
-                    $destinationDefinition->getSchemaName(),
-                    $destinationDefinition->getTableName(),
-                ),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $sourceDefinition->getSchemaName(),
@@ -1922,6 +1834,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_dedup_pk_diff';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $qb = new BigqueryTableQueryBuilder();
 
         // Create source table
@@ -2113,6 +2030,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -2236,6 +2157,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $sourceDefinition = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $sourceTableName,
@@ -2259,21 +2184,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($sourceDefinition->getSchemaName(), $sourceDefinition->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand(
-                    $destinationDefinition->getSchemaName(),
-                    $destinationDefinition->getTableName(),
-                ),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $sourceDefinition->getSchemaName(),
@@ -2385,6 +2295,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_filter_dedup';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $qb = new BigqueryTableQueryBuilder();
 
         // Source table with status column for filtering
@@ -2608,6 +2523,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_mapping_dedup';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $qb = new BigqueryTableQueryBuilder();
 
         // Source table: columns col1, col2, col3
@@ -3251,6 +3171,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $sourceTableName,
@@ -3263,18 +3187,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
@@ -3349,6 +3261,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
             $sourceTableName,
@@ -3361,18 +3277,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $bqClient->runQuery($bqClient->query($qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
@@ -3447,6 +3351,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup from previous failed runs
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableSourceDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -3470,18 +3378,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
         );
         $qb = new BigqueryTableQueryBuilder();
-
-        // cleanup
-        try {
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableSourceDef->getSchemaName(), $tableSourceDef->getTableName()),
-            ));
-            $bqClient->runQuery($bqClient->query(
-                $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName()),
-            ));
-        } catch (NotFoundException $e) {
-            // OK, do nothing
-        }
 
         $sql = $qb->getCreateTableCommand(
             $tableSourceDef->getSchemaName(),
