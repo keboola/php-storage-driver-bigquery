@@ -1173,6 +1173,13 @@ SQL,
             $this->assertStringContainsString('null', strtolower($e->getMessage()));
             $this->assertStringContainsString('id', strtolower($e->getMessage()));
         } catch (Throwable $e) {
+            if ($isTypedTable) {
+                $this->fail(sprintf(
+                    'Typed table should throw ImportValidationException, got %s: %s',
+                    get_class($e),
+                    $e->getMessage(),
+                ));
+            }
             // Catch any other exception and verify it mentions NULL
             $this->assertStringContainsString(
                 'null',
