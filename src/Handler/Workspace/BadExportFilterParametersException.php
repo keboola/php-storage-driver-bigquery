@@ -22,11 +22,9 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
         );
     }
 
-    /**
-     * @throws self
-     */
-    public static function handleWrongTypeInFilters(BigqueryException|BadRequestException $e): void
-    {
+    public static function handleWrongTypeInFilters(
+        BigqueryException|BadRequestException $e,
+    ): self|BigqueryException|BadRequestException {
         if (str_contains($e->getMessage(), 'No matching signature for operator ')) {
             $expectedActualPattern = '/types:\s(.*?)\./';
             preg_match($expectedActualPattern, $e->getMessage(), $matches);
@@ -34,14 +32,14 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             $expected = trim(explode(',', $matches[1])[0]);
             $actual = trim(explode(',', $matches[1])[1]);
 
-            throw new self(
+            return new self(
                 message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
                 previous: $e,
             );
         }
 
         if (str_contains($e->getMessage(), 'Invalid')) {
-            throw new self(
+            return new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
@@ -66,11 +64,13 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             //    "status": "INVALID_ARGUMENT"
             //  }
             //}
-            throw new self(
+            return new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
         }
+
+        return $e;
     }
 
     public static function createUnsupportedDatatypeInWhereFilter(string $columnName, string $columnType): self

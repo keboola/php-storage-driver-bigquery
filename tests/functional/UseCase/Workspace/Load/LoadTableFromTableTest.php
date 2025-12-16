@@ -668,11 +668,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($destinationTableName),
         );
+        $convertEmptyValues = new RepeatedField(GPBType::STRING);
+        $convertEmptyValues[] = 'col3';
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
-                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setConvertEmptyValuesToNullOnColumns($convertEmptyValues)
                 ->setNumberOfIgnoredLines(0)
                 ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
@@ -702,7 +704,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
     /**
      * @dataProvider importTypeProvide
      */
-    public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(int $importType): void
+    public function testLoadDataToIncompatibleColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -808,9 +810,9 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('should fail because of columns mismatch');
-        } catch (ColumnsMismatchException $e) {
-            $this->assertSame(
-                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
+        } catch (ImportValidationException $e) {
+            $this->assertStringContainsString(
+                'Invalid NUMERIC value',
                 $e->getMessage(),
             );
         }
@@ -2397,10 +2399,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
-        $this->assertSame(
-            [], // optimized full load is not returning imported columns
-            iterator_to_array($response->getImportedColumns()),
-        );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());

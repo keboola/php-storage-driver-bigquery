@@ -18,8 +18,10 @@ use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryInputDataException;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\FullImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToFinalTable\IncrementalImporter;
 use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
+use Keboola\Db\ImportExport\Backend\ImportState;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
+use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -231,42 +233,66 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             );
         }
 
-        $isFullImport = $options->getImportType() === ImportType::FULL;
-        $insertOnlyDuplicates = $options->getDedupType() === ImportOptions\DedupType::INSERT_DUPLICATES;
-        if ($isFullImport && $insertOnlyDuplicates && !$importOptions->useTimestamp()) {
-            // when full load is performed with no deduplication only copy data using ToStage class
-            // this will skip moving data to stage table
-            // this is used on full load into workspace where data are deduplicated already
-            $toStageImporter = new ToStageImporter($bqClient);
-            try {
-                $importState = $toStageImporter->importToStagingTable(
-                    $source,
-                    $destinationDefinition,
-                    $importOptions,
-                );
-            } catch (ColumnsMismatchException $e) {
-                throw new DriverColumnsMismatchException($e->getMessage());
-            }
-            return [null, $importState->getResult()];
-        }
-
+        // prepare the staging table definition here to identify if the columns are identical or not
         /** @var ColumnMapping[] $mappings */
         $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
         // load to staging table
         $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
-            $destinationDefinition,
+            $sourceTableDefinition,
             $mappings,
         );
 
         $isColumnIdentical = true;
         try {
             Assert::assertSameColumnsOrdered(
-                $sourceTableDefinition->getColumnsDefinitions(),
+                $destinationDefinition->getColumnsDefinitions(),
                 $stagingTable->getColumnsDefinitions(),
                 [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
             );
         } catch (ColumnsMismatchException) {
             $isColumnIdentical = false;
+        }
+
+        if (!$isColumnIdentical) {
+            $importOptions = new BigqueryImportOptions(
+                convertEmptyValuesToNull: $importOptions->getConvertEmptyValuesToNull(),
+                isIncremental: $importOptions->isIncremental(),
+                useTimestamp: $importOptions->useTimestamp(),
+                numberOfIgnoredLines: $importOptions->getNumberOfIgnoredLines(),
+                usingTypes: ImportOptionsInterface::USING_TYPES_STRING, // force the string behavior so it will cast
+                session: $importOptions->getSession(),
+                importAsNull: $importOptions->importAsNull(),
+                features: $importOptions->features(),
+            );
+        }
+
+        $isFullImport = $options->getImportType() === ImportType::FULL;
+        $insertOnlyDuplicates = $options->getDedupType() === ImportOptions\DedupType::INSERT_DUPLICATES;
+        if ($isFullImport && $insertOnlyDuplicates && !$importOptions->useTimestamp()) {
+            // when full load is performed with no deduplication only copy data using ToStage class
+            // this will skip moving data to stage table
+            // this is used on full load into workspace where data are deduplicated already
+            $importer = new FullImporter($bqClient);
+            try {
+                $destinationDefinitionWithoutPks = new BigqueryTableDefinition(
+                    $destinationDefinition->getSchemaName(),
+                    $destinationDefinition->getTableName(),
+                    $destinationDefinition->isTemporary(),
+                    $destinationDefinition->getColumnsDefinitions(),
+                    [], // no primary keys
+                );
+                $importResult = $importer->importToTable(
+                    $sourceTableDefinition,
+                    $destinationDefinitionWithoutPks,
+                    $importOptions,
+                    new ImportState($destinationDefinition->getTableName()),
+                );
+            } catch (ColumnsMismatchException $e) {
+                throw new DriverColumnsMismatchException($e->getMessage());
+            } catch (BigqueryException $e) {
+                throw new BigqueryInputDataException($e->getMessage());
+            }
+            return [null, $importResult];
         }
 
         // Determine if we need deduplication
@@ -281,49 +307,22 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             count($dedupColumns) > 0
         );
 
-        if ($isColumnIdentical && $source instanceof Table && !$needsDeduplication) {
-            // OPTIMIZATION: use BigQuery native COPY to transfer table to staging
-            // COPY copies all rows including duplicates, which is safe when:
-            // - FULL imports (destination is empty, dedup happens later if needed)
-            // - INSERT_DUPLICATES mode (duplicates already handled in source)
-            // - Incremental without dedup (duplicates are allowed)
-            // NOT safe when: Incremental + UPDATE_DUPLICATES (source may have dups, need deterministic dedup)
-            $toStageImporter = new CopyImportFromTableToTable($bqClient);
-        } else {
-            $bqClient->runQuery($bqClient->query(
-                (new BigqueryTableQueryBuilder())->getCreateTableCommand(
-                    $stagingTable->getSchemaName(),
-                    $stagingTable->getTableName(),
-                    $stagingTable->getColumnsDefinitions(),
-                    [],
-                ),
-            ));
-            // Use standard SQL-based import with INSERT INTO ... SELECT
-            // This provides more control for column transformations, filters, and deduplication
-            $toStageImporter = new ToStageImporter($bqClient);
-        }
         try {
-            $importState = $toStageImporter->importToStagingTable(
-                $source,
-                $stagingTable,
-                $importOptions,
-            );
             // import data to destination
             $toFinalTableImporter = new FullImporter($bqClient);
             if ($importOptions->isIncremental()) {
                 $toFinalTableImporter = new IncrementalImporter($bqClient);
             }
             $importResult = $toFinalTableImporter->importToTable(
-                $stagingTable,
+                $sourceTableDefinition,
                 $destinationDefinition,
                 $importOptions,
-                $importState,
+                new ImportState($destinationDefinition->getTableName()),
             );
         } catch (ColumnsMismatchException $e) {
             throw new DriverColumnsMismatchException($e->getMessage());
         } catch (BigqueryException $e) {
-            BadExportFilterParametersException::handleWrongTypeInFilters($e);
-            throw $e;
+            throw new BigqueryInputDataException($e->getMessage());
         }
         return [$stagingTable, $importResult];
     }
@@ -344,10 +343,18 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                 $context->bigqueryImportOptions,
                 $context->sourceMapping,
             );
-        } catch (BigqueryInputDataException $e) {
-            throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
         } catch (BigqueryException $e) {
-            throw MaximumLengthOverflowException::handleException($e);
+            $handled = MaximumLengthOverflowException::handleException($e);
+            if ($handled instanceof MaximumLengthOverflowException) {
+                throw $handled;
+            }
+
+            $handled = BadExportFilterParametersException::handleWrongTypeInFilters($e);
+            if ($handled instanceof BadExportFilterParametersException) {
+                throw $handled;
+            }
+
+            throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
         } finally {
             if ($stagingTable !== null) {
                 try {
