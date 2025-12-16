@@ -51,21 +51,14 @@ use Throwable;
 class LoadTableToWorkspaceHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
-    private ?LoadSourceFactory $sourceFactory;
-    private ?ColumnMappingService $columnMappingService;
-    private ?LoadDestinationManager $destinationManager;
+    private ?LoadSourceFactory $sourceFactory = null;
+    private ?ColumnMappingService $columnMappingService = null;
+    private ?LoadDestinationManager $destinationManager = null;
 
-    public function __construct(
-        GCPClientManager $clientManager,
-        ?LoadSourceFactory $sourceFactory = null,
-        ?ColumnMappingService $columnMappingService = null,
-        ?LoadDestinationManager $destinationManager = null,
-    ) {
+    public function __construct(GCPClientManager $clientManager)
+    {
         parent::__construct();
         $this->clientManager = $clientManager;
-        $this->sourceFactory = $sourceFactory;
-        $this->columnMappingService = $columnMappingService;
-        $this->destinationManager = $destinationManager;
     }
 
     /**
@@ -99,7 +92,6 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             $queryTags,
         );
 
-        // Instantiate services if not injected (for backward compatibility)
         $sourceFactory = $this->sourceFactory ?? new LoadSourceFactory($bqClient);
         $columnMapping = $this->columnMappingService ?? new ColumnMappingService();
         $destinationManager = $this->destinationManager ?? new LoadDestinationManager($bqClient);
