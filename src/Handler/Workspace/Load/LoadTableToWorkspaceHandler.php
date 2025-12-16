@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Core\Exception\BadRequestException;
@@ -21,18 +21,22 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
+use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\CreateImportOptionHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
-use Keboola\StorageDriver\BigQuery\Handler\Table\BadExportFilterParametersException;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\BadExportFilterParametersException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceLib\CopyImportFromTableToTable;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand\SourceTableMapping;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\Import\ImportValidationException;
@@ -44,9 +48,12 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use LogicException;
 use Throwable;
 
-final class ImportTableFromTableHandler extends BaseHandler
+class LoadTableToWorkspaceHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
+    private ?LoadSourceFactory $sourceFactory = null;
+    private ?ColumnMappingService $columnMappingService = null;
+    private ?LoadDestinationManager $destinationManager = null;
 
     public function __construct(GCPClientManager $clientManager)
     {
@@ -57,7 +64,7 @@ final class ImportTableFromTableHandler extends BaseHandler
     /**
      * @inheritDoc
      * @param GenericBackendCredentials $credentials
-     * @param TableImportFromTableCommand $command
+     * @param LoadTableToWorkspaceCommand $command
      */
     public function __invoke(
         Message $credentials,
@@ -66,17 +73,15 @@ final class ImportTableFromTableHandler extends BaseHandler
         Message $runtimeOptions,
     ): ?Message {
         assert($credentials instanceof GenericBackendCredentials);
-        assert($command instanceof TableImportFromTableCommand);
+        assert($command instanceof LoadTableToWorkspaceCommand);
 
-        assert($runtimeOptions->getMeta() === null);
-
-        // validate
+        // Validate required command fields
         $sourceMapping = $command->getSource();
-        assert($sourceMapping !== null, 'TableImportFromFileCommand.source is required.');
+        assert($sourceMapping !== null, 'LoadTableToWorkspaceCommand.source is required.');
         $destination = $command->getDestination();
-        assert($destination !== null, 'TableImportFromFileCommand.destination is required.');
+        assert($destination !== null, 'LoadTableToWorkspaceCommand.destination is required.');
         $importOptions = $command->getImportOptions();
-        assert($importOptions !== null, 'TableImportFromFileCommand.importOptions is required.');
+        assert($importOptions !== null, 'LoadTableToWorkspaceCommand.importOptions is required.');
 
         /** @var array<string, string> $queryTags */
         $queryTags = iterator_to_array($runtimeOptions->getQueryTags());
@@ -87,10 +92,39 @@ final class ImportTableFromTableHandler extends BaseHandler
             $queryTags,
         );
 
-        $source = $this->createSource($bqClient, $command);
+        $sourceFactory = $this->sourceFactory ?? new LoadSourceFactory($bqClient);
+        $columnMapping = $this->columnMappingService ?? new ColumnMappingService();
+        $destinationManager = $this->destinationManager ?? new LoadDestinationManager($bqClient);
+
+        // Create source using factory
+        $sourceContext = $sourceFactory->createFromCommand($command);
         $bigqueryImportOptions = CreateImportOptionHelper::createOptions($importOptions, $features);
 
-        // Replace is only available in view or clone import
+        // Build destination columns from source and mapping
+        $expectedDestinationColumns = $columnMapping->buildDestinationColumns(
+            $sourceContext->effectiveDefinition,
+            $sourceMapping,
+        );
+
+        // Resolve or create destination table
+        $destinationDefinition = $destinationManager->resolveDestination(
+            $destination,
+            $importOptions,
+            $expectedDestinationColumns,
+        );
+
+        // Validate incremental destination if needed
+        if ($importOptions->getImportType() === ImportType::INCREMENTAL
+            && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
+        ) {
+            $destinationManager->validateIncrementalDestination(
+                $destinationDefinition,
+                $expectedDestinationColumns,
+                $sourceContext->fullDefinition,
+            );
+        }
+
+        // Handle REPLACE mode for VIEW/PBCLONE imports
         $shouldDropTableIfExists = $importOptions->getCreateMode() === ImportOptions\CreateMode::REPLACE
             && in_array($importOptions->getImportType(), [ImportType::VIEW, ImportType::PBCLONE], true);
 
@@ -102,39 +136,55 @@ final class ImportTableFromTableHandler extends BaseHandler
             }
         }
 
-        switch ($importOptions->getImportType()) {
+        // Create load context and execute
+        $context = LoadContext::create(
+            $bqClient,
+            $destination,
+            $destinationDefinition,
+            $importOptions,
+            $sourceContext->source,
+            $sourceContext->effectiveDefinition,
+            $bigqueryImportOptions,
+            $sourceMapping,
+        );
+
+        $importResult = $this->executeImport($context);
+
+        // Build and return response
+        return $this->buildResponse($bqClient, $destination, $importResult);
+    }
+
+    /**
+     * Execute load operation based on import type
+     */
+    private function executeImport(LoadContext $context): Result
+    {
+        switch ($context->importOptions->getImportType()) {
             case ImportType::FULL:
             case ImportType::INCREMENTAL:
-                $importResult = $this->importByTableCopy(
-                    $bqClient,
-                    $destination,
-                    $importOptions,
-                    $source,
-                    $bigqueryImportOptions,
-                    $sourceMapping,
-                );
-                break;
+                return $this->importByTableCopy($context);
             case ImportType::VIEW:
-                $importResult = $this->createView(
-                    $bqClient,
-                    $destination,
-                    $source,
-                );
-                break;
+                assert($context->source instanceof Table);
+                return $this->createView($context->bqClient, $context->destination, $context->source);
             case ImportType::PBCLONE:
-                $importResult = $this->clone(
-                    $bqClient,
-                    $destination,
-                    $source,
-                );
-                break;
+                assert($context->source instanceof Table);
+                return $this->clone($context->bqClient, $context->destination, $context->source);
             default:
                 throw new LogicException(sprintf(
                     'Unknown import type "%s".',
-                    $importOptions->getImportType(),
+                    $context->importOptions->getImportType(),
                 ));
         }
+    }
 
+    /**
+     * Build response with load results
+     */
+    private function buildResponse(
+        BigQueryClient $bqClient,
+        CommandDestination $destination,
+        Result $importResult,
+    ): TableImportResponse {
         $response = new TableImportResponse();
         $destinationRef = new BigqueryTableReflection(
             $bqClient,
@@ -158,53 +208,18 @@ final class ImportTableFromTableHandler extends BaseHandler
         return $response;
     }
 
-    private function createSource(
-        BigQueryClient $bqClient,
-        TableImportFromTableCommand $command,
-    ): Table {
-        $sourceMapping = $command->getSource();
-        assert($sourceMapping !== null);
-        $sourceColumns = [];
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
-        foreach ($sourceMapping->getColumnMappings() as $mapping) {
-            $sourceColumns[] = $mapping->getSourceColumnName();
-        }
-        $sourceTableDef = (new BigqueryTableReflection(
-            $bqClient,
-            ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
-            $sourceMapping->getTableName(),
-        ))->getTableDefinition();
-        return new Table(
-            ProtobufHelper::repeatedStringToArray($sourceMapping->getPath())[0],
-            $sourceMapping->getTableName(),
-            $sourceColumns,
-            $sourceTableDef->getPrimaryKeysNames(),
-        );
-    }
-
     /**
      * @return array{0: BigqueryTableDefinition|null, 1: Result}
      */
     private function import(
         BigQueryClient $bqClient,
-        CommandDestination $destination,
+        BigqueryTableDefinition $destinationDefinition,
         ImportOptions $options,
-        Table $source,
+        SqlSourceInterface $source,
+        BigqueryTableDefinition $sourceTableDefinition,
         BigqueryImportOptions $importOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        SourceTableMapping $sourceMapping,
     ): array {
-        /** @var BigqueryTableDefinition $destinationDefinition */
-        $destinationDefinition = (new BigqueryTableReflection(
-            $bqClient,
-            ProtobufHelper::repeatedStringToArray($destination->getPath())[0],
-            $destination->getTableName(),
-        ))->getTableDefinition();
-        /** @var BigqueryTableDefinition $sourceTableDefinition */
-        $sourceTableDefinition = (new BigqueryTableReflection(
-            $bqClient,
-            $source->getSchema(),
-            $source->getTableName(),
-        ))->getTableDefinition();
         $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
         if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
             $destinationDefinition = new BigqueryTableDefinition(
@@ -235,7 +250,7 @@ final class ImportTableFromTableHandler extends BaseHandler
             return [null, $importState->getResult()];
         }
 
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        /** @var ColumnMapping[] $mappings */
         $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
         // load to staging table
         $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
@@ -254,8 +269,25 @@ final class ImportTableFromTableHandler extends BaseHandler
             $isColumnIdentical = false;
         }
 
-        if ($isColumnIdentical) {
-            // if columns are identical we can use COPY statement to make import faster
+        // Determine if we need deduplication
+        // COPY optimization copies all rows including duplicates, which is problematic when:
+        // - Import type is INCREMENTAL (merging with existing data)
+        // - Dedup type is UPDATE_DUPLICATES (need to merge duplicate PK values)
+        // - Dedup columns are specified (PK columns exist)
+        // In this case, the source table may contain duplicates that need deterministic resolution.
+        $needsDeduplication = (
+            $options->getImportType() === ImportType::INCREMENTAL &&
+            $options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES &&
+            count($dedupColumns) > 0
+        );
+
+        if ($isColumnIdentical && $source instanceof Table && !$needsDeduplication) {
+            // OPTIMIZATION: use BigQuery native COPY to transfer table to staging
+            // COPY copies all rows including duplicates, which is safe when:
+            // - FULL imports (destination is empty, dedup happens later if needed)
+            // - INSERT_DUPLICATES mode (duplicates already handled in source)
+            // - Incremental without dedup (duplicates are allowed)
+            // NOT safe when: Incremental + UPDATE_DUPLICATES (source may have dups, need deterministic dedup)
             $toStageImporter = new CopyImportFromTableToTable($bqClient);
         } else {
             $bqClient->runQuery($bqClient->query(
@@ -266,7 +298,8 @@ final class ImportTableFromTableHandler extends BaseHandler
                     [],
                 ),
             ));
-            // load to staging table
+            // Use standard SQL-based import with INSERT INTO ... SELECT
+            // This provides more control for column transformations, filters, and deduplication
             $toStageImporter = new ToStageImporter($bqClient);
         }
         try {
@@ -295,26 +328,21 @@ final class ImportTableFromTableHandler extends BaseHandler
         return [$stagingTable, $importResult];
     }
 
-    private function importByTableCopy(
-        BigQueryClient $bqClient,
-        CommandDestination $destination,
-        ImportOptions $importOptions,
-        Table $source,
-        BigqueryImportOptions $bigqueryImportOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
-    ): Result {
+    private function importByTableCopy(LoadContext $context): Result
+    {
         $stagingTable = null;
         try {
             [
                 $stagingTable,
                 $importResult,
             ] = $this->import(
-                $bqClient,
-                $destination,
-                $importOptions,
-                $source,
-                $bigqueryImportOptions,
-                $sourceMapping,
+                $context->bqClient,
+                $context->destinationDefinition,
+                $context->importOptions,
+                $context->source,
+                $context->sourceTableDefinition,
+                $context->bigqueryImportOptions,
+                $context->sourceMapping,
             );
         } catch (BigqueryInputDataException $e) {
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
@@ -323,7 +351,7 @@ final class ImportTableFromTableHandler extends BaseHandler
         } finally {
             if ($stagingTable !== null) {
                 try {
-                    $bqClient->runQuery($bqClient->query(
+                    $context->bqClient->runQuery($context->bqClient->query(
                         (new BigqueryTableQueryBuilder())->getDropTableCommand(
                             $stagingTable->getSchemaName(),
                             $stagingTable->getTableName(),

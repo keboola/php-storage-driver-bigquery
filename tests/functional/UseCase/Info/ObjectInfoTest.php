@@ -8,6 +8,7 @@ use Google\Cloud\BigQuery\Connection\V1\Client\ConnectionServiceClient;
 use Google\Cloud\BigQuery\Connection\V1\CloudResourceProperties;
 use Google\Cloud\BigQuery\Connection\V1\Connection;
 use Google\Cloud\BigQuery\Connection\V1\CreateConnectionRequest;
+use Google\Cloud\Core\Exception\ServiceException;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Info\ObjectInfoHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -25,6 +26,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 use Traversable;
 
 class ObjectInfoTest extends BaseCase
@@ -536,16 +541,30 @@ SQL,
         assert($bqBucketName !== false, 'BQ_BUCKET_NAME env var is not set');
         $bucket = $storageClient->bucket($bqBucketName);
 
-        $policy = $bucket->iam()->policy();
+        // Retry logic for IAM policy updates to handle concurrent modification (412 errors)
+        // When multiple tests run in parallel, they may try to update the same bucket's IAM policy
+        // If the policy changes between read and write, setPolicy() fails with 412 (ETag mismatch)
         $role = 'roles/storage.objectViewer';
-        $policy['bindings'][] = [
-            'role' => $role,
-            'members' => [
-                'serviceAccount:' . $connectionServiceAccountEmail,
-            ],
-        ];
-
-        $bucket->iam()->setPolicy($policy);
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
+            // Only retry on 412 (ETag mismatch / concurrent modification)
+            return $e instanceof ServiceException && $e->getCode() === 412;
+        }, 5);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // 1s
+            1.8,
+            10_000, // 10s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+        $proxy->call(function () use ($bucket, $role, $connectionServiceAccountEmail): void {
+            $policy = $bucket->iam()->policy();
+            $policy['bindings'][] = [
+                'role' => $role,
+                'members' => [
+                    'serviceAccount:' . $connectionServiceAccountEmail,
+                ],
+            ];
+            $bucket->iam()->setPolicy($policy);
+        });
         return $response;
     }
 

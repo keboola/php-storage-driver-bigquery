@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\FromTable;
+namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace\Load;
 
 use Generator;
+use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -12,8 +13,8 @@ use Google\Protobuf\Internal\RepeatedField;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketResponse;
@@ -22,8 +23,8 @@ use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
@@ -33,11 +34,9 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Throwable;
+use const JSON_THROW_ON_ERROR;
 
-/**
- * @group Import
- */
-class ImportViewCloneTest extends BaseCase
+class LoadViewCloneTest extends BaseCase
 {
     /**
      * @return Generator<string,array{ImportOptions\ImportType::*}>
@@ -64,19 +63,17 @@ class ImportViewCloneTest extends BaseCase
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
 
-        // cleanup from previous failed runs
+        // cleanup at beginning
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName . '_dest');
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            try {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'DROP VIEW IF EXISTS `%s`.`%s`',
-                    $bucketDatabaseName,
-                    $sourceTableName . '_dest',
-                )));
-            } catch (Throwable) {
-                // ignore if view doesn't exist
-            }
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $bucketDatabaseName,
+                $sourceTableName . '_dest',
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
         }
 
         $this->createSourceTable(
@@ -92,11 +89,11 @@ class ImportViewCloneTest extends BaseCase
         );
 
         // import
-        $cmd = new TableImportFromTableCommand();
+        $cmd = new LoadTableToWorkspaceCommand();
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
         $cmd->setSource(
-            (new TableImportFromTableCommand\SourceTableMapping())
+            (new LoadTableToWorkspaceCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName),
         );
@@ -109,7 +106,7 @@ class ImportViewCloneTest extends BaseCase
             (new ImportOptions())
                 ->setImportType($importType),
         );
-        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler = new LoadTableToWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         try {
             $handler(
@@ -173,20 +170,19 @@ class ImportViewCloneTest extends BaseCase
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
         $sourceTableName = $this->getTestHash() . '_Test_table';
+        $qb = new BigqueryTableQueryBuilder();
 
-        // cleanup from previous failed runs
+        // cleanup at beginning
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            try {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'DROP VIEW IF EXISTS `%s`.`%s`',
-                    $bucketDatabaseName,
-                    $destinationTableName,
-                )));
-            } catch (Throwable) {
-                // ignore if view doesn't exist
-            }
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $bucketDatabaseName,
+                $destinationTableName,
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
         }
 
         $this->createSourceTable(
@@ -196,11 +192,11 @@ class ImportViewCloneTest extends BaseCase
         );
 
         // import
-        $cmd = new TableImportFromTableCommand();
+        $cmd = new LoadTableToWorkspaceCommand();
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $bucketDatabaseName;
         $cmd->setSource(
-            (new TableImportFromTableCommand\SourceTableMapping())
+            (new LoadTableToWorkspaceCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($sourceTableName),
         );
@@ -213,7 +209,7 @@ class ImportViewCloneTest extends BaseCase
             (new ImportOptions())
                 ->setImportType($importType),
         );
-        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler = new LoadTableToWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
@@ -269,26 +265,24 @@ class ImportViewCloneTest extends BaseCase
         );
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $targetProjectCredentials);
 
-        // cleanup from previous failed runs
+        // cleanup at beginning
         $this->dropTableIfExists($bqClient, $workspaceResponse->getWorkspaceObjectName(), $destinationTableName);
-        if ($importType === ImportOptions\ImportType::VIEW) {
-            try {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'DROP VIEW IF EXISTS `%s`.`%s`',
-                    $workspaceResponse->getWorkspaceObjectName(),
-                    $destinationTableName,
-                )));
-            } catch (Throwable) {
-                // ignore if view doesn't exist
-            }
+        try {
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'DROP VIEW IF EXISTS `%s`.`%s`',
+                $workspaceResponse->getWorkspaceObjectName(),
+                $destinationTableName,
+            )));
+        } catch (Throwable) {
+            // ignore if view doesn't exist
         }
 
         // import
-        $cmd = new TableImportFromTableCommand();
+        $cmd = new LoadTableToWorkspaceCommand();
         $path = new RepeatedField(GPBType::STRING);
         $path[] = $linkedBucketDataset;
         $cmd->setSource(
-            (new TableImportFromTableCommand\SourceTableMapping())
+            (new LoadTableToWorkspaceCommand\SourceTableMapping())
                 ->setPath($path)
                 ->setTableName($linkedBucketTableName),
         );
@@ -303,7 +297,7 @@ class ImportViewCloneTest extends BaseCase
             (new ImportOptions())
                 ->setImportType($importType),
         );
-        $handler = new ImportTableFromTableHandler($this->clientManager);
+        $handler = new LoadTableToWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         /** @var TableImportResponse $response */
         $response = $handler(
@@ -422,6 +416,20 @@ class ImportViewCloneTest extends BaseCase
         $sourceBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[0][0]);
         $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
 
+        // cleanup at beginning - delete linked dataset in target project if it exists
+        $targetBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projects[1][0]);
+        $linkedDataset = $targetBqClient->dataset($linkedBucketSchemaName);
+        try {
+            if ($linkedDataset->exists()) {
+                $linkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore - linked dataset might not exist
+        }
+
+        // cleanup source table if it exists from previous run
+        $this->dropTableIfExists($sourceBqClient, $bucketDatabaseName, 'sharedTable');
+
         // create source table to be shared
         $this->createSourceTable(
             $bucketDatabaseName,
@@ -438,6 +446,23 @@ class ImportViewCloneTest extends BaseCase
         );
         /** @var string $sourceProjectId */
         $sourceProjectId = $publicPart['project_id'];
+
+        // cleanup existing listing if it exists (might reference a deleted dataset)
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->projects[0][0]);
+        $dataExchangeId = $this->projects[0][1]->getProjectReadOnlyRoleName();
+        $listingId = $this->getTestHash();
+        try {
+            $listingName = AnalyticsHubServiceClient::listingName(
+                $sourceProjectId,
+                self::DEFAULT_LOCATION,
+                $dataExchangeId,
+                $listingId,
+            );
+            $analyticHubClient->deleteListing($listingName);
+        } catch (Throwable) {
+            // ignore - listing might not exist
+        }
+
         $handler = new ShareBucketHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
         $command = (new ShareBucketCommand())

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\UnitTests\Handler\Table\Import;
+namespace Keboola\StorageDriver\UnitTests\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
@@ -11,18 +11,18 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportSourceFactory;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\SourceContext;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadSourceFactory;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\SourceContext;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\TableImportQueryBuilder;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\WorkspaceLoadQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use PHPUnit\Framework\TestCase;
 
-class ImportSourceFactoryTest extends TestCase
+class LoadSourceFactoryTest extends TestCase
 {
     /**
      * @param array<array{name: string, type: string, mode: string}> $columns
@@ -57,11 +57,10 @@ class ImportSourceFactoryTest extends TestCase
         array $columnMappings = [],
         array $whereFilters = [],
         int $limit = 0,
-        int $seconds = 0,
-    ): TableImportFromTableCommand {
-        $command = $this->createMock(TableImportFromTableCommand::class);
+    ): LoadTableToWorkspaceCommand {
+        $command = $this->createMock(LoadTableToWorkspaceCommand::class);
 
-        $sourceMapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping::class);
+        $sourceMapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping::class);
 
         // Create proper RepeatedField for path
         $path = new RepeatedField(GPBType::STRING);
@@ -70,16 +69,15 @@ class ImportSourceFactoryTest extends TestCase
         $sourceMapping->method('getPath')->willReturn($path);
         $sourceMapping->method('getTableName')->willReturn('source_table');
         $sourceMapping->method('getLimit')->willReturn($limit);
-        $sourceMapping->method('getSeconds')->willReturn($seconds);
 
         // Mock column mappings with real RepeatedField
         $mappingsRepeated = new RepeatedField(
             GPBType::MESSAGE,
-            TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class,
+            LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class,
         );
         if (!empty($columnMappings)) {
             foreach ($columnMappings as $source => $dest) {
-                $mapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class);
+                $mapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
                 $mapping->method('getSourceColumnName')->willReturn($source);
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappingsRepeated[] = $mapping;
@@ -124,7 +122,7 @@ class ImportSourceFactoryTest extends TestCase
         $bqClient = $this->createMockBigQueryClient($columns);
         $command = $this->createMockCommand();
 
-        $factory = new ImportSourceFactory($bqClient);
+        $factory = new LoadSourceFactory($bqClient);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);
@@ -144,10 +142,10 @@ class ImportSourceFactoryTest extends TestCase
         $bqClient = $this->createMockBigQueryClient($columns);
         $command = $this->createMockCommand(['id' => 'id', 'name' => 'name']);
 
-        // Use real TableImportQueryBuilder since it's final
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
+        // Use real WorkspaceLoadQueryBuilder since it's final
+        $queryBuilder = new WorkspaceLoadQueryBuilder($bqClient, new ColumnConverter());
 
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
+        $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);
@@ -168,10 +166,10 @@ class ImportSourceFactoryTest extends TestCase
         $bqClient = $this->createMockBigQueryClient($columns);
         $command = $this->createMockCommand([], ['status' => ['active']]);
 
-        // Use real TableImportQueryBuilder
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
+        // Use real WorkspaceLoadQueryBuilder
+        $queryBuilder = new WorkspaceLoadQueryBuilder($bqClient, new ColumnConverter());
 
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
+        $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);
@@ -189,35 +187,14 @@ class ImportSourceFactoryTest extends TestCase
         $bqClient = $this->createMockBigQueryClient($columns);
         $command = $this->createMockCommand([], [], 100);
 
-        // Use real TableImportQueryBuilder
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
+        // Use real WorkspaceLoadQueryBuilder
+        $queryBuilder = new WorkspaceLoadQueryBuilder($bqClient, new ColumnConverter());
 
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
+        $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);
         // Should use SelectSource because of LIMIT
-        $this->assertInstanceOf(SelectSource::class, $result->source);
-    }
-
-    public function testCreateFromCommandWithTimeTravel(): void
-    {
-        $columns = [
-            ['name' => 'id', 'type' => 'INTEGER', 'mode' => 'REQUIRED'],
-            ['name' => 'name', 'type' => 'STRING', 'mode' => 'NULLABLE'],
-        ];
-
-        $bqClient = $this->createMockBigQueryClient($columns);
-        $command = $this->createMockCommand([], [], 0, 3600); // 1 hour ago
-
-        // Use real TableImportQueryBuilder
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
-
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
-        $result = $factory->createFromCommand($command);
-
-        $this->assertInstanceOf(SourceContext::class, $result);
-        // Should use SelectSource because of time travel
         $this->assertInstanceOf(SelectSource::class, $result->source);
     }
 
@@ -232,7 +209,7 @@ class ImportSourceFactoryTest extends TestCase
         // Request a column that doesn't exist
         $command = $this->createMockCommand(['id' => 'id', 'nonexistent' => 'nonexistent']);
 
-        $factory = new ImportSourceFactory($bqClient);
+        $factory = new LoadSourceFactory($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
         $this->expectExceptionMessage('Column "nonexistent" not found in source table');
@@ -250,10 +227,10 @@ class ImportSourceFactoryTest extends TestCase
         $bqClient = $this->createMockBigQueryClient($columns);
         $command = $this->createMockCommand(['id' => 'id', 'old_name' => 'new_name']);
 
-        // Use real TableImportQueryBuilder
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
+        // Use real WorkspaceLoadQueryBuilder
+        $queryBuilder = new WorkspaceLoadQueryBuilder($bqClient, new ColumnConverter());
 
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
+        $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);
@@ -271,10 +248,10 @@ class ImportSourceFactoryTest extends TestCase
         // Request columns with different case
         $command = $this->createMockCommand(['id' => 'id', 'name' => 'name']);
 
-        // Use real TableImportQueryBuilder
-        $queryBuilder = new TableImportQueryBuilder($bqClient, new ColumnConverter());
+        // Use real WorkspaceLoadQueryBuilder
+        $queryBuilder = new WorkspaceLoadQueryBuilder($bqClient, new ColumnConverter());
 
-        $factory = new ImportSourceFactory($bqClient, $queryBuilder);
+        $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
         $this->assertInstanceOf(SourceContext::class, $result);

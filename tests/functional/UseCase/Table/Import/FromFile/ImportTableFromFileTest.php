@@ -40,6 +40,9 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
         // create tables
         $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
 
@@ -116,11 +119,6 @@ class ImportTableFromFileTest extends BaseImportTestCase
                 'col3' => '3',
             ],
         ], $data);
-
-        // cleanup
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
     }
 
     public function testImportTableFromFileFullLoadWithoutDeduplication(): void
@@ -128,6 +126,9 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         // create tables
         $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
@@ -189,11 +190,6 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // nothing from destination and 3 rows from source
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        // cleanup
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getDropTableCommand($tableDestDef->getSchemaName(), $tableDestDef->getTableName());
-        $bqClient->runQuery($bqClient->query($sql));
     }
 
     /**
@@ -217,6 +213,9 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         $this->createAccountsTable($bqClient, $bucketDatabaseName, $destinationTableName);
         // init some values
@@ -327,11 +326,6 @@ class ImportTableFromFileTest extends BaseImportTestCase
         // 0 from destination and 3 rows from source
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        // cleanup
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
-        $bqClient->runQuery($bqClient->query($sql));
     }
 
     public function testImportTableFromFileWithNullValues(): void
@@ -339,6 +333,9 @@ class ImportTableFromFileTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
 
         $this->createAccountsTableWithNotNull($bqClient, $bucketDatabaseName, $destinationTableName);
 
@@ -422,11 +419,6 @@ class ImportTableFromFileTest extends BaseImportTestCase
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field apiLimitExceededDatetime cannot be null', $e->getMessage());
         }
-
-        // cleanup
-        $qb = new BigqueryTableQueryBuilder();
-        $sql = $qb->getDropTableCommand($bucketDatabaseName, $destinationTableName);
-        $bqClient->runQuery($bqClient->query($sql));
     }
 
     protected function createAccountsTableWithNotNull(

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\TableImportQueryBuilder;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\WorkspaceLoadQueryBuilder;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
@@ -19,24 +19,24 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 /**
- * Factory for creating import source objects.
+ * Factory for creating load source objects.
  *
  * This factory determines whether to use a direct Table reference or a SelectSource
  * based on column selection, WHERE filters, LIMIT, and other criteria.
  * It handles the complex logic of including WHERE filter columns in the definition
  * for validation while excluding them from the SELECT list.
  */
-final class ImportSourceFactory
+final class LoadSourceFactory
 {
     private BigQueryClient $bqClient;
-    private TableImportQueryBuilder $queryBuilder;
+    private WorkspaceLoadQueryBuilder $queryBuilder;
 
     public function __construct(
         BigQueryClient $bqClient,
-        ?TableImportQueryBuilder $queryBuilder = null,
+        ?WorkspaceLoadQueryBuilder $queryBuilder = null,
     ) {
         $this->bqClient = $bqClient;
-        $this->queryBuilder = $queryBuilder ?? new TableImportQueryBuilder(
+        $this->queryBuilder = $queryBuilder ?? new WorkspaceLoadQueryBuilder(
             $bqClient,
             new ColumnConverter(),
         );
@@ -48,12 +48,12 @@ final class ImportSourceFactory
      * This method analyzes the command to determine the appropriate source type
      * (Table or SelectSource) and builds the necessary context information.
      *
-     * @param TableImportFromTableCommand $command The import command
+     * @param LoadTableToWorkspaceCommand $command The load command
      * @return SourceContext Object containing source, filtered definition, and full definition
      * @throws DriverColumnsMismatchException When specified columns don't exist in source table
      */
     public function createFromCommand(
-        TableImportFromTableCommand $command,
+        LoadTableToWorkspaceCommand $command,
     ): SourceContext {
         $sourceMapping = $command->getSource();
         assert($sourceMapping !== null);
@@ -89,14 +89,14 @@ final class ImportSourceFactory
     /**
      * Gets the full source table definition from BigQuery.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @return BigqueryTableDefinition The complete table definition
      */
     private function getSourceTableDefinition(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): BigqueryTableDefinition {
         $sourceDataset = ProtobufHelper::repeatedStringToArray($sourceMapping->getPath());
-        assert(isset($sourceDataset[0]), 'TableImportFromTableCommand.source.path is required.');
+        assert(isset($sourceDataset[0]), 'LoadTableToWorkspaceCommand.source.path is required.');
 
         $definition = (new BigqueryTableReflection(
             $this->bqClient,
@@ -111,19 +111,19 @@ final class ImportSourceFactory
     /**
      * Extracts column names from mapping or returns all columns if no mapping specified.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @param BigqueryTableDefinition $sourceDefinition Source table definition
      * @return string[] Column names to import
      */
     private function extractSourceColumns(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
         BigqueryTableDefinition $sourceDefinition,
     ): array {
         $columns = [];
         $columnMappingsField = $sourceMapping->getColumnMappings();
 
         if ($columnMappingsField !== null) {
-            /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
+            /** @var LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping $mapping */
             foreach ($columnMappingsField->getIterator() as $mapping) {
                 $columns[] = $mapping->getSourceColumnName();
             }
@@ -189,14 +189,14 @@ final class ImportSourceFactory
      * Determines whether to use a direct Table reference or a SelectSource
      * based on column selection, filters, and other criteria.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @param BigqueryTableDefinition $fullDefinition Complete source table definition
      * @param BigqueryTableDefinition $effectiveDefinition Filtered source table definition
      * @param string[] $sourceColumns Selected column names
      * @return SqlSourceInterface Either a Table or SelectSource instance
      */
     private function createSourceObject(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
         BigqueryTableDefinition $fullDefinition,
         BigqueryTableDefinition $effectiveDefinition,
         array $sourceColumns,
@@ -227,14 +227,14 @@ final class ImportSourceFactory
      * that aren't in the SELECT list. Those columns are included in the definition
      * for validation but excluded from the actual SELECT.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @param BigqueryTableDefinition $fullDefinition Complete source table definition
      * @param BigqueryTableDefinition $effectiveDefinition Filtered source table definition
      * @param string[] $sourceColumns Selected column names for SELECT list
      * @return SelectSource The configured SelectSource instance
      */
     private function createSelectSource(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
         BigqueryTableDefinition $fullDefinition,
         BigqueryTableDefinition $effectiveDefinition,
         array $sourceColumns,
@@ -273,11 +273,11 @@ final class ImportSourceFactory
      * These columns may not be in the SELECT list but need to be included
      * in the table definition for validation purposes.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @return string[] Column names used in WHERE filters
      */
     private function extractWhereFilterColumns(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): array {
         $columns = [];
         $whereFilters = $sourceMapping->getWhereFilters();
@@ -335,21 +335,21 @@ final class ImportSourceFactory
      * - Not all columns are selected
      * - WHERE filters are present
      * - LIMIT is specified
-     * - Time travel (seconds) is used
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * Note: Time travel (seconds) is not supported in LoadTableToWorkspaceCommand
+     *
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @param bool $isFullColumnSet Whether all columns are selected in order
      * @return bool True if SelectSource should be used
      */
     private function shouldUseSelectSource(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
         bool $isFullColumnSet,
     ): bool {
         $whereFilters = $sourceMapping->getWhereFilters();
         $hasWhereFilters = $whereFilters !== null && $whereFilters->count() > 0;
 
         return !$isFullColumnSet
-            || (int) $sourceMapping->getSeconds() > 0
             || (int) $sourceMapping->getLimit() > 0
             || $hasWhereFilters;
     }

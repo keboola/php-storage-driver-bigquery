@@ -43,9 +43,13 @@ use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
+use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use PHPUnitRetry\RetryTrait;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 use Throwable;
@@ -361,11 +365,42 @@ class BaseCase extends TestCase
         $nameGenerator = new NameGenerator($this->getStackPrefix());
         $datasetName = $nameGenerator->createObjectNameForBucketInProject($bucketId, $branchId);
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $projectCredentials);
-        $dataset = $bqClient->dataset($datasetName);
+
+        if (!$bqClient->dataset($datasetName)->exists()) {
+            return;
+        }
+
+        // Try deletion with retry
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($datasetName): bool {
+            $this->log->add(sprintf(
+                'dropTestBucket retry for %s: %s',
+                $datasetName,
+                $e->getMessage(),
+            ));
+            return true;
+        }, 3);
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(
+            1_000, // 1s
+            1.8,
+            10_000, // 10s
+        );
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
         try {
-            $dataset->delete(['deleteContents' => true]);
-        } catch (Throwable) {
-            // ignore
+            $proxy->call(function () use ($bqClient, $datasetName): void {
+                $bqClient->dataset($datasetName)->delete(['deleteContents' => true]);
+            });
+        } catch (Throwable $e) {
+            // Final check - if dataset still exists, log warning but don't fail
+            // This allows the test to attempt to create the bucket which will give a clearer error
+            // @phpstan-ignore if.alwaysTrue (exists() result changes after delete)
+            if ($bqClient->dataset($datasetName)->exists()) {
+                $this->log->add(sprintf(
+                    'Warning: Failed to delete dataset %s. Last error: %s',
+                    $datasetName,
+                    $e->getMessage(),
+                ));
+            }
         }
     }
 
@@ -440,7 +475,9 @@ class BaseCase extends TestCase
 
     protected function getTestHash(): string
     {
-        $name = $this->getName();
+        // Include class name and full test name with data provider suffix for uniqueness
+        // This ensures tests in different classes with the same method name don't collide
+        $name = static::class . '::' . $this->getName(true);
         // Create a raw binary sha256 hash and base64 encode it.
         $hash = base64_encode(hash('sha256', $name, true));
         // Trim base64 padding characters from the end.
@@ -778,5 +815,25 @@ class BaseCase extends TestCase
     {
         yield [BaseCase::DEFAULT_LOCATION];
         yield [BaseCase::EU_LOCATION];
+    }
+
+    /**
+     * Drop table if it exists (idempotent cleanup).
+     * Use this at the beginning of tests to clean up any leftover tables from previous failed runs.
+     */
+    protected function dropTableIfExists(
+        BigQueryClient $bqClient,
+        string $databaseName,
+        string $tableName,
+    ): void {
+        $dataset = $bqClient->dataset($databaseName);
+        $table = $dataset->table($tableName);
+        if (!$table->exists()) {
+            return;
+        }
+        $qb = new BigqueryTableQueryBuilder();
+        $bqClient->runQuery($bqClient->query(
+            $qb->getDropTableCommand($databaseName, $tableName),
+        ));
     }
 }

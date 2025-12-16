@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\UnitTests\Handler\Table\Import;
+namespace Keboola\StorageDriver\UnitTests\Handler\Workspace\Load;
 
 use ArrayIterator;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery as BigqueryDatatype;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnMappingService;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\ColumnMappingService;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
@@ -52,16 +52,16 @@ class ColumnMappingServiceTest extends TestCase
     /**
      * @param array<string, string> $columnMappings
      */
-    private function createMockSourceMapping(array $columnMappings = []): TableImportFromTableCommand\SourceTableMapping
+    private function createMockSourceMapping(array $columnMappings = []): LoadTableToWorkspaceCommand\SourceTableMapping
     {
-        $sourceMapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping::class);
+        $sourceMapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping::class);
 
         $mappingsRepeated = $this->createMock(RepeatedField::class);
 
         if (!empty($columnMappings)) {
             $mappings = [];
             foreach ($columnMappings as $source => $dest) {
-                $mapping = $this->createMock(TableImportFromTableCommand\SourceTableMapping\ColumnMapping::class);
+                $mapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
                 $mapping->method('getSourceColumnName')->willReturn($source);
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappings[] = $mapping;

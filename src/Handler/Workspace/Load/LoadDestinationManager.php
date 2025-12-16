@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\Datatype\Definition\Bigquery as BigqueryDefinition;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
@@ -19,15 +19,15 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use Keboola\TableBackendUtils\TableNotExistsReflectionException;
 
 /**
- * Manages destination table operations for imports.
+ * Manages destination table operations for workspace loads.
  *
  * This class handles:
  * - Resolving existing destination tables
  * - Creating new destination tables when needed
- * - Validating destination tables for incremental imports
+ * - Validating destination tables for incremental loads
  * - Ensuring column compatibility between source and destination
  */
-final class ImportDestinationManager
+final class LoadDestinationManager
 {
     private BigQueryClient $bqClient;
 
@@ -54,7 +54,7 @@ final class ImportDestinationManager
         ColumnCollection $expectedColumns,
     ): BigqueryTableDefinition {
         $path = ProtobufHelper::repeatedStringToArray($destination->getPath());
-        assert(isset($path[0]), 'TableImportFromTableCommand.destination.path is required.');
+        assert(isset($path[0]), 'LoadTableToWorkspaceCommand.destination.path is required.');
 
         $schemaName = $path[0];
         $tableName = $destination->getTableName();
@@ -76,7 +76,7 @@ final class ImportDestinationManager
     }
 
     /**
-     * Validates destination table for incremental imports with UPDATE_DUPLICATES.
+     * Validates destination table for incremental loads with UPDATE_DUPLICATES.
      *
      * Ensures:
      * - All destination columns (except system columns) exist in source

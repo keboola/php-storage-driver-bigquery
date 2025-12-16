@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\UnitTests\Handler\Table\Import;
+namespace Keboola\StorageDriver\UnitTests\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Dataset;
@@ -12,8 +12,8 @@ use Google\Cloud\BigQuery\Table as BQTable;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery as BigqueryDatatype;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportDestinationManager;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadDestinationManager;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
@@ -22,7 +22,7 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use PHPUnit\Framework\TestCase;
 
-class ImportDestinationManagerTest extends TestCase
+class LoadDestinationManagerTest extends TestCase
 {
     /**
      * @param array<array{name: string, type: string, mode: string}> $columns
@@ -121,7 +121,7 @@ class ImportDestinationManagerTest extends TestCase
         $importOptions = $this->createMockImportOptions();
         $expectedColumns = $this->createColumnCollection(['id' => 'INTEGER', 'name' => 'STRING']);
 
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
@@ -137,7 +137,7 @@ class ImportDestinationManagerTest extends TestCase
         $importOptions = $this->createMockImportOptions(ImportType::FULL, []);
         $expectedColumns = $this->createColumnCollection(['id' => 'INTEGER', 'name' => 'STRING']);
 
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
@@ -153,7 +153,7 @@ class ImportDestinationManagerTest extends TestCase
         $importOptions = $this->createMockImportOptions(ImportType::VIEW);
         $expectedColumns = $this->createColumnCollection(['id' => 'INTEGER', 'name' => 'STRING']);
 
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         // Should not create table for VIEW import type
@@ -167,7 +167,7 @@ class ImportDestinationManagerTest extends TestCase
         $importOptions = $this->createMockImportOptions(ImportType::PBCLONE);
         $expectedColumns = $this->createColumnCollection(['id' => 'INTEGER', 'name' => 'STRING']);
 
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         // Should not create table for PBCLONE import type
@@ -205,7 +205,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
@@ -243,7 +243,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
         $this->expectExceptionMessage('Some columns are missing in source table');
@@ -282,7 +282,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
         $this->expectExceptionMessage('Some columns are missing in workspace table');
@@ -321,7 +321,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
         $this->expectExceptionMessage('Column definitions mismatch');
@@ -360,7 +360,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception even though _timestamp is not in source
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
@@ -399,7 +399,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception - allows any type -> STRING conversion
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
@@ -429,7 +429,7 @@ class ImportDestinationManagerTest extends TestCase
             'name' => 'STRING',
         ]);
 
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
         // BigQuery doesn't support primary keys, pass empty array
         $manager->createTable('test_dataset', 'new_table', $columns, []);
 
@@ -467,7 +467,7 @@ class ImportDestinationManagerTest extends TestCase
         );
 
         $bqClient = $this->createMock(BigQueryClient::class);
-        $manager = new ImportDestinationManager($bqClient);
+        $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception - case-insensitive comparison
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);

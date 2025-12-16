@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Keboola\Datatype\Definition\Bigquery as BigqueryDefinition;
-use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ColumnsMismatchException as DriverColumnsMismatchException;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
@@ -32,13 +32,13 @@ final class ColumnMappingService
      * and creates destination columns with mapped names.
      *
      * @param BigqueryTableDefinition $sourceTableDefinition Source table definition
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      * @return ColumnCollection Collection of destination columns
      * @throws DriverColumnsMismatchException When a mapped source column doesn't exist
      */
     public function buildDestinationColumns(
         BigqueryTableDefinition $sourceTableDefinition,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): ColumnCollection {
         $sourceColumns = $this->buildSourceColumnMap($sourceTableDefinition);
         $mappings = $this->extractMappings($sourceMapping);
@@ -71,14 +71,14 @@ final class ColumnMappingService
     /**
      * Extracts column mappings from source mapping configuration.
      *
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping
-     * @return TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] Array of column mappings
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping
+     * @return LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping[] Array of column mappings
      */
     private function extractMappings(
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): array {
         $columnMappingsField = $sourceMapping->getColumnMappings();
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings */
+        /** @var LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping[] $mappings */
         $mappings = iterator_to_array($columnMappingsField->getIterator());
         return $mappings;
     }
@@ -110,7 +110,7 @@ final class ColumnMappingService
      * validating that all source columns exist.
      *
      * @param array<string, BigqueryColumn> $sourceColumns Map of source columns
-     * @param TableImportFromTableCommand\SourceTableMapping\ColumnMapping[] $mappings Column mappings
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping[] $mappings Column mappings
      * @param BigqueryTableDefinition $sourceTableDefinition Source definition for error messages
      * @return ColumnCollection Collection of mapped destination columns
      * @throws DriverColumnsMismatchException When a source column doesn't exist
@@ -123,7 +123,7 @@ final class ColumnMappingService
         $definitions = [];
         $missingColumns = [];
 
-        /** @var TableImportFromTableCommand\SourceTableMapping\ColumnMapping $mapping */
+        /** @var LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping $mapping */
         foreach ($mappings as $mapping) {
             $sourceColumn = $sourceColumns[strtolower($mapping->getSourceColumnName())] ?? null;
 

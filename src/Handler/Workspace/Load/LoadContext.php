@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 
 /**
- * Immutable context for import operations.
+ * Immutable context for load operations.
  *
- * This parameter object consolidates all parameters needed for import execution,
+ * This parameter object consolidates all parameters needed for load execution,
  * reducing method signatures from 7-8 parameters to a single context object.
  */
-final readonly class ImportContext
+final readonly class LoadContext
 {
     /**
      * @param BigQueryClient $bqClient BigQuery client instance
@@ -28,7 +28,7 @@ final readonly class ImportContext
      * @param SqlSourceInterface $source Source object (Table or SelectSource)
      * @param BigqueryTableDefinition $sourceTableDefinition Source table definition
      * @param BigqueryImportOptions $bigqueryImportOptions BigQuery-specific import options
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping configuration
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping configuration
      */
     public function __construct(
         public BigQueryClient $bqClient,
@@ -38,12 +38,12 @@ final readonly class ImportContext
         public SqlSourceInterface $source,
         public BigqueryTableDefinition $sourceTableDefinition,
         public BigqueryImportOptions $bigqueryImportOptions,
-        public TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        public LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ) {
     }
 
     /**
-     * Creates import context from individual parameters.
+     * Creates load context from individual parameters.
      *
      * This static factory method provides a clear, named way to construct
      * the context object.
@@ -55,7 +55,7 @@ final readonly class ImportContext
      * @param SqlSourceInterface $source Source object
      * @param BigqueryTableDefinition $sourceTableDefinition Source definition
      * @param BigqueryImportOptions $bigqueryImportOptions BigQuery options
-     * @param TableImportFromTableCommand\SourceTableMapping $sourceMapping Source mapping
+     * @param LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping Source mapping
      * @return self The constructed context
      */
     public static function create(
@@ -66,7 +66,7 @@ final readonly class ImportContext
         SqlSourceInterface $source,
         BigqueryTableDefinition $sourceTableDefinition,
         BigqueryImportOptions $bigqueryImportOptions,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): self {
         return new self(
             $bqClient,

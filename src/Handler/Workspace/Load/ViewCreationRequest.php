@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
+namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Load;
 
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table as CommandDestination;

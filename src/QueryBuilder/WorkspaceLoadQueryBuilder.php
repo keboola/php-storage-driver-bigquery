@@ -7,11 +7,11 @@ namespace Keboola\StorageDriver\BigQuery\QueryBuilder;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\FakeConnection\FakeConnectionFactory;
-use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
+use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 
-final class TableImportQueryBuilder extends CommonFilterQueryBuilder
+final class WorkspaceLoadQueryBuilder extends CommonFilterQueryBuilder
 {
     public function __construct(BigQueryClient $bqClient, ColumnConverter $columnConverter)
     {
@@ -19,13 +19,18 @@ final class TableImportQueryBuilder extends CommonFilterQueryBuilder
     }
 
     /**
+     * Builds SELECT SQL for workspace load operations.
+     *
+     * Supports WHERE filters and LIMIT.
+     * Note: Time travel (seconds) is not supported in LoadTableToWorkspaceCommand.
+     *
      * @param string[] $selectColumns
      * @throws QueryBuilderException
      */
     public function buildSelectSourceSql(
         BigqueryTableDefinition $sourceDefinition,
         array $selectColumns,
-        TableImportFromTableCommand\SourceTableMapping $sourceMapping,
+        LoadTableToWorkspaceCommand\SourceTableMapping $sourceMapping,
     ): QueryBuilderResponse {
         $query = new QueryBuilder(FakeConnectionFactory::getConnection());
         $tableName = $sourceDefinition->getTableName();
@@ -50,15 +55,7 @@ final class TableImportQueryBuilder extends CommonFilterQueryBuilder
         );
         $query->from($from);
 
-        $seconds = (int) $sourceMapping->getSeconds();
-        if ($seconds > 0) {
-            $query->andWhere(sprintf(
-                '%s.`_timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL %d SECOND)',
-                BigqueryQuote::quoteSingleIdentifier($tableName),
-                $seconds,
-            ));
-        }
-
+        // Process WHERE filters if present
         $whereFilters = $sourceMapping->getWhereFilters();
         if ($whereFilters !== null && $whereFilters->count() > 0) {
             $this->processWhereFilters(
@@ -69,6 +66,7 @@ final class TableImportQueryBuilder extends CommonFilterQueryBuilder
             );
         }
 
+        // Apply LIMIT if specified
         $limit = (int) $sourceMapping->getLimit();
         if ($limit > 0) {
             $query->setMaxResults($limit);
