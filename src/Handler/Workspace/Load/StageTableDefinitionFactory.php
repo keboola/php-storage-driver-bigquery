@@ -21,7 +21,6 @@ final class StageTableDefinitionFactory
         array $columnsMapping,
     ): BigqueryTableDefinition {
         $newDefinitions = [];
-        $primaries = $destination->getPrimaryKeysNames();
         foreach ($columnsMapping as $columnMapping) {
             /** @var BigqueryColumn $definition */
             foreach ($destination->getColumnsDefinitions() as $definition) {
@@ -33,7 +32,7 @@ final class StageTableDefinitionFactory
                             $definition->getColumnDefinition()->getType(),
                             [
                                 'length' => $definition->getColumnDefinition()->getLength(),
-                                'nullable' => !in_array($columnMapping->getDestinationColumnName(), $primaries),
+                                'nullable' => $definition->getColumnDefinition()->isNullable(),
                                 'default' => $definition->getColumnDefinition()->getDefault(),
                             ],
                         ),
