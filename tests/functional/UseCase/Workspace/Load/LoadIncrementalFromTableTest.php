@@ -1072,7 +1072,7 @@ SQL,
                 $destinationTableName,
                 false,
                 new ColumnCollection([
-                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => true])),
+                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                     new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, [])),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
