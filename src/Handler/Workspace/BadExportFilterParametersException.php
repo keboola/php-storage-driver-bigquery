@@ -28,17 +28,25 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
         if (str_contains($e->getMessage(), 'No matching signature for operator ')) {
             $expectedActualPattern = '/types:\s(.*?)\./';
             preg_match($expectedActualPattern, $e->getMessage(), $matches);
-            assert(isset($matches[1]));
-            $expected = trim(explode(',', $matches[1])[0]);
-            $actual = trim(explode(',', $matches[1])[1]);
+            if (array_key_exists(1, $matches)) {
+                $expected = trim(explode(',', $matches[1])[0]);
+                $actual = trim(explode(',', $matches[1])[1]);
 
+                return new self(
+                    message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
+                    previous: $e,
+                );
+            }
+        }
+
+        if (str_contains($e->getMessage(), 'Invalid')) {
             return new self(
-                message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
+                message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
         }
 
-        if (str_contains($e->getMessage(), 'Invalid')) {
+        if (str_contains($e->getMessage(), 'Unable to find common supertype')) {
             return new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
