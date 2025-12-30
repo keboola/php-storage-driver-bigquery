@@ -262,47 +262,6 @@ final class LoadDestinationManager
     }
 
     /**
-     * Checks if two column definitions match.
-     *
-     * For workspace string tables, allows any type -> STRING conversion.
-     * For typed tables, requires exact type, nullability, and length match.
-     *
-     * @param BigqueryColumn $expected Expected column definition
-     * @param BigqueryColumn $actual Actual column definition
-     * @return bool True if definitions match
-     */
-    private function columnDefinitionsMatch(
-        BigqueryColumn $expected,
-        BigqueryColumn $actual,
-    ): bool {
-        /** @var BigqueryDefinition $expectedDef */
-        $expectedDef = $expected->getColumnDefinition();
-        /** @var BigqueryDefinition $actualDef */
-        $actualDef = $actual->getColumnDefinition();
-
-        // For workspace string tables, destination columns are always STRING type
-        // regardless of source type, so allow any type -> STRING conversion
-        // Also be lenient with nullability and length for string tables
-        if (strcasecmp($actualDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
-            return true;
-        }
-
-        // For typed tables, require exact type match
-        if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
-            return false;
-        }
-
-        if ($expectedDef->isNullable() !== $actualDef->isNullable()) {
-            return false;
-        }
-
-        $expectedLength = (string) ($expectedDef->getLength() ?? '');
-        $actualLength = (string) ($actualDef->getLength() ?? '');
-
-        return $expectedLength === $actualLength;
-    }
-
-    /**
      * Normalizes columns by name for case-insensitive comparison.
      *
      * @param ColumnCollection $columns Columns to normalize
