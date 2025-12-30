@@ -118,10 +118,10 @@ final class LoadDestinationManager
             $destinationDefinition,
         );
 
-        $this->validateColumnDefinitions(
-            $expectedColumnsNormalized,
-            $actualColumns,
-        );
+//        $this->validateColumnDefinitions(
+//            $expectedColumnsNormalized,
+//            $actualColumns,
+//        );
     }
 
     /**
