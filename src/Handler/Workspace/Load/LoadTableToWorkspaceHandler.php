@@ -371,7 +371,7 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             try {
                 $toFinalTableImporter = new IncrementalImporter($bqClient);
                 $importResult = $toFinalTableImporter->importToTable(
-                    $sourceTableDefinition,
+                    $stagingTable,
                     $destinationDefinition,
                     $importOptions,
                     $importState,

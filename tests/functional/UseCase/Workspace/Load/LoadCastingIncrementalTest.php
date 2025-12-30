@@ -45,7 +45,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
                                 continue;
                             }
                             yield sprintf(
-                                'src typed: %s | casting: %s | rename:%s | TS in SRC :%s | PK: %s',
+                                'src typed: %s | casting: %s | rename: %s | TS in SRC: %s | PK: %s',
                                 $srcTyped ? 'Y' : 'N',
                                 $dataCasting ? 'Y' : 'N',
                                 $rename ? 'Y' : 'N',
@@ -244,20 +244,20 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         if ($typedResult) {
             if (!$pkSet) {
                 $expected = [
-                    ['id' => 1, 'text' => 'alpha', 'flag' => true],
-                    ['id' => 1, 'text' => 'alpha', 'flag' => true],
-                    ['id' => 2, 'text' => 'beta', 'flag' => false],
-                    ['id' => 2, 'text' => 'beta', 'flag' => false],
-                    ['id' => 3, 'text' => 'gamma', 'flag' => true],
-                    ['id' => 3, 'text' => 'gamma', 'flag' => true],
-                    ['id' => 4, 'text' => 'keep', 'flag' => false],
+                    ['id' => 1, 'text' => 'alpha', $flagName => true],
+                    ['id' => 1, 'text' => 'alpha', $flagName => true],
+                    ['id' => 2, 'text' => 'beta',  $flagName => false],
+                    ['id' => 2, 'text' => 'beta',  $flagName => false],
+                    ['id' => 3, 'text' => 'gamma', $flagName => true],
+                    ['id' => 3, 'text' => 'gamma', $flagName => true],
+                    ['id' => 4, 'text' => 'keep',  $flagName => false],
                 ];
             } else {
                 $expected = [
-                    ['id' => 1, 'text' => 'alpha', 'flag' => true],
-                    ['id' => 2, 'text' => 'beta', 'flag' => false],
-                    ['id' => 3, 'text' => 'gamma', 'flag' => true],
-                    ['id' => 4, 'text' => 'keep', 'flag' => false],
+                    ['id' => 1, 'text' => 'alpha', $flagName => true],
+                    ['id' => 2, 'text' => 'beta',  $flagName => false],
+                    ['id' => 3, 'text' => 'gamma', $flagName => true],
+                    ['id' => 4, 'text' => 'keep',  $flagName => false],
                 ];
             }
             $this->assertEquals(
@@ -268,20 +268,20 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         if (!$typedResult) {
             if (!$pkSet) {
                 $expected = [
-                    ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
-                    ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
-                    ['id' => '2', 'text' => 'beta', 'flag' => 'false'],
-                    ['id' => '2', 'text' => 'beta', 'flag' => 'false'],
-                    ['id' => '3', 'text' => 'gamma', 'flag' => 'true'],
-                    ['id' => '3', 'text' => 'gamma', 'flag' => 'true'],
-                    ['id' => '4', 'text' => 'keep', 'flag' => 'false'],
+                    ['id' => '1', 'text' => 'alpha', $flagName => 'true'],
+                    ['id' => '1', 'text' => 'alpha', $flagName => 'true'],
+                    ['id' => '2', 'text' => 'beta',  $flagName => 'false'],
+                    ['id' => '2', 'text' => 'beta',  $flagName => 'false'],
+                    ['id' => '3', 'text' => 'gamma', $flagName => 'true'],
+                    ['id' => '3', 'text' => 'gamma', $flagName => 'true'],
+                    ['id' => '4', 'text' => 'keep',  $flagName => 'false'],
                 ];
             } else {
                 $expected = [
-                    ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
-                    ['id' => '2', 'text' => 'beta', 'flag' => 'false'],
-                    ['id' => '3', 'text' => 'gamma', 'flag' => 'true'],
-                    ['id' => '4', 'text' => 'keep', 'flag' => 'false'],
+                    ['id' => '1', 'text' => 'alpha', $flagName => 'true'],
+                    ['id' => '2', 'text' => 'beta',  $flagName => 'false'],
+                    ['id' => '3', 'text' => 'gamma', $flagName => 'true'],
+                    ['id' => '4', 'text' => 'keep',  $flagName => 'false'],
                 ];
             }
 
