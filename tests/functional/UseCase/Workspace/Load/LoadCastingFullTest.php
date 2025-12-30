@@ -9,9 +9,6 @@ use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery as BigqueryType;
-use Keboola\Datatype\Definition\Exception\InvalidLengthException;
-use Keboola\Datatype\Definition\Exception\InvalidOptionException;
-use Keboola\Datatype\Definition\Exception\InvalidTypeException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -34,13 +31,15 @@ final class LoadCastingFullTest extends BaseImportTestCase
     {
         $srcTypedOptions = [true, false];
         $dataCastingOptions = [true, false];
-        $withTimestamps = [true, false];
+        // here I test that src has timestamp (normal) or not (external datasets)
+        // it isn't possible to create a table with TS in WS without CLONE operation
+        $srcHasTS = [true, false];
         $renameColumns = [true, false];
         $primaryKey = ['empty' => [], 'set' => ['id']];
 
         foreach ($srcTypedOptions as $srcTyped) {
             foreach ($dataCastingOptions as $dataCasting) {
-                foreach ($withTimestamps as $withTs) {
+                foreach ($srcHasTS as $srcWithTs) {
                     foreach ($primaryKey as $pkDescription => $pk) {
                         foreach ($renameColumns as $rename) {
                             if ($srcTyped && ($rename || $dataCasting)) {
@@ -48,15 +47,15 @@ final class LoadCastingFullTest extends BaseImportTestCase
                                 continue;
                             }
                             yield sprintf(
-                                'src typed: %s | casting: %s | rename:%s | ts:%s | PK: %s',
+                                'src typed: %s | casting: %s | rename:%s | TS in SRC :%s | PK: %s',
                                 $srcTyped ? 'Y' : 'N',
                                 $dataCasting ? 'Y' : 'N',
                                 $rename ? 'Y' : 'N',
-                                $withTs ? 'Y' : 'N',
+                                $srcWithTs ? 'Y' : 'N',
                                 $pkDescription,
                             ) => [
                                 [
-                                    'withTimestamp' => $withTs,
+                                    'withSrcTimestamp' => $srcWithTs,
                                     'srcTyped' => $srcTyped,
                                     'dataCasting' => $dataCasting,
                                     'pk' => $pk,
@@ -77,30 +76,32 @@ final class LoadCastingFullTest extends BaseImportTestCase
         string $dataset,
         string $table,
         bool $srcTyped,
+        bool $withTimestamp,
         array $primaryKeys,
     ): BigqueryTableDefinition {
         if (!$srcTyped) {
-            return new BigqueryTableDefinition(
-                $dataset,
-                $table,
-                false,
-                new ColumnCollection([
-                    BigqueryColumn::createGenericColumn('id'),
-                    BigqueryColumn::createGenericColumn('text'),
-                    BigqueryColumn::createGenericColumn('flag'),
-                ]),
-                [],
-            );
+            $columns = [
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('text'),
+                BigqueryColumn::createGenericColumn('flag'),
+            ];
+        } else {
+            $columns = [
+                new BigqueryColumn('id', new BigqueryType(BigqueryType::TYPE_INT, [])),
+                new BigqueryColumn('text', new BigqueryType(BigqueryType::TYPE_STRING, [])),
+                new BigqueryColumn('flag', new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
+            ];
         }
+
+        if ($withTimestamp) {
+            $columns[] = BigqueryColumn::createTimestampColumn('_timestamp');
+        }
+
         return new BigqueryTableDefinition(
             $dataset,
             $table,
             false,
-            new ColumnCollection([
-                new BigqueryColumn('id', new BigqueryType(BigqueryType::TYPE_INT, [])),
-                new BigqueryColumn('text', new BigqueryType(BigqueryType::TYPE_STRING, [])),
-                new BigqueryColumn('flag', new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
-            ]),
+            new ColumnCollection($columns),
             $primaryKeys,
         );
     }
@@ -108,7 +109,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
     /**
      * @dataProvider fullProvider
      * @param array{
-     *       withTimestamp: bool,
+     *       withSrcTimestamp: bool,
      *       srcTyped: bool,
      *       dataCasting: bool,
      *       pk: string[],
@@ -129,7 +130,13 @@ final class LoadCastingFullTest extends BaseImportTestCase
         $this->dropTableIfExists($bq, $dataset, $destTable);
 
         // Source
-        $srcDef = $this->createSourceDefinition($dataset, $sourceTable, $scenario['srcTyped'], $scenario['pk']);
+        $srcDef = $this->createSourceDefinition(
+            $dataset,
+            $sourceTable,
+            $scenario['srcTyped'],
+            $scenario['withSrcTimestamp'],
+            $scenario['pk'],
+        );
         $bq->runQuery($bq->query($qb->getCreateTableCommand(
             $srcDef->getSchemaName(),
             $srcDef->getTableName(),
@@ -142,8 +149,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
         $destDef = $this->createDestinationDefinition(
             $dataset,
             $destTable,
-            $scenario['srcTyped'],
-            $scenario['withTimestamp'],
+            ($scenario['dataCasting'] || $scenario['srcTyped']),
             $scenario['allowRename'],
         );
         $bq->runQuery($bq->query($qb->getCreateTableCommand(
@@ -160,10 +166,14 @@ final class LoadCastingFullTest extends BaseImportTestCase
             GPBType::MESSAGE,
             LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class,
         );
-        foreach (['id', 'text', 'flag'] as $col) {
+        $destColumns = $destDef->getColumnsNames();
+        foreach ($srcDef->getColumnsNames() as $key => $colName) {
+            if ($colName === '_timestamp') {
+                continue;
+            }
             $mappings[] = (new LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping())
-                ->setSourceColumnName($col)
-                ->setDestinationColumnName($col);
+                ->setSourceColumnName($colName)
+                ->setDestinationColumnName($destColumns[$key]);
         }
 
         $cmd = (new LoadTableToWorkspaceCommand())
@@ -183,9 +193,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
             ->setImportStrategy($importStrategy)
             ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
             ->setNumberOfIgnoredLines(0);
-        if ($scenario['withTimestamp']) {
-            $options->setTimestampColumn('_timestamp');
-        }
+        // we do not set timestamp (setTimestampColumn('_timestamp')) column because COPY won't allow creating TS
         if ($scenario['pk'] !== []) {
             $dedup = new RepeatedField(GPBType::STRING);
             foreach ($scenario['pk'] as $pk) {
@@ -199,7 +207,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
         $handler->setInternalLogger($this->log);
 
         /** @var TableImportResponse $response */
-//        $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
+        $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
 
         $ref = new BigqueryTableReflection($bq, $dataset, $destTable);
         $this->assertSame(3, $ref->getRowsCount());
@@ -210,11 +218,11 @@ final class LoadCastingFullTest extends BaseImportTestCase
 //        }
         $flagName = $scenario['allowRename'] ? 'flag_renamed' : 'flag';
         // types have been casted or they were defined on src
+        $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', $flagName]);
+        usort($data, function ($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
         if ($scenario['dataCasting'] || $scenario['srcTyped']) {
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
             $this->assertEquals(
                 [
                     ['id' => 1, 'text' => 'alpha', $flagName => true],
@@ -225,10 +233,6 @@ final class LoadCastingFullTest extends BaseImportTestCase
             );
         } else {
             // types to be string in destination
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
             $this->assertEquals(
                 [
                     ['id' => '1', 'text' => 'alpha', $flagName => 'true'],
@@ -243,12 +247,11 @@ final class LoadCastingFullTest extends BaseImportTestCase
     private function createDestinationDefinition(
         string $dataset,
         string $table,
-        bool $srcTyped,
-        bool $withTimestamp,
+        bool $destTyped,
         bool $allowRename,
     ): BigqueryTableDefinition {
         $flagColumnName = $allowRename ? 'flag_renamed' : 'flag';
-        if (!$srcTyped) {
+        if (!$destTyped) {
             $columns = [
                 BigqueryColumn::createGenericColumn('id'),
                 BigqueryColumn::createGenericColumn('text'),
@@ -260,9 +263,6 @@ final class LoadCastingFullTest extends BaseImportTestCase
                 new BigqueryColumn('text', new BigqueryType(BigqueryType::TYPE_STRING, [])),
                 new BigqueryColumn($flagColumnName, new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
             ];
-        }
-        if ($withTimestamp) {
-            $columns[] = BigqueryColumn::createTimestampColumn('_timestamp');
         }
 
         return new BigqueryTableDefinition(

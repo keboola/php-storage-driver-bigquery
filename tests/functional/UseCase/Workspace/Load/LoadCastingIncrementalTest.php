@@ -14,6 +14,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\DedupType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
@@ -29,48 +30,41 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
 {
     public static function incrementalProvider(): Generator
     {
-        $directions = ['string_to_typed', 'typed_to_string'];
-        $withTimestamps = [true, false];
-        $dedupTypes = [ImportOptions\DedupType::INSERT_DUPLICATES, ImportOptions\DedupType::UPDATE_DUPLICATES];
+        $srcTypedOptions = [true, false];
+        $dataCastingOptions = [true, false];
+        // here I test that src has timestamp (normal) or not (external datasets)
+        // it isn't possible to create a table with TS in WS without CLONE operation
+        $srcHasTS = [true, false];
+        $renameColumns = [true, false];
+        $primaryKey = ['empty' => [], 'set' => ['id']];
 
-        foreach ($directions as $direction) {
-            foreach ($withTimestamps as $withTs) {
-                foreach ($dedupTypes as $dedupType) {
-                    $sourceSchemaType = $direction === 'string_to_typed' ? 'string' : 'typed';
-                    $destinationSchemaType = $direction === 'string_to_typed' ? 'typed' : 'string';
-                    $importStrategy = $destinationSchemaType === 'typed'
-                        ? ImportStrategy::USER_DEFINED_TABLE
-                        : ImportStrategy::STRING_TABLE;
-
-                    $requireDedupColumns = ($dedupType === ImportOptions\DedupType::UPDATE_DUPLICATES);
-
-                    $shouldPass = true;
-                    $reasonIfFail = null;
-                    if ($direction === 'string_to_typed' && $dedupType === ImportOptions\DedupType::UPDATE_DUPLICATES) {
-                        $shouldPass = false;
-                        $reasonIfFail = 'INC+UPDATE validates destination vs expected (string->typed mismatch).';
+        foreach ($srcTypedOptions as $srcTyped) {
+            foreach ($dataCastingOptions as $dataCasting) {
+                foreach ($srcHasTS as $srcWithTs) {
+                    foreach ($primaryKey as $pkDescription => $pk) {
+                        foreach ($renameColumns as $rename) {
+                            if ($srcTyped && ($rename || $dataCasting)) {
+                                // we cannot rename or cast columns when source is typed - not such case in connection
+                                continue;
+                            }
+                            yield sprintf(
+                                'src typed: %s | casting: %s | rename:%s | TS in SRC :%s | PK: %s',
+                                $srcTyped ? 'Y' : 'N',
+                                $dataCasting ? 'Y' : 'N',
+                                $rename ? 'Y' : 'N',
+                                $srcWithTs ? 'Y' : 'N',
+                                $pkDescription,
+                            ) => [
+                                [
+                                    'withSrcTimestamp' => $srcWithTs,
+                                    'srcTyped' => $srcTyped,
+                                    'dataCasting' => $dataCasting,
+                                    'pk' => $pk,
+                                    'allowRename' => $rename,
+                                ],
+                            ];
+                        }
                     }
-
-                    yield sprintf(
-                        '%s|ts:%s|dedup:%s',
-                        $direction,
-                        $withTs ? 'Y' : 'N',
-                        $dedupType === ImportOptions\DedupType::INSERT_DUPLICATES ? 'INSERT' : 'UPDATE',
-                    ) => [
-                        [
-                            'withTimestamp' => $withTs,
-                            'dedupType' => $dedupType,
-                            'direction' => $direction,
-                            'importStrategy' => $importStrategy,
-                            'sourceSchemaType' => $sourceSchemaType,
-                            'destinationSchemaType' => $destinationSchemaType,
-                            'requireDedupColumns' => $requireDedupColumns,
-                            'shouldPass' => $shouldPass,
-                            'reasonIfFail' => $reasonIfFail,
-                            'verifyCastedTypes' => ($direction === 'string_to_typed'),
-                            'verifyStringsOnly' => ($direction === 'typed_to_string'),
-                        ],
-                    ];
                 }
             }
         }
@@ -79,17 +73,11 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
     /**
      * @dataProvider incrementalProvider
      * @param array{
-     *       withTimestamp: bool,
-     *       dedupType: ImportOptions\DedupType::*,
-     *       direction: string,
-     *       importStrategy: ImportStrategy::*,
-     *       sourceSchemaType: string,
-     *       destinationSchemaType: string,
-     *       requireDedupColumns: bool,
-     *       shouldPass: bool,
-     *       reasonIfFail: string|null,
-     *       verifyCastedTypes: bool,
-     *       verifyStringsOnly: bool
+     *       withSrcTimestamp: bool,
+     *       srcTyped: bool,
+     *       dataCasting: bool,
+     *       pk: string[],
+     *       allowRename: bool
      *   } $scenario
      */
     public function testIncrementalLoadCasting(array $scenario): void
@@ -97,7 +85,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         $dataset = $this->bucketResponse->getCreateBucketObjectName();
         $sourceTable = $this->getTestHash() . '_incr_src';
         $destTable = $this->getTestHash() . '_incr_dest';
-
+        $pkSet = $scenario['pk'] !== [];
         $bq = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $qb = new BigqueryTableQueryBuilder();
 
@@ -106,21 +94,27 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         $this->dropTableIfExists($bq, $dataset, $destTable);
 
         // Source (no PKs on BQ side, dedup works logically)
-        $srcDef = $this->createSourceDefinition($dataset, $sourceTable, $scenario['sourceSchemaType']);
+        $srcDef = $this->createSourceDefinition(
+            $dataset,
+            $sourceTable,
+            $scenario['srcTyped'],
+            $scenario['withSrcTimestamp'],
+            $scenario['pk'],
+        );
         $bq->runQuery($bq->query($qb->getCreateTableCommand(
             $srcDef->getSchemaName(),
             $srcDef->getTableName(),
             $srcDef->getColumnsDefinitions(),
             [],
         )));
-        $this->insertSourceRows($bq, $dataset, $sourceTable, $scenario['sourceSchemaType']);
+        $this->insertSourceRows($bq, $dataset, $sourceTable, $scenario['srcTyped']);
 
         // Destination (add _timestamp when requested)
         $destDef = $this->createDestinationDefinition(
             $dataset,
             $destTable,
-            $scenario['destinationSchemaType'],
-            $scenario['withTimestamp'],
+            ($scenario['dataCasting'] || $scenario['srcTyped']),
+            $scenario['allowRename'],
         );
         $bq->runQuery($bq->query($qb->getCreateTableCommand(
             $destDef->getSchemaName(),
@@ -136,10 +130,14 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
             GPBType::MESSAGE,
             LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class,
         );
-        foreach (['id', 'text', 'flag'] as $col) {
+        $destColumns = $destDef->getColumnsNames();
+        foreach ($srcDef->getColumnsNames() as $key => $colName) {
+            if ($colName === '_timestamp') {
+                continue;
+            }
             $mappings[] = (new LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping())
-                ->setSourceColumnName($col)
-                ->setDestinationColumnName($col);
+                ->setSourceColumnName($colName)
+                ->setDestinationColumnName($destColumns[$key]);
         }
 
         $cmd = (new LoadTableToWorkspaceCommand())
@@ -150,19 +148,24 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
                     ->setColumnMappings($mappings),
             )
             ->setDestination((new Table())->setPath($path)->setTableName($destTable));
+        $dedupType = $scenario['pk'] === [] ? DedupType::INSERT_DUPLICATES : DedupType::UPDATE_DUPLICATES;
+        $importStrategy = $scenario['srcTyped'] ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE;
 
         $options = (new ImportOptions())
             ->setImportType(ImportOptions\ImportType::INCREMENTAL)
-            ->setDedupType($scenario['dedupType'])
-            ->setImportStrategy($scenario['importStrategy'])
+            ->setDedupType($dedupType)
+            ->setImportStrategy($importStrategy)
             ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
             ->setNumberOfIgnoredLines(0);
-        if ($scenario['withTimestamp']) {
-            $options->setTimestampColumn('_timestamp');
-        }
-        if ($scenario['requireDedupColumns']) {
+//        if ($scenario['withTimestamp']) {
+//            $options->setTimestampColumn('_timestamp');
+//        }
+
+        if ($scenario['pk'] !== []) {
             $dedup = new RepeatedField(GPBType::STRING);
-            $dedup[] = 'id';
+            foreach ($scenario['pk'] as $pk) {
+                $dedup[] = $pk;
+            }
             $options->setDedupColumnsNames($dedup);
         }
         $cmd->setImportOptions($options);
@@ -170,53 +173,44 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
-        if ($scenario['shouldPass'] === false) {
-            try {
-                $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
-                $this->fail('Expected scenario to fail: ' . ($scenario['reasonIfFail'] ?? ''));
-            } catch (DriverColumnsMismatchException|BadRequestException $e) {
-                $this->assertTrue(true, 'Failure as expected: ' . $e->getMessage());
-            }
-            return;
-        }
-
         $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
 
-        if ($scenario['withTimestamp']) {
-            $this->assertTimestamp($bq, $dataset, $destTable);
-        }
+        // TODO?
+//        if ($scenario['withSrcTimestamp']) {
+//            $this->assertTimestamp($bq, $dataset, $destTable);
+//        }
 
-        if ($scenario['verifyCastedTypes'] && $scenario['destinationSchemaType'] === 'typed') {
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
+        $flagName = $scenario['allowRename'] ? 'flag_renamed' : 'flag';
+        // types have been casted or they were defined on src
+        $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', $flagName]);
+        usort($data, function ($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
+
+        $typedResult = $scenario['dataCasting'] || $scenario['srcTyped'];
+        if ($typedResult) {
             $this->assertEquals(
                 [
-                    ['id' => 1, 'text' => 'alpha', 'flag' => true],
-                    ['id' => 2, 'text' => 'beta', 'flag' => false],
-                    ['id' => 3, 'text' => 'gamma', 'flag' => true],
+                    ['id' => 1, 'text' => 'alpha', $flagName => true],
+                    ['id' => 2, 'text' => 'beta',  $flagName => false],
+                    ['id' => 3, 'text' => 'gamma', $flagName => true],
                 ],
                 $data,
             );
         }
-        if ($scenario['verifyStringsOnly'] && $scenario['destinationSchemaType'] === 'string') {
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
+        if (!$typedResult) {
             $this->assertEquals(
                 [
-                    ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
-                    ['id' => '2', 'text' => 'beta', 'flag' => 'false'],
-                    ['id' => '3', 'text' => 'gamma', 'flag' => 'true'],
+                    ['id' => '1', 'text' => 'alpha', $flagName => 'true'],
+                    ['id' => '2', 'text' => 'beta',  $flagName => 'false'],
+                    ['id' => '3', 'text' => 'gamma', $flagName => 'true'],
                 ],
                 $data,
             );
         }
 
         // source is string type
-        if ($scenario['verifyCastedTypes']) {
+        if (!$scenario['srcTyped']) {
             $dataValues = [
                 BigqueryQuote::quote('4'),
                 BigqueryQuote::quote('keep'),
@@ -241,16 +235,16 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
 
         $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
 
-        if ($scenario['withTimestamp']) {
-            $this->assertTimestamp($bq, $dataset, $destTable);
-        }
-
-        if ($scenario['verifyCastedTypes'] && $scenario['destinationSchemaType'] === 'typed') {
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
-            if ($scenario['dedupType'] === ImportOptions\DedupType::INSERT_DUPLICATES) {
+        // TODO?
+//        if ($scenario['withTimestamp']) {
+//            $this->assertTimestamp($bq, $dataset, $destTable);
+//        }
+        $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', $flagName]);
+        usort($data, function ($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
+        if ($typedResult) {
+            if (!$pkSet) {
                 $expected = [
                     ['id' => 1, 'text' => 'alpha', 'flag' => true],
                     ['id' => 1, 'text' => 'alpha', 'flag' => true],
@@ -273,12 +267,8 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
                 $data,
             );
         }
-        if ($scenario['verifyStringsOnly'] && $scenario['destinationSchemaType'] === 'string') {
-            $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', 'flag']);
-            usort($data, function ($a, $b) {
-                return $a['id'] <=> $b['id'];
-            });
-            if ($scenario['dedupType'] === ImportOptions\DedupType::INSERT_DUPLICATES) {
+        if (!$typedResult) {
+            if (!$pkSet) {
                 $expected = [
                     ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
                     ['id' => '1', 'text' => 'alpha', 'flag' => 'true'],
@@ -304,42 +294,17 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         }
     }
 
-    private function createSourceDefinition(string $dataset, string $table, string $schemaType): BigqueryTableDefinition
-    {
-        if ($schemaType === 'string') {
-            return new BigqueryTableDefinition(
-                $dataset,
-                $table,
-                false,
-                new ColumnCollection([
-                    BigqueryColumn::createGenericColumn('id'),
-                    BigqueryColumn::createGenericColumn('text'),
-                    BigqueryColumn::createGenericColumn('flag'),
-                ]),
-                [],
-            );
-        }
-        return new BigqueryTableDefinition(
-            $dataset,
-            $table,
-            false,
-            new ColumnCollection([
-                new BigqueryColumn('id', new BigqueryType(BigqueryType::TYPE_INT, [])),
-                new BigqueryColumn('text', new BigqueryType(BigqueryType::TYPE_STRING, [])),
-                new BigqueryColumn('flag', new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
-            ]),
-            [],
-        );
-    }
-
-    private function createDestinationDefinition(
+    /**
+     * @param string[] $primaryKeys
+     */
+    private function createSourceDefinition(
         string $dataset,
         string $table,
-        string $schemaType,
+        bool $srcTyped,
         bool $withTimestamp,
+        array $primaryKeys,
     ): BigqueryTableDefinition {
-        $columns = [];
-        if ($schemaType === 'string') {
+        if (!$srcTyped) {
             $columns = [
                 BigqueryColumn::createGenericColumn('id'),
                 BigqueryColumn::createGenericColumn('text'),
@@ -352,8 +317,39 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
                 new BigqueryColumn('flag', new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
             ];
         }
+
         if ($withTimestamp) {
             $columns[] = BigqueryColumn::createTimestampColumn('_timestamp');
+        }
+
+        return new BigqueryTableDefinition(
+            $dataset,
+            $table,
+            false,
+            new ColumnCollection($columns),
+            $primaryKeys,
+        );
+    }
+
+    private function createDestinationDefinition(
+        string $dataset,
+        string $table,
+        bool $destTyped,
+        bool $allowRename,
+    ): BigqueryTableDefinition {
+        $flagColumnName = $allowRename ? 'flag_renamed' : 'flag';
+        if (!$destTyped) {
+            $columns = [
+                BigqueryColumn::createGenericColumn('id'),
+                BigqueryColumn::createGenericColumn('text'),
+                BigqueryColumn::createGenericColumn($flagColumnName),
+            ];
+        } else {
+            $columns = [
+                new BigqueryColumn('id', new BigqueryType(BigqueryType::TYPE_INT, [])),
+                new BigqueryColumn('text', new BigqueryType(BigqueryType::TYPE_STRING, [])),
+                new BigqueryColumn($flagColumnName, new BigqueryType(BigqueryType::TYPE_BOOLEAN, [])),
+            ];
         }
 
         return new BigqueryTableDefinition(
@@ -365,9 +361,9 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         );
     }
 
-    private function insertSourceRows(BigQueryClient $bq, string $dataset, string $table, string $schemaType): void
+    private function insertSourceRows(BigQueryClient $bq, string $dataset, string $table, bool $srcTyped): void
     {
-        if ($schemaType === 'string') {
+        if (!$srcTyped) {
             $values = [
                 sprintf(
                     '(%s,%s,%s)',
