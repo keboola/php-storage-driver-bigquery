@@ -6,11 +6,9 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace\Load;
 
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
-use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery as BigqueryType;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
@@ -24,7 +22,6 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
-use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 
 final class LoadCastingIncrementalTest extends BaseImportTestCase
 {
@@ -105,7 +102,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
             $srcDef->getSchemaName(),
             $srcDef->getTableName(),
             $srcDef->getColumnsDefinitions(),
-            [],
+            $scenario['pk'],
         )));
         $this->insertSourceRows($bq, $dataset, $sourceTable, $scenario['srcTyped']);
 
@@ -115,12 +112,13 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
             $destTable,
             ($scenario['dataCasting'] || $scenario['srcTyped']),
             $scenario['allowRename'],
+            $scenario['pk'],
         );
         $bq->runQuery($bq->query($qb->getCreateTableCommand(
             $destDef->getSchemaName(),
             $destDef->getTableName(),
             $destDef->getColumnsDefinitions(),
-            [],
+            $scenario['pk'],
         )));
 
         // Build command
@@ -331,11 +329,15 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         );
     }
 
+    /**
+     * @param string[] $primaryKeys
+     */
     private function createDestinationDefinition(
         string $dataset,
         string $table,
         bool $destTyped,
         bool $allowRename,
+        array $primaryKeys,
     ): BigqueryTableDefinition {
         $flagColumnName = $allowRename ? 'flag_renamed' : 'flag';
         if (!$destTyped) {
@@ -357,7 +359,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
             $table,
             false,
             new ColumnCollection($columns),
-            [],
+            $primaryKeys,
         );
     }
 
