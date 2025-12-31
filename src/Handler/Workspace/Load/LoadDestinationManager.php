@@ -118,10 +118,14 @@ final class LoadDestinationManager
             $destinationDefinition,
         );
 
-        $this->validateColumnDefinitions(
-            $expectedColumnsNormalized,
-            $actualColumns,
-        );
+        if ($destinationDefinition->getPrimaryKeysNames() === []) {
+            // validate only if inc load do not expect to do deduplication.
+            // currently, deduplication with required casting will fail - known issue
+            $this->validateColumnDefinitions(
+                $expectedColumnsNormalized,
+                $actualColumns,
+            );
+        }
     }
 
     /**
