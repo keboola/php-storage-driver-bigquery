@@ -44,6 +44,10 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
                                 // we cannot rename or cast columns when source is typed - not such case in connection
                                 continue;
                             }
+                            if (!$srcTyped && $dataCasting && $pk !== []) {
+                                // cannot cast data on inc load when deduplication expected
+                                continue;
+                            }
                             yield sprintf(
                                 'src typed: %s | casting: %s | rename: %s | TS in SRC: %s | PK: %s',
                                 $srcTyped ? 'Y' : 'N',
