@@ -117,6 +117,11 @@ final class LoadDestinationManager
             $actualColumns,
             $destinationDefinition,
         );
+
+//        $this->validateColumnDefinitions(
+//            $expectedColumnsNormalized,
+//            $actualColumns,
+//        );
     }
 
     /**
@@ -262,6 +267,38 @@ final class LoadDestinationManager
     }
 
     /**
+     * Validates that column definitions match between expected and actual.
+     *
+     * @param array<string, BigqueryColumn> $expectedColumnsNormalized Expected column definitions
+     * @param array<string, BigqueryColumn> $actualColumns Actual column definitions
+     * @throws DriverColumnsMismatchException When column definitions don't match
+     */
+    private function validateColumnDefinitions(
+        array $expectedColumnsNormalized,
+        array $actualColumns,
+    ): void {
+        $definitionErrors = [];
+
+        foreach ($expectedColumnsNormalized as $name => $expectedColumn) {
+            $actualColumn = $actualColumns[$name];
+
+            if (!$this->columnDefinitionsMatch($expectedColumn, $actualColumn)) {
+                $definitionErrors[] = $this->buildDefinitionErrorMessage(
+                    $expectedColumn,
+                    $actualColumn,
+                );
+            }
+        }
+
+        if ($definitionErrors !== []) {
+            throw new DriverColumnsMismatchException(sprintf(
+                'Column definitions mismatch. Details: %s',
+                implode('; ', $definitionErrors),
+            ));
+        }
+    }
+
+    /**
      * Checks if two column definitions match.
      *
      * For workspace string tables, allows any type -> STRING conversion.
@@ -300,6 +337,30 @@ final class LoadDestinationManager
         $actualLength = (string) ($actualDef->getLength() ?? '');
 
         return $expectedLength === $actualLength;
+    }
+
+    /**
+     * Builds error message for column definition mismatch.
+     *
+     * @param BigqueryColumn $expected Expected column
+     * @param BigqueryColumn $actual Actual column
+     * @return string Error message
+     */
+    private function buildDefinitionErrorMessage(
+        BigqueryColumn $expected,
+        BigqueryColumn $actual,
+    ): string {
+        /** @var BigqueryDefinition $expectedDef */
+        $expectedDef = $expected->getColumnDefinition();
+        /** @var BigqueryDefinition $actualDef */
+        $actualDef = $actual->getColumnDefinition();
+
+        return sprintf(
+            '\'%s\' mapping \'%s\' / \'%s\'',
+            $actual->getColumnName(),
+            $expectedDef->getSQLDefinition(),
+            $actualDef->getSQLDefinition(),
+        );
     }
 
     /**
