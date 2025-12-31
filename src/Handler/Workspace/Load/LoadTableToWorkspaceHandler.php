@@ -665,7 +665,11 @@ SQL,
             $destDef = $fn($destColumnName, $destDefinitions);
             assert($srcDef !== null);
             assert($destDef !== null);
-            if ($srcDef->getColumnDefinition() !== $destDef->getColumnDefinition()) {
+
+            // have to check SQL definitions because cannot use != on objects because of phpcs
+            if ($srcDef->getColumnDefinition()->getSQLDefinition()
+                !== $destDef->getColumnDefinition()->getSQLDefinition()
+            ) {
                 $dataCastingRequired = true;
             }
         }
