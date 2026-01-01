@@ -1218,6 +1218,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_copy_test';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $pkColumns = ['pk_col'];
 
         // cleanup from previous failed runs
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
@@ -1272,14 +1273,14 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('value_col'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
 
         $sql = $qb->getCreateTableCommand(
             $destinationDefinition->getSchemaName(),
             $destinationDefinition->getTableName(),
             $destinationDefinition->getColumnsDefinitions(),
-            [],
+            $pkColumns,
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -1328,15 +1329,12 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
 
         // CRITICAL: Incremental + UPDATE_DUPLICATES + dedup columns
-        // This combination should PREVENT COPY optimization
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'pk_col';
 
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
-                ->setDedupColumnsNames($dedupColumns)
+                ->setDedupColumnsNames($this->buildDedupColumns($pkColumns))
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
                 ->setTimestampColumn('_timestamp')

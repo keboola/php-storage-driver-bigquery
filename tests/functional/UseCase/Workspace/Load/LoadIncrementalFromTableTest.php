@@ -95,11 +95,18 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
+        $pkColumns = ['col1'];
+        $dedupColumns = new RepeatedField(GPBType::STRING);
+
+        foreach ($pkColumns as $pkColumn) {
+            $dedupColumns[] = $pkColumn;
+        }
+
         // create tables
         if ($isTypedTable) {
-            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
+            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
         } else {
-            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
         }
 
         $cmd = new LoadTableToWorkspaceCommand();
@@ -130,8 +137,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                 ->setTableName($destinationTableName),
         );
 
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'col1';
+
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
@@ -324,6 +330,7 @@ SQL,
         $sourceTableName = $this->getTestHash() . '_src_filter_dedup';
         $destinationTableName = $this->getTestHash() . '_dest_filter_dedup';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $pkColumns = ['id'];
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // cleanup from previous failed runs
@@ -391,7 +398,7 @@ SQL,
                 BigqueryColumn::createGenericColumn('status'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
 
         try {
@@ -406,7 +413,7 @@ SQL,
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
             $tableDestDef->getColumnsDefinitions(),
-            [],
+            $pkColumns,
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -467,15 +474,11 @@ SQL,
                 ->setTableName($destinationTableName),
         );
 
-        // Incremental import with UPDATE_DUPLICATES and dedup on 'id'
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'id';
-
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
-                ->setDedupColumnsNames($dedupColumns)
+                ->setDedupColumnsNames($this->buildDedupColumns($pkColumns))
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
                 ->setTimestampColumn('_timestamp')
