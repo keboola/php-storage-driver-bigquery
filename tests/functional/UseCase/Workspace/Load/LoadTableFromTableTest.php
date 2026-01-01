@@ -2179,7 +2179,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col2'),
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
             [],
         );

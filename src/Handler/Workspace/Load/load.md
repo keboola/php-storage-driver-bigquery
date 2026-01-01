@@ -22,8 +22,8 @@
 | 20 | FULL      | NO              | YES          | NO                  | NO     | FULL IMPORTER - no need for data mapping but casting yes
 | 21 | FULL      | NO              | NO           | YES                 | YES    | STAGING IMPORTER - no need for data casting, but mapping yes
 | 22 | FULL      | NO              | NO           | YES                 | NO     | STAGING IMPORTER - no need for data casting, but mapping yes
-| 23 | FULL      | NO              | NO           | NO                  | YES    | FULL IMPORTER
-| 24 | FULL      | NO              | NO           | NO                  | NO     | FULL IMPORTER
+| 23 | FULL      | NO              | NO           | NO                  | YES    | STAGING IMPORTER - because it supports Source as SQL (filtering)
+| 24 | FULL      | NO              | NO           | NO                  | NO     | STAGING IMPORTER - because it supports Source as SQL (filtering)
 | 25 | FULL      | YES             | YES          | YES                 | YES    | X NOT USECASE - cannot rename column when typed source
 | 26 | FULL      | YES             | YES          | YES                 | NO     | X NOT USECASE - cannot rename column when typed source
 | 27 | FULL      | YES             | YES          | NO                  | YES    | X NOT USECASE - columns have to identical when typed source

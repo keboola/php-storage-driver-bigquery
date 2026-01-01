@@ -242,8 +242,9 @@ class LoadTableToWorkspaceHandler extends BaseHandler
 
 //            $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
             switch (true) {
-                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired:
-                    // stage importer, case 21 and 22
+                case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 23,24
+                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 31,32
+                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired: // case 21 and 22
                     $toStageImporter = new ToStageImporter($bqClient);
                     try {
                         $importState = $toStageImporter->importToStagingTable(
@@ -302,13 +303,10 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     }
                     return [$stagingTable, $importResult];
                 case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired: // case 19,20
-                case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 23,24
-                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 31,32
-                    /* full importer - case 19, 20; 23,24 ; 31,32
+                    /* full importer - case 19, 20; 31,32
                      * one of following options
                      * 1. src table is typed but no changes on casting/mapping (31,32)
                      * 2. src table is string and casting required (19,20)
-                     * 3. src table is string but no changes on casting/mapping (23,24)
                      */
 
                     $importer = new FullImporter($bqClient);
