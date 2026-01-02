@@ -104,9 +104,9 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
 
         // create tables
         if ($isTypedTable) {
-            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
+            $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
         } else {
-            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
+            $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
         }
 
         $cmd = new LoadTableToWorkspaceCommand();
@@ -136,7 +136,6 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($destinationTableName),
         );
-
 
         $cmd->setImportOptions(
             (new ImportOptions())
