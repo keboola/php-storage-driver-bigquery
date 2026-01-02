@@ -812,7 +812,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
             $this->fail('should fail because of columns mismatch');
         } catch (ImportValidationException $e) {
             $this->assertStringContainsString(
-                'Invalid NUMERIC value',
+                'Query column 2 has type STRING which cannot be inserted into column price, which has type NUMERIC',
                 $e->getMessage(),
             );
         }

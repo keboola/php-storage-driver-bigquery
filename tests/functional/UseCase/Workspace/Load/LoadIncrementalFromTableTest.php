@@ -1078,7 +1078,7 @@ SQL,
                     new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, [])),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
-                [],
+                ['id'],
             );
         } else {
             $tableDestDef = new BigqueryTableDefinition(
@@ -1090,7 +1090,7 @@ SQL,
                     BigqueryColumn::createGenericColumn('name'),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
-                [],
+                ['id'],
             );
         }
 
@@ -1106,7 +1106,7 @@ SQL,
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
             $tableDestDef->getColumnsDefinitions(),
-            [],
+            ['id'],
         );
         $bqClient->runQuery($bqClient->query($sql));
 
