@@ -155,7 +155,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
-            [], // optimized full load is not returning imported columns
+            ['col1', 'col4'],
             iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
