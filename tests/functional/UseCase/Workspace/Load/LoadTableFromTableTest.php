@@ -801,10 +801,18 @@ class LoadTableFromTableTest extends BaseImportTestCase
             );
             $this->fail('should fail because of columns mismatch');
         } catch (ImportValidationException $e) {
-            $this->assertStringContainsString(
-                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
-                $e->getMessage(),
-            );
+            if ($importType === ImportType::FULL) {
+                $this->assertStringContainsString(
+                    'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
+                    $e->getMessage(),
+                );
+            } else {
+                // inc load asserts the invalid columns on different place
+                $this->assertStringContainsString(
+                    'Query column 2 has type STRING which cannot be inserted into column price, which has type NUMERIC',
+                    $e->getMessage(),
+                );
+            }
         }
     }
 
@@ -1104,7 +1112,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // verify results (not much important here)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT id, time FROM %s.%s ORDER BY id ASC',
+            'SELECT id, TIME FROM %s.%s ORDER BY id ASC',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
@@ -1629,7 +1637,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // Verify updated/new rows have fresh timestamps (not 2020-01-01)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT COUNT(*) AS count FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
+            'SELECT COUNT(*) AS COUNT FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
