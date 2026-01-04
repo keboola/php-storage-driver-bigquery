@@ -255,6 +255,8 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     } catch (ColumnsMismatchException $e) {
                         throw new ColumnsMismatchException($e->getMessage());
                     }
+                    $importState->setImportedColumns($source->getColumnsNames());
+
                     return [null, $importState->getResult()];
                 case $loadFromStringTable && $dataCastingRequired && $columnNameMappingRequired:
                     // case 17 and 18 src is string and it will casted and mapped
