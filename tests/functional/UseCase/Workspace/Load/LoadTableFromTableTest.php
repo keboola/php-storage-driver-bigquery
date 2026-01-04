@@ -1642,7 +1642,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // Verify updated/new rows have fresh timestamps (not 2020-01-01)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT COUNT(*) AS COUNT FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
+            'SELECT COUNT(*) AS count FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
