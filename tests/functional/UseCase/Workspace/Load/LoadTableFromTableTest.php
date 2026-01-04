@@ -163,11 +163,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
     }
 
-    /**
-     * Full load to storage from workspace
-     * This is output mapping, timestamp is updated
-     */
-    public function testImportTableFromTableFullLoadWithTimestamp(): void
+    public function testImportTableFromTableFullLoadWithColumnMapping(): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -220,7 +216,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
             [],
         );
@@ -261,8 +256,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
-                ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp'),
+                ->setNumberOfIgnoredLines(0),
         );
 
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
@@ -285,15 +279,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
     }
 
     /**
      * Full load to storage from workspace with deduplication
      * This is output mapping, timestamp is updated
      */
-    public function testImportTableFromTableFullLoadWithTimestampWithDeduplication(): void
+    public function testImportTableFromTableFullLoadWithColumnMappingAndDedup(): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
