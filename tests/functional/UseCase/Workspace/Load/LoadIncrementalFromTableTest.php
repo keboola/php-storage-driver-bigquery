@@ -1074,7 +1074,8 @@ SQL,
                 $destinationTableName,
                 false,
                 new ColumnCollection([
-                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => true])),
+                    // explicitly set by
+                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                     new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, [])),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
@@ -1086,6 +1087,7 @@ SQL,
                 $destinationTableName,
                 false,
                 new ColumnCollection([
+                    // by default, all generic columns are nullable = false
                     BigqueryColumn::createGenericColumn('id'),
                     BigqueryColumn::createGenericColumn('name'),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
