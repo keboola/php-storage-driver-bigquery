@@ -441,13 +441,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
     // simulate output mapping load table to table with requirePartition filter
     public function testPartitionedTableWithRequirePartitionFilter(): void
     {
-        $tableName = $this->getTestHash() . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // cleanup from previous failed runs
-        $this->dropTableIfExists($bqClient, $bucketDatasetName, $tableName);
+        $this->dropTableIfExists($bqClient, $bucketDatasetName, $sourceTableName);
         $this->dropTableIfExists($bqClient, $bucketDatasetName, $destinationTableName);
 
         // CREATE TABLE
@@ -481,10 +481,17 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 )
                 ->setRequirePartitionFilter(true),
         );
+
+        $srcColumns = clone $columns;
+        $srcColumns[] = (new TableColumnShared)
+            ->setName('_timestamp')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+
         $command = (new CreateTableCommand())
             ->setPath($path)
-            ->setTableName($tableName)
-            ->setColumns($columns)
+            ->setTableName($sourceTableName)
+            ->setColumns($srcColumns)
             ->setMeta($any);
         $handler(
             $this->projectCredentials,
@@ -492,11 +499,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
-
-        $columns[] = (new TableColumnShared)
-            ->setName('_timestamp')
-            ->setType(Bigquery::TYPE_TIMESTAMP)
-            ->setNullable(false);
 
         $command = (new CreateTableCommand())
             ->setPath($path)
@@ -526,7 +528,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $cmd->setSource(
             (new LoadTableToWorkspaceCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($tableName)
+                ->setTableName($sourceTableName)
                 ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
@@ -1088,7 +1090,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // verify results (not much important here)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT id, time FROM %s.%s ORDER BY id ASC',
+            'SELECT id, TIME FROM %s.%s ORDER BY id ASC',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
@@ -1249,10 +1251,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         // Insert source data (NO duplicates - all unique pk_col values)
         $insert = [];
         foreach ([
-            ['1', 'first_value'],
-            ['2', 'second_value'],
-            ['3', 'third_value'],
-        ] as $row) {
+                     ['1', 'first_value'],
+                     ['2', 'second_value'],
+                     ['3', 'third_value'],
+                 ] as $row) {
             $quotedValues = array_map([BigqueryQuote::class, 'quote'], $row);
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
@@ -1436,11 +1438,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         // This test uses only unique PK values to ensure deterministic results.
         $insert = [];
         foreach ([
-            ['1', 'Alice', 'value1'],
-            ['2', 'Bob', 'value2'],
-            ['3', 'Charlie', 'value3'],
-            ['5', 'Eve', 'value5'],              // NEW - unique PK
-        ] as $row) {
+                     ['1', 'Alice', 'value1'],
+                     ['2', 'Bob', 'value2'],
+                     ['3', 'Charlie', 'value3'],
+                     ['5', 'Eve', 'value5'],              // NEW - unique PK
+                 ] as $row) {
             $quotedValues = array_map([BigqueryQuote::class, 'quote'], $row);
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
@@ -1613,7 +1615,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // Verify updated/new rows have fresh timestamps (not 2020-01-01)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT COUNT(*) as count FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
+            'SELECT COUNT(*) AS COUNT FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
