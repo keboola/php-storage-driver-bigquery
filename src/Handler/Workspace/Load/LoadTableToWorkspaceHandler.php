@@ -375,7 +375,6 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             // This provides more control for column transformations, filters, and deduplication
             $toStageImporter = new ToStageImporter($bqClient);
 
-
             try {
                 $importState = $toStageImporter->importToStagingTable(
                     $source,
@@ -686,7 +685,6 @@ SQL,
             // casting needed for types difference only. If the difference is on nullability, length, default, it is ok
             if ($srcDef->getColumnDefinition()->getType() !== $destDef->getColumnDefinition()->getType()) {
                 $dataCastingRequired = true;
-                break;
             }
         }
         return [$columnNameMappingRequired, $dataCastingRequired];
