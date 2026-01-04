@@ -374,13 +374,15 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             // Use standard SQL-based import with INSERT INTO ... SELECT
             // This provides more control for column transformations, filters, and deduplication
             $toStageImporter = new ToStageImporter($bqClient);
-            $importState = $toStageImporter->importToStagingTable(
-                $source,
-                $stagingTable,
-                $importOptions,
-            );
+
 
             try {
+                $importState = $toStageImporter->importToStagingTable(
+                    $source,
+                    $stagingTable,
+                    $importOptions,
+                );
+
                 $toFinalTableImporter = new IncrementalImporter($bqClient);
                 $importResult = $toFinalTableImporter->importToTable(
                     $stagingTable,

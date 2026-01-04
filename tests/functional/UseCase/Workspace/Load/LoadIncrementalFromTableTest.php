@@ -718,7 +718,7 @@ SQL,
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Import should fail when column names do not match for incremental UPDATE_DUPLICATES');
-        } catch (ColumnsMismatchException $e) {
+        } catch (ImportValidationException $e) {
             // Expected - column renaming not supported for incremental with dedup
             $this->assertStringContainsString('col1', $e->getMessage(), 'Error should mention source column');
             $this->assertStringContainsString('id', $e->getMessage(), 'Error should mention destination column');
