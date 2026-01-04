@@ -666,11 +666,10 @@ SQL,
             assert($srcDef !== null);
             assert($destDef !== null);
 
-            // have to check SQL definitions because cannot use != on objects because of phpcs
-            if ($srcDef->getColumnDefinition()->getSQLDefinition()
-                !== $destDef->getColumnDefinition()->getSQLDefinition()
-            ) {
+            // casting needed for types difference only. If the difference is on nullability, length, default, it is ok
+            if ($srcDef->getColumnDefinition()->getType() !== $destDef->getColumnDefinition()->getType()) {
                 $dataCastingRequired = true;
+                break;
             }
         }
         return [$columnNameMappingRequired, $dataCastingRequired];
