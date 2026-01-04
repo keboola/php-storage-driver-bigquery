@@ -516,6 +516,8 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             }
 
             throw new ImportValidationException(DecodeErrorMessage::getErrorMessage($e));
+        } catch (DriverColumnsMismatchException $e) {
+            throw new ImportValidationException($e->getMessage());
         } finally {
             if ($stagingTable !== null) {
                 try {
