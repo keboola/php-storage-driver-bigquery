@@ -368,7 +368,7 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     $stagingTable->getSchemaName(),
                     $stagingTable->getTableName(),
                     $stagingTable->getColumnsDefinitions(),
-                    $dedupColumns, // TODO
+                    $dedupColumns, // not really needed, but keep
                 ),
             ));
             // Use standard SQL-based import with INSERT INTO ... SELECT
@@ -395,104 +395,6 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                 throw new BigqueryInputDataException($e->getMessage());
             }
         }
-
-//        $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
-//        if ($options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES && count($dedupColumns) !== 0) {
-//            $destinationDefinition = new BigqueryTableDefinition(
-//                $destinationDefinition->getSchemaName(),
-//                $destinationDefinition->getTableName(),
-//                $destinationDefinition->isTemporary(),
-//                $destinationDefinition->getColumnsDefinitions(),
-//                $dedupColumns, // add dedup columns separately as BQ has no primary keys
-//            );
-//        }
-//
-//        // prepare the staging table definition here to identify if the columns are identical or not
-//        /** @var ColumnMapping[] $mappings */
-//        $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
-//        // load to staging table
-//        $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
-//            $sourceTableDefinition,
-//            $mappings,
-//        );
-//
-//        $isColumnDefinitionsIdentical = true;
-//        try {
-//            Assert::assertSameColumnsOrdered(
-//                $destinationDefinition->getColumnsDefinitions(),
-//                $stagingTable->getColumnsDefinitions(),
-//                [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
-//            );
-//        } catch (ColumnsMismatchException) {
-//            $isColumnDefinitionsIdentical = false;
-//        }
-//
-////        if (!$isColumnIdentical) {
-////            $importOptions = new BigqueryImportOptions(
-////                convertEmptyValuesToNull: $importOptions->getConvertEmptyValuesToNull(),
-////                isIncremental: $importOptions->isIncremental(),
-////                useTimestamp: $importOptions->useTimestamp(),
-////                numberOfIgnoredLines: $importOptions->getNumberOfIgnoredLines(),
-////                usingTypes: ImportOptionsInterface::USING_TYPES_STRING, // force the string behavior so it will cast
-////                session: $importOptions->getSession(),
-////                importAsNull: $importOptions->importAsNull(),
-////                features: $importOptions->features(),
-////            );
-////        }
-//
-//        $isFullImport = $options->getImportType() === ImportType::FULL;
-//        $insertOnlyDuplicates = $options->getDedupType() === ImportOptions\DedupType::INSERT_DUPLICATES;
-//        if ($isFullImport
-//            && $this->areColumnNamesIdentical($source->getColumnsNames(), $destinationDefinition->getColumnsNames())
-//            && !$importOptions->useTimestamp()) {
-//            // when full load is performed with no deduplication only copy data using DEST class
-//            // this will skip moving data to stage tabzxle
-//            // this is used on full load into workspace where data are deduplicated already
-//            $importer = new FullImporter($bqClient);
-//            try {
-//                $importResult = $importer->importToTable(
-//                    $sourceTableDefinition,
-//                    $destinationDefinition,
-//                    $importOptions,
-//                    new ImportState($destinationDefinition->getTableName()),
-//                );
-//            } catch (ColumnsMismatchException $e) {
-//                throw new DriverColumnsMismatchException($e->getMessage());
-//            } catch (BigqueryException $e) {
-//                throw new BigqueryInputDataException($e->getMessage());
-//            }
-//            return [null, $importResult];
-//        }
-//
-//        // Determine if we need deduplication
-//        // COPY optimization copies all rows including duplicates, which is problematic when:
-//        // - Import type is INCREMENTAL (merging with existing data)
-//        // - Dedup type is UPDATE_DUPLICATES (need to merge duplicate PK values)
-//        // - Dedup columns are specified (PK columns exist)
-//        // In this case, the source table may contain duplicates that need deterministic resolution.
-//        $needsDeduplication = (
-//            $options->getImportType() === ImportType::INCREMENTAL &&
-//            $options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES &&
-//            count($dedupColumns) > 0
-//        );
-//
-//        try {
-//            // import data to destination
-//            $toFinalTableImporter = new FullImporter($bqClient);
-//            if ($importOptions->isIncremental()) {
-//                $toFinalTableImporter = new IncrementalImporter($bqClient);
-//            }
-//            $importResult = $toFinalTableImporter->importToTable(
-//                $sourceTableDefinition,
-//                $destinationDefinition,
-//                $importOptions,
-//                new ImportState($destinationDefinition->getTableName()),
-//            );
-//        } catch (ColumnsMismatchException $e) {
-//            throw new DriverColumnsMismatchException($e->getMessage());
-//        } catch (BigqueryException $e) {
-//            throw new BigqueryInputDataException($e->getMessage());
-//        }
         return [$stagingTable, $importResult];
     }
 
@@ -656,7 +558,6 @@ SQL,
         BigqueryTableDefinition $destTableDefinition,
         SourceTableMapping $sourceMapping,
     ): array {
-        // TODO replace with assertSameColumnsOrdered with assert options
         $columnNameMappingRequired = false;
         $dataCastingRequired = false;
         $srcDefinitions = iterator_to_array($sourceTableDefinition->getColumnsDefinitions());

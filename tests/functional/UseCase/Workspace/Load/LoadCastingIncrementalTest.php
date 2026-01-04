@@ -159,9 +159,6 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
             ->setImportStrategy($importStrategy)
             ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
             ->setNumberOfIgnoredLines(0);
-//        if ($scenario['withTimestamp']) {
-//            $options->setTimestampColumn('_timestamp');
-//        }
 
         if ($scenario['pk'] !== []) {
             $dedup = new RepeatedField(GPBType::STRING);
@@ -175,12 +172,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
-        $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
-
-        // TODO?
-//        if ($scenario['withSrcTimestamp']) {
-//            $this->assertTimestamp($bq, $dataset, $destTable);
-//        }
+        $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
 
         $flagName = $scenario['allowRename'] ? 'flag_renamed' : 'flag';
         // types have been casted or they were defined on src
@@ -235,12 +227,8 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
         );
         $bq->runQuery($bq->query($sql));
 
-        $response = $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
+        $handler($this->projectCredentials, $cmd, [], new RuntimeOptions(['runId' => $this->testRunId]));
 
-        // TODO?
-//        if ($scenario['withTimestamp']) {
-//            $this->assertTimestamp($bq, $dataset, $destTable);
-//        }
         $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', $flagName]);
         usort($data, function ($a, $b) {
             return $a['id'] <=> $b['id'];

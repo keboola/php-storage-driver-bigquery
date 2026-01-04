@@ -212,10 +212,6 @@ final class LoadCastingFullTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bq, $dataset, $destTable);
         $this->assertSame(3, $ref->getRowsCount());
 
-        // TODO
-//        if ($scenario['verifyTimestampUpdated']) {
-//            $this->assertTimestamp($bq, $dataset, $destTable);
-//        }
         $flagName = $scenario['allowRename'] ? 'flag_renamed' : 'flag';
         // types have been casted or they were defined on src
         $data = $this->fetchTable($bq, $dataset, $destTable, ['id', 'text', $flagName]);
