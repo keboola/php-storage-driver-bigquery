@@ -822,29 +822,55 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
     public function importTypeBoundsProvide(): Generator
     {
-        yield 'full' => [
-            'importType' => ImportOptions\ImportType::FULL,
-            'longContent' => 'xxxyyyxxx',
-        ];
-        yield 'incremental' => [
-            ImportOptions\ImportType::INCREMENTAL,
-            'longContent' => 'xxxyyyxxx',
-        ];
-        yield 'full error import' => [
-            'importType' => ImportOptions\ImportType::FULL,
-            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-        ];
-        yield 'incremental error import' => [
-            ImportOptions\ImportType::INCREMENTAL,
-            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-        ];
+        foreach ([
+                     'full' => ImportOptions\ImportType::FULL,
+                     'inc' => ImportOptions\ImportType::INCREMENTAL,
+                 ] as $importTypeName => $importType) {
+            foreach (['short' => 'xxxyyyxxx', 'long' => 'xxxyyyxxxyyyxxxyyyx21'] as $longContentName => $longContent) {
+                foreach ([
+                             'typed' => ImportStrategy::USER_DEFINED_TABLE,
+                             'string' => ImportStrategy::STRING_TABLE,
+                         ] as $srcTableTypeName => $srcTableType) {
+                    yield sprintf(
+                        'Import Type: %s | src table %s | content: %s',
+                        $importTypeName,
+                        $srcTableTypeName,
+                        $longContentName,
+                    ) => [
+                        'importType' => $importType,
+                        'longContent' => $longContentName,
+                        'srcTable' => $srcTableType,
+                    ];
+                }
+            }
+        }
+//        yield 'full' => [
+//            'importType' => ImportOptions\ImportType::FULL,
+//            'longContent' => 'xxxyyyxxx',
+//        ];
+////        yield 'incremental' => [
+////            ImportOptions\ImportType::INCREMENTAL,
+////            'longContent' => 'xxxyyyxxx',
+////        ];
+//        yield 'full error import' => [
+//            'importType' => ImportOptions\ImportType::FULL,
+//            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
+//        ];
+//        yield 'incremental error import' => [
+//            ImportOptions\ImportType::INCREMENTAL,
+//            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
+//        ];
     }
 
     /**
      * @dataProvider importTypeBoundsProvide
      */
-    public function testLoadDataToDifferentColumnLengthMismatchBounds(int $importType, string $longContent): void
-    {
+    public function testLoadDataToDifferentColumnLengthMismatchBounds(
+        int $importType,
+        string $longContent,
+        int $srcTableType,
+    ): void {
+        $contentIsTooLong = strlen($longContent) === 21;
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -933,7 +959,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportStrategy($srcTableType)
                 ->setImportType($importType)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -953,7 +979,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 [],
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
-            if (strlen($longContent) === 21) {
+            if ($contentIsTooLong) {
                 $this->fail('should fail because of column content won\'t fit');
             }
         } catch (MaximumLengthOverflowException $e) {
@@ -962,7 +988,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 $e->getMessage(),
             );
         }
-        if (strlen($longContent) !== 21) {
+        if (!$contentIsTooLong) {
             $this->assertNotNull($response);
             $this->assertSame(3, $response->getImportedRowsCount());
         } else {
