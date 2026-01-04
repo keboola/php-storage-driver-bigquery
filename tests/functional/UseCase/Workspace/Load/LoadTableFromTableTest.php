@@ -1117,7 +1117,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // verify results (not much important here)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT id, TIME FROM %s.%s ORDER BY id ASC',
+            'SELECT id, time FROM %s.%s ORDER BY id ASC',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
