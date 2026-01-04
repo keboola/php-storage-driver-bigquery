@@ -23,6 +23,7 @@ use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
@@ -136,7 +137,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
@@ -257,7 +258,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
@@ -387,7 +388,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $dedupCols[] = 'col1';
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
@@ -538,7 +539,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setNumberOfIgnoredLines(0)
                 ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
@@ -674,7 +675,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $convertEmptyValues[] = 'col3';
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns($convertEmptyValues)
                 ->setNumberOfIgnoredLines(0)
@@ -699,8 +700,8 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
     public function importTypeProvide(): Generator
     {
-        yield 'full' => [ImportOptions\ImportType::FULL];
-        yield 'incremental' => [ImportOptions\ImportType::INCREMENTAL];
+        yield 'full' => [ImportType::FULL];
+        yield 'incremental' => [ImportType::INCREMENTAL];
     }
 
     /**
@@ -1093,7 +1094,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setImportStrategy(ImportStrategy::STRING_TABLE)
@@ -1214,7 +1215,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setTimestampColumn('_timestamp')
@@ -1360,7 +1361,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($this->buildDedupColumns($pkColumns))
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1574,7 +1575,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1682,7 +1683,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd2->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols2)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1830,7 +1831,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
             )
             ->setImportOptions(
                 (new ImportOptions())
-                    ->setImportType(ImportOptions\ImportType::FULL)
+                    ->setImportType(ImportType::FULL)
                     ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                     ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                     ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1999,7 +2000,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupColumns)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -2150,7 +2151,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL),
+                ->setImportType(ImportType::FULL),
         );
 
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
@@ -2287,7 +2288,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
             )
             ->setImportOptions(
                 (new ImportOptions())
-                    ->setImportType(ImportOptions\ImportType::FULL)
+                    ->setImportType(ImportType::FULL)
                     ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                     ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                     ->setNumberOfIgnoredLines(0),
@@ -2407,7 +2408,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
