@@ -243,12 +243,15 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             }
             [$columnNameMappingRequired, $dataCastingRequired]
                 = $this->checkMappingDifferences($sourceTableDefinition, $destinationDefinition, $sourceMapping);
-
-//            $dedupColumns = ProtobufHelper::repeatedStringToArray($options->getDedupColumnsNames());
+            $dedupRequired = $options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
+                && $destinationDefinition->getPrimaryKeysNames() !== [];
             switch (true) {
-                case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 23,24
-                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired: // case 31,32
-                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired: // case 21 and 22
+                    // case 24
+                case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && !$dedupRequired:
+                    // case 31,32
+                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired:
+                    // case 22
+                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired && !$dedupRequired:
                     $toStageImporter = new ToStageImporter($bqClient);
                     try {
                         $importState = $toStageImporter->importToStagingTable(
@@ -259,11 +262,16 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     } catch (ColumnsMismatchException $e) {
                         throw new ColumnsMismatchException($e->getMessage());
                     }
-                    $importState->setImportedColumns($source->getColumnsNames());
+                    $importState->setImportedColumns($destinationDefinition->getColumnsNames());
 
                     return [null, $importState->getResult()];
-                case $loadFromStringTable && $dataCastingRequired && $columnNameMappingRequired:
+
                     // case 17 and 18 src is string and it will casted and mapped
+                case $loadFromStringTable && $dataCastingRequired && $columnNameMappingRequired:
+                    // case 21
+                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired && $dedupRequired:
+                    // case 23
+                case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $dedupRequired:
                     // staging table + full importer
 
                     // prepare the staging table definition here to identify if the columns are identical or not
