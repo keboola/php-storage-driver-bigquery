@@ -29,7 +29,6 @@ use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\BigQuery\Handler\Table\ObjectAlreadyExistsException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\BadExportFilterParametersException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException as DriverColumnsMismatchException;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceLib\CopyImportFromTableToTable;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
@@ -230,12 +229,17 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             $loadFromStringTable = $options->getImportStrategy() === ImportStrategy::STRING_TABLE;
 
             if (!$loadFromStringTable) {
-                Assert::assertSameColumnsOrdered(
-                    $sourceTableDefinition->getColumnsDefinitions(),
-                    $destinationDefinition->getColumnsDefinitions(),
-                    [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
-                    [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
-                );
+                try {
+                    Assert::assertSameColumnsOrdered(
+                        $sourceTableDefinition->getColumnsDefinitions(),
+                        $destinationDefinition->getColumnsDefinitions(),
+                        [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
+                        [ToStageImporterInterface::TIMESTAMP_COLUMN_NAME],
+                    );
+                } catch (ColumnsMismatchException $e) {
+                    // convert the exception from IE ex to driver ex
+                    throw new DriverColumnsMismatchException($e->getMessage());
+                }
             }
             [$columnNameMappingRequired, $dataCastingRequired]
                 = $this->checkMappingDifferences($sourceTableDefinition, $destinationDefinition, $sourceMapping);
@@ -641,6 +645,7 @@ SQL,
         BigqueryTableDefinition $destTableDefinition,
         SourceTableMapping $sourceMapping,
     ): array {
+        // TODO replace with assertSameColumnsOrdered with assert options
         $columnNameMappingRequired = false;
         $dataCastingRequired = false;
         $srcDefinitions = iterator_to_array($sourceTableDefinition->getColumnsDefinitions());
