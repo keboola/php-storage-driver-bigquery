@@ -1029,29 +1029,16 @@ SQL,
         // Try to insert data with NULL in id column (dedup column)
         // For string tables, BigQuery may reject NULL during INSERT
         try {
-            if ($isTypedTable) {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                    BigqueryQuote::quote('1'),
-                    BigqueryQuote::quote('Alice'),
-                    BigqueryQuote::quote('Bob'),
-                    BigqueryQuote::quote('3'),
-                    BigqueryQuote::quote('Charlie'),
-                )));
-            } else {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                    BigqueryQuote::quote('1'),
-                    BigqueryQuote::quote('Alice'),
-                    BigqueryQuote::quote('Bob'),
-                    BigqueryQuote::quote('3'),
-                    BigqueryQuote::quote('Charlie'),
-                )));
-            }
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+                BigqueryQuote::quote('1'),
+                BigqueryQuote::quote('Alice'),
+                BigqueryQuote::quote('Bob'),
+                BigqueryQuote::quote('3'),
+                BigqueryQuote::quote('Charlie'),
+            )));
         } catch (BadRequestException $e) {
             // For string tables, BigQuery rejects NULL during INSERT
             // This documents that NULL values cannot even be inserted into source tables
