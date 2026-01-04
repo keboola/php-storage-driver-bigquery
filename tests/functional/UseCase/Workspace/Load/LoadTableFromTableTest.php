@@ -348,9 +348,8 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            ['col1'],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -392,7 +391,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp')
                 ->setDedupColumnsNames($dedupCols),
         );
 
@@ -416,7 +414,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
         $data = $this->fetchTable(
             $bqClient,
             $bucketDatabaseName,
