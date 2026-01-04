@@ -820,19 +820,22 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeBoundsProvide(): Generator
+    public function importTypeBoundsProvider(): Generator
     {
         foreach ([
-                     'full' => ImportOptions\ImportType::FULL,
-                     'inc' => ImportOptions\ImportType::INCREMENTAL,
+                     'full' => ImportType::FULL,
+                     'inc' => ImportType::INCREMENTAL,
                  ] as $importTypeName => $importType) {
-            foreach (['short' => 'xxxyyyxxx', 'long' => 'xxxyyyxxxyyyxxxyyyx21'] as $longContentName => $longContent) {
+            foreach ([
+                         'fit' => 'xxxyyyxxx',
+                         'oversize' => 'xxxyyyxxxyyyxxxyyyx21',
+                     ] as $longContentName => $longContent) {
                 foreach ([
                              'typed' => ImportStrategy::USER_DEFINED_TABLE,
                              'string' => ImportStrategy::STRING_TABLE,
                          ] as $srcTableTypeName => $srcTableType) {
                     yield sprintf(
-                        'Import Type: %s | src table %s | content: %s',
+                        'Import Type: "%s" | src table "%s" | content: "%s"',
                         $importTypeName,
                         $srcTableTypeName,
                         $longContentName,
@@ -844,26 +847,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 }
             }
         }
-//        yield 'full' => [
-//            'importType' => ImportOptions\ImportType::FULL,
-//            'longContent' => 'xxxyyyxxx',
-//        ];
-////        yield 'incremental' => [
-////            ImportOptions\ImportType::INCREMENTAL,
-////            'longContent' => 'xxxyyyxxx',
-////        ];
-//        yield 'full error import' => [
-//            'importType' => ImportOptions\ImportType::FULL,
-//            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-//        ];
-//        yield 'incremental error import' => [
-//            ImportOptions\ImportType::INCREMENTAL,
-//            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-//        ];
     }
 
     /**
-     * @dataProvider importTypeBoundsProvide
+     * @dataProvider importTypeBoundsProvider
      */
     public function testLoadDataToDifferentColumnLengthMismatchBounds(
         int $importType,
@@ -971,6 +958,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $handler->setInternalLogger($this->log);
 
         $response = null;
+        $importSuccessful = true;
         try {
             /** @var TableImportResponse $response */
             $response = $handler(
@@ -984,11 +972,23 @@ class LoadTableFromTableTest extends BaseImportTestCase
             }
         } catch (MaximumLengthOverflowException $e) {
             $this->assertSame(
-                sprintf('Field price: STRING(20) has maximum length 20 but got a value with length 21'),
+                'Field price: STRING(20) has maximum length 20 but got a value with length 21',
                 $e->getMessage(),
             );
+            $importSuccessful = false;
+        } catch (ColumnsMismatchException $e) {
+            $this->assertTrue(
+                ($srcTableType === ImportStrategy::USER_DEFINED_TABLE && $importType === ImportType::FULL),
+                'this case can only happenon typed table and full load',
+            );
+
+            $this->assertSame(
+                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price STRING(20)"',
+                $e->getMessage(),
+            );
+            $importSuccessful = false;
         }
-        if (!$contentIsTooLong) {
+        if (!$contentIsTooLong && $importSuccessful) {
             $this->assertNotNull($response);
             $this->assertSame(3, $response->getImportedRowsCount());
         } else {
