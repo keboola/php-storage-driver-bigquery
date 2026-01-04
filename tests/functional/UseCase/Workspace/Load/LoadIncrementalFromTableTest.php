@@ -34,17 +34,9 @@ use Throwable;
 
 class LoadIncrementalFromTableTest extends BaseImportTestCase
 {
-    /**
-     * @dataProvider typedTablesProvider
-     *
-     * Incremental load to storage from workspace
-     * This is output mapping, timestamp is updated
-     */
-    public function testImportTableFromTableIncrementalLoad(bool $isTypedTable): void
+    // the option with string table does not make sense, because inc load typed -> string is not supported
+    public function testImportTableFromTableIncrementalLoad(): void
     {
-        // typed tables have to have same structure, but string tables can do the mapping
-        $sourceExtraColumn = $isTypedTable ? 'col3' : 'colX';
-
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -68,7 +60,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                     Bigquery::TYPE_BIGINT,
                     [],
                 )),
-                new BigqueryColumn($sourceExtraColumn, new Bigquery(
+                new BigqueryColumn('col3', new Bigquery(
                     Bigquery::TYPE_INT,
                     [],
                 )),
@@ -102,12 +94,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
             $dedupColumns[] = $pkColumn;
         }
 
-        // create tables
-        if ($isTypedTable) {
-            $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
-        } else {
-            $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
-        }
+        $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
 
         $cmd = new LoadTableToWorkspaceCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -123,7 +110,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
             ->setSourceColumnName('col2')
             ->setDestinationColumnName('col2');
         $columnMappings[] = (new LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping())
-            ->setSourceColumnName($sourceExtraColumn)
+            ->setSourceColumnName('col3')
             ->setDestinationColumnName('col3');
         $cmd->setSource(
             (new LoadTableToWorkspaceCommand\SourceTableMapping())
@@ -144,7 +131,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                 ->setDedupColumnsNames($dedupColumns)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
                 ->setTimestampColumn('_timestamp')
                 ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
