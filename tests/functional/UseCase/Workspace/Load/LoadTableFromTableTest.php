@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace\Load;
 
 use Generator;
-use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -15,7 +14,6 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\BadExportFilterParametersException;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -966,7 +964,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 $e->getMessage(),
             );
             $importSuccessful = false;
-        } catch (ColumnsMismatchException $e) {
+        } catch (ImportValidationException $e) {
             $this->assertTrue(
                 ($srcTableType === ImportStrategy::USER_DEFINED_TABLE && $importType === ImportType::FULL),
                 'this case can only happenon typed table and full load',
