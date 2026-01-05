@@ -52,6 +52,8 @@ class ResetWorkspacePasswordTest extends BaseCase
         );
         assert($passwordResponse instanceof ResetWorkspacePasswordResponse);
 
+        $this->clientManager->close();
+
         $wsBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $credentials,
