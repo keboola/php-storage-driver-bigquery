@@ -1112,7 +1112,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // verify results (not much important here)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT id, TIME FROM %s.%s ORDER BY id ASC',
+            'SELECT id, time FROM %s.%s ORDER BY id ASC',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
@@ -1643,7 +1643,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         )));
         $row = iterator_to_array($result->getIterator())[0];
         assert(is_array($row));
-        $this->assertSame('4', (string) $row['count'], 'Four rows should have updated timestamps');
+        $this->assertSame('4', (string) $row['COUNT'], 'Four rows should have updated timestamps');
 
         // Scenario 4: Test auto-creation of destination with primary keys
         $cmd2 = new LoadTableToWorkspaceCommand();
