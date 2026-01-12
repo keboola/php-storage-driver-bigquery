@@ -21,6 +21,7 @@ use Keboola\Db\ImportExport\Backend\Bigquery\ToStage\ToStageImporter;
 use Keboola\Db\ImportExport\Backend\ImportState;
 use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\Db\ImportExport\Exception\ColumnsMismatchException;
+use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\Db\ImportExport\Storage\SqlSourceInterface;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -245,11 +246,13 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                 = $this->checkMappingDifferences($sourceTableDefinition, $destinationDefinition, $sourceMapping);
             $dedupRequired = $options->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
                 && $destinationDefinition->getPrimaryKeysNames() !== [];
+
+            $filterRequired = $source instanceof SelectSource;
             switch (true) {
                     // case 24
                 case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && !$dedupRequired:
-                    // case 31,32
-                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired:
+                    // case 31.1,32.1
+                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $filterRequired:
                     // case 22
                 case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired && !$dedupRequired:
                     $toStageImporter = new ToStageImporter($bqClient);
@@ -272,6 +275,8 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                 case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired && $dedupRequired:
                     // case 23
                 case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $dedupRequired:
+                // case 19.1,20.1
+                case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && $filterRequired:
                     // staging table + full importer
 
                     // prepare the staging table definition here to identify if the columns are identical or not
@@ -316,10 +321,13 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                         throw new BigqueryInputDataException($e->getMessage());
                     }
                     return [$stagingTable, $importResult];
-                case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired: // case 19,20
+                    // case 19.2,20.2
+                case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && !$filterRequired:
+                    // case 31.2,32.2
+                case !$loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && !$filterRequired:
                     /* full importer - case 19, 20; 31,32
                      * one of following options
-                     * 1. src table is typed but no changes on casting/mapping (31,32)
+                     * 1. src table is typed but no changes on casting/mapping (31.2,32.2)
                      * 2. src table is string and casting required (19,20)
                      */
 
