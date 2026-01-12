@@ -120,9 +120,7 @@ class LoadTableToWorkspaceHandler extends BaseHandler
         );
 
         // Validate incremental destination if needed
-        if ($importOptions->getImportType() === ImportType::INCREMENTAL
-            && $importOptions->getDedupType() === ImportOptions\DedupType::UPDATE_DUPLICATES
-        ) {
+        if ($importOptions->getImportType() === ImportType::INCREMENTAL) {
             $destinationManager->validateIncrementalDestination(
                 $destinationDefinition,
                 $expectedDestinationColumns,
