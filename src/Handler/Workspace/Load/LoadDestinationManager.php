@@ -321,13 +321,6 @@ final class LoadDestinationManager
         /** @var BigqueryDefinition $actualDef */
         $actualDef = $actual->getColumnDefinition();
 
-        // For workspace string tables, destination columns are always STRING type
-        // regardless of source type, so allow any type -> STRING conversion
-        // Also be lenient with nullability and length for string tables
-        if (strcasecmp($actualDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
-            return true;
-        }
-
         // For typed tables, require exact type match
         if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
             return false;
