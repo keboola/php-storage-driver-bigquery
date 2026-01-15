@@ -249,10 +249,8 @@ class LoadTableToWorkspaceHandler extends BaseHandler
             switch (true) {
                     // case 24
                 case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && !$dedupRequired:
-                    // case 31.1,32.1
-                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $filterRequired:
                     // case 22
-                case $loadFromStringTable && $columnNameMappingRequired && !$dataCastingRequired && !$dedupRequired:
+                case $loadFromStringTable  && !$dataCastingRequired && $columnNameMappingRequired && !$dedupRequired:
                     $toStageImporter = new ToStageImporter($bqClient);
                     try {
                         $importState = $toStageImporter->importToStagingTable(
@@ -275,6 +273,8 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                 case $loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $dedupRequired:
                 // case 19.1,20.1
                 case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && $filterRequired:
+                // case 31.1,32.1
+                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && $filterRequired:
                     // staging table + full importer
 
                     // prepare the staging table definition here to identify if the columns are identical or not
@@ -322,7 +322,7 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     // case 19.2,20.2
                 case $loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && !$filterRequired:
                     // case 31.2,32.2
-                case !$loadFromStringTable && $dataCastingRequired && !$columnNameMappingRequired && !$filterRequired:
+                case !$loadFromStringTable && !$dataCastingRequired && !$columnNameMappingRequired && !$filterRequired:
                     /* full importer - case 19, 20; 31,32
                      * one of following options
                      * 1. src table is typed but no changes on casting/mapping (31.2,32.2)
@@ -351,9 +351,9 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                             . '$loadFromStringTable: %s, '
                             . '$dataCastingRequired: %s, '
                             . '$columnNameMappingRequired: %s',
-                            $loadFromStringTable,
-                            $dataCastingRequired,
-                            $columnNameMappingRequired,
+                            $loadFromStringTable ? 'true' : 'false',
+                            $dataCastingRequired ? 'true' : 'false',
+                            $columnNameMappingRequired ? 'true' : 'false',
                         ),
                     );
             }
