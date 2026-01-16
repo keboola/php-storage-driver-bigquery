@@ -348,12 +348,14 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     throw new LogicException(
                         sprintf(
                             'Invalid import options: '
-                            . '$loadFromStringTable: %s, '
-                            . '$dataCastingRequired: %s, '
-                            . '$columnNameMappingRequired: %s',
+                            . 'loadFromStringTable: "%s", '
+                            . 'dataCastingRequired: "%s", '
+                            . 'columnNameMappingRequired: "%s", '
+                            . 'filtering required: "%s"',
                             $loadFromStringTable ? 'true' : 'false',
                             $dataCastingRequired ? 'true' : 'false',
                             $columnNameMappingRequired ? 'true' : 'false',
+                            $filterRequired ? 'true' : 'false',
                         ),
                     );
             }
