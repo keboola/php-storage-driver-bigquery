@@ -280,14 +280,22 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                     // prepare the staging table definition here to identify if the columns are identical or not
                     /** @var ColumnMapping[] $mappings */
                     $mappings = iterator_to_array($sourceMapping->getColumnMappings()->getIterator());
-                    // load to staging table
+
+                    // the staging table has to be created in Workspace, not in source, which is storage.
+                    // Because it could be linked and linked datasets are read-only
+                    $definitionForStaging = new BigqueryTableDefinition(
+                        $destinationDefinition->getSchemaName(),
+                        $sourceTableDefinition->getTableName(),
+                        $sourceTableDefinition->isTemporary(),
+                        $sourceTableDefinition->getColumnsDefinitions(),
+                        $sourceTableDefinition->getPrimaryKeysNames(),
+                    );
                     $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithMapping(
-                        $sourceTableDefinition,
+                        $definitionForStaging,
                         $mappings,
                     );
-
                     // TODO try CopyImportFromTableToTable
-
+                    // load to staging table
                     $bqClient->runQuery($bqClient->query(
                         (new BigqueryTableQueryBuilder())->getCreateTableCommand(
                             $stagingTable->getSchemaName(),
