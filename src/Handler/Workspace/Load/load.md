@@ -1,8 +1,8 @@
 | ID   | LOAD TYPE | TYPED SRC TABLE | DATA CASTING | COLUMN NAME MAPPING | PK SET | WHERE FILTER |
 |------|-----------|-----------------|--------------|---------------------|--------|--------------|
-| 1    | INC       | NO              | YES          | YES                 | YES    |              | STAGING + INC IMPORTER
+| 1    | INC       | NO              | YES          | YES                 | YES    |              | X NOT SUPPORTED - cannot cast data when dedup expected
 | 2    | INC       | NO              | YES          | YES                 | NO     |              | STAGING + INC IMPORTER
-| 3    | INC       | NO              | YES          | NO                  | YES    |              | STAGING + INC IMPORTER
+| 3    | INC       | NO              | YES          | NO                  | YES    |              | X NOT SUPPORTED - cannot cast data when dedup expected
 | 4    | INC       | NO              | YES          | NO                  | NO     |              | STAGING + INC IMPORTER
 | 5    | INC       | NO              | NO           | YES                 | YES    |              | STAGING + INC IMPORTER
 | 6    | INC       | NO              | NO           | YES                 | NO     |              | STAGING + INC IMPORTER
