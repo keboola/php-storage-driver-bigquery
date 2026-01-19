@@ -25,9 +25,10 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
     public static function handleWrongTypeInFilters(
         BigqueryException|BadRequestException $e,
     ): self|BigqueryException|BadRequestException {
-        if (str_contains($e->getMessage(), 'No matching signature for operator ')) {
-            $expectedActualPattern = '/types:\s(.*?)\./';
-            preg_match($expectedActualPattern, $e->getMessage(), $matches);
+        $decodedMessage = DecodeErrorMessage::getErrorMessage($e);
+        if (str_contains($decodedMessage, 'No matching signature for operator ')) {
+            $expectedActualPattern = '/types:\s(.*?)(\\n|\.)/';
+            preg_match($expectedActualPattern, $decodedMessage, $matches);
             if (array_key_exists(1, $matches)) {
                 $expected = trim(explode(',', $matches[1])[0]);
                 $actual = trim(explode(',', $matches[1])[1]);
