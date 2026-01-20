@@ -35,6 +35,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
         // it isn't possible to create a table with TS in WS without CLONE operation
         $srcHasTS = [true, false];
         $renameColumns = [true, false];
+        // this test does not check deduplication itself, just the impact of PK presence on import (different cases)
         $primaryKey = ['empty' => [], 'set' => ['id']];
 
         foreach ($srcTypedOptions as $srcTyped) {
