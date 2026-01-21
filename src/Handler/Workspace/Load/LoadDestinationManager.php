@@ -118,10 +118,14 @@ final class LoadDestinationManager
             $destinationDefinition,
         );
 
-        $this->validateColumnDefinitions(
-            $expectedColumnsNormalized,
-            $actualColumns,
-        );
+        if ($destinationDefinition->getPrimaryKeysNames() === []) {
+            // validate only if inc load do not expect to do deduplication.
+            // currently, deduplication with required casting will fail - known issue
+            $this->validateColumnDefinitions(
+                $expectedColumnsNormalized,
+                $actualColumns,
+            );
+        }
     }
 
     /**
@@ -304,37 +308,37 @@ final class LoadDestinationManager
      * For workspace string tables, allows any type -> STRING conversion.
      * For typed tables, requires exact type, nullability, and length match.
      *
-     * @param BigqueryColumn $expected Expected column definition
-     * @param BigqueryColumn $actual Actual column definition
+     * @param BigqueryColumn $sourceColumn Expected column definition
+     * @param BigqueryColumn $destinationColumn Actual column definition
      * @return bool True if definitions match
      */
     private function columnDefinitionsMatch(
-        BigqueryColumn $expected,
-        BigqueryColumn $actual,
+        BigqueryColumn $sourceColumn,
+        BigqueryColumn $destinationColumn,
     ): bool {
-        /** @var BigqueryDefinition $expectedDef */
-        $expectedDef = $expected->getColumnDefinition();
-        /** @var BigqueryDefinition $actualDef */
-        $actualDef = $actual->getColumnDefinition();
+        /** @var BigqueryDefinition $sourceDef */
+        $sourceDef = $sourceColumn->getColumnDefinition();
+        /** @var BigqueryDefinition $destDef */
+        $destDef = $destinationColumn->getColumnDefinition();
 
         // For workspace string tables, destination columns are always STRING type
         // regardless of source type, so allow any type -> STRING conversion
         // Also be lenient with nullability and length for string tables
-        if (strcasecmp($actualDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
+        if (strcasecmp($sourceDef->getType(), BigqueryDefinition::TYPE_STRING) === 0) {
             return true;
         }
 
         // For typed tables, require exact type match
-        if (strcasecmp($expectedDef->getType(), $actualDef->getType()) !== 0) {
+        if (strcasecmp($sourceDef->getType(), $destDef->getType()) !== 0) {
             return false;
         }
 
-        if ($expectedDef->isNullable() !== $actualDef->isNullable()) {
+        if ($sourceDef->isNullable() !== $destDef->isNullable()) {
             return false;
         }
 
-        $expectedLength = (string) ($expectedDef->getLength() ?? '');
-        $actualLength = (string) ($actualDef->getLength() ?? '');
+        $expectedLength = (string) ($sourceDef->getLength() ?? '');
+        $actualLength = (string) ($destDef->getLength() ?? '');
 
         return $expectedLength === $actualLength;
     }

@@ -8,6 +8,8 @@ use DateTime;
 use Generator;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\BigQuery\Timestamp;
+use Google\Protobuf\Internal\GPBType;
+use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Db\ImportExport\Backend\Snowflake\Helper\DateTimeHelper;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
@@ -35,10 +37,27 @@ class BaseImportTestCase extends BaseCase
         $this->bucketResponse = $bucketResponse;
     }
 
+    /**
+     * @param string[] $pkColumns
+     */
+    protected function buildDedupColumns(array $pkColumns): RepeatedField
+    {
+        $dedupColumns = new RepeatedField(GPBType::STRING);
+        foreach ($pkColumns as $pkColumn) {
+            $dedupColumns[] = $pkColumn;
+        }
+
+        return $dedupColumns;
+    }
+
+    /**
+     * @param string[] $pkColumns
+     */
     protected function createDestinationTable(
         string $bucketDatabaseName,
         string $destinationTableName,
         BigQueryClient $bqClient,
+        array $pkColumns = [],
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -56,7 +75,7 @@ class BaseImportTestCase extends BaseCase
                 BigqueryColumn::createGenericColumn('col3'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(
@@ -89,10 +108,14 @@ class BaseImportTestCase extends BaseCase
         return $tableDestDef;
     }
 
+    /**
+     * @param string[] $pkColumns
+     */
     protected function createDestinationTypedTable(
         string $bucketDatabaseName,
         string $destinationTableName,
         BigQueryClient $bqClient,
+        array $pkColumns = [],
     ): BigqueryTableDefinition {
         $tableDestDef = new BigqueryTableDefinition(
             $bucketDatabaseName,
@@ -113,7 +136,7 @@ class BaseImportTestCase extends BaseCase
                 )),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
         $qb = new BigqueryTableQueryBuilder();
         $sql = $qb->getCreateTableCommand(

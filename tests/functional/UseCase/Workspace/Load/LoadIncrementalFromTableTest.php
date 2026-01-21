@@ -34,17 +34,9 @@ use Throwable;
 
 class LoadIncrementalFromTableTest extends BaseImportTestCase
 {
-    /**
-     * @dataProvider typedTablesProvider
-     *
-     * Incremental load to storage from workspace
-     * This is output mapping, timestamp is updated
-     */
-    public function testImportTableFromTableIncrementalLoad(bool $isTypedTable): void
+    // the option with string table does not make sense, because inc load typed -> string is not supported
+    public function testImportTableFromTableIncrementalLoad(): void
     {
-        // typed tables have to have same structure, but string tables can do the mapping
-        $sourceExtraColumn = $isTypedTable ? 'col3' : 'colX';
-
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -68,7 +60,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                     Bigquery::TYPE_BIGINT,
                     [],
                 )),
-                new BigqueryColumn($sourceExtraColumn, new Bigquery(
+                new BigqueryColumn('col3', new Bigquery(
                     Bigquery::TYPE_INT,
                     [],
                 )),
@@ -95,12 +87,14 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
             implode(',', $insert),
         )));
 
-        // create tables
-        if ($isTypedTable) {
-            $tableDestDef = $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
-        } else {
-            $tableDestDef = $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        $pkColumns = ['col1'];
+        $dedupColumns = new RepeatedField(GPBType::STRING);
+
+        foreach ($pkColumns as $pkColumn) {
+            $dedupColumns[] = $pkColumn;
         }
+
+        $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient, $pkColumns);
 
         $cmd = new LoadTableToWorkspaceCommand();
         $path = new RepeatedField(GPBType::STRING);
@@ -116,7 +110,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
             ->setSourceColumnName('col2')
             ->setDestinationColumnName('col2');
         $columnMappings[] = (new LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping())
-            ->setSourceColumnName($sourceExtraColumn)
+            ->setSourceColumnName('col3')
             ->setDestinationColumnName('col3');
         $cmd->setSource(
             (new LoadTableToWorkspaceCommand\SourceTableMapping())
@@ -130,8 +124,6 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                 ->setTableName($destinationTableName),
         );
 
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'col1';
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
@@ -139,7 +131,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
                 ->setDedupColumnsNames($dedupColumns)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
+                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
                 ->setTimestampColumn('_timestamp')
                 ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
@@ -324,6 +316,7 @@ SQL,
         $sourceTableName = $this->getTestHash() . '_src_filter_dedup';
         $destinationTableName = $this->getTestHash() . '_dest_filter_dedup';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $pkColumns = ['id'];
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // cleanup from previous failed runs
@@ -391,7 +384,7 @@ SQL,
                 BigqueryColumn::createGenericColumn('status'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
 
         try {
@@ -406,7 +399,7 @@ SQL,
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
             $tableDestDef->getColumnsDefinitions(),
-            [],
+            $pkColumns,
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -467,15 +460,11 @@ SQL,
                 ->setTableName($destinationTableName),
         );
 
-        // Incremental import with UPDATE_DUPLICATES and dedup on 'id'
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'id';
-
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportType(ImportOptions\ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
-                ->setDedupColumnsNames($dedupColumns)
+                ->setDedupColumnsNames($this->buildDedupColumns($pkColumns))
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
                 ->setTimestampColumn('_timestamp')
@@ -716,7 +705,7 @@ SQL,
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('Import should fail when column names do not match for incremental UPDATE_DUPLICATES');
-        } catch (ColumnsMismatchException $e) {
+        } catch (ImportValidationException $e) {
             // Expected - column renaming not supported for incremental with dedup
             $this->assertStringContainsString('col1', $e->getMessage(), 'Error should mention source column');
             $this->assertStringContainsString('id', $e->getMessage(), 'Error should mention destination column');
@@ -1027,29 +1016,16 @@ SQL,
         // Try to insert data with NULL in id column (dedup column)
         // For string tables, BigQuery may reject NULL during INSERT
         try {
-            if ($isTypedTable) {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                    BigqueryQuote::quote('1'),
-                    BigqueryQuote::quote('Alice'),
-                    BigqueryQuote::quote('Bob'),
-                    BigqueryQuote::quote('3'),
-                    BigqueryQuote::quote('Charlie'),
-                )));
-            } else {
-                $bqClient->runQuery($bqClient->query(sprintf(
-                    'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
-                    BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-                    BigqueryQuote::quoteSingleIdentifier($sourceTableName),
-                    BigqueryQuote::quote('1'),
-                    BigqueryQuote::quote('Alice'),
-                    BigqueryQuote::quote('Bob'),
-                    BigqueryQuote::quote('3'),
-                    BigqueryQuote::quote('Charlie'),
-                )));
-            }
+            $bqClient->runQuery($bqClient->query(sprintf(
+                'INSERT INTO %s.%s (id, name) VALUES (%s, %s), (NULL, %s), (%s, %s)',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+                BigqueryQuote::quoteSingleIdentifier($sourceTableName),
+                BigqueryQuote::quote('1'),
+                BigqueryQuote::quote('Alice'),
+                BigqueryQuote::quote('Bob'),
+                BigqueryQuote::quote('3'),
+                BigqueryQuote::quote('Charlie'),
+            )));
         } catch (BadRequestException $e) {
             // For string tables, BigQuery rejects NULL during INSERT
             // This documents that NULL values cannot even be inserted into source tables
@@ -1072,11 +1048,12 @@ SQL,
                 $destinationTableName,
                 false,
                 new ColumnCollection([
-                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => true])),
+                    // explicitly set by
+                    new BigqueryColumn('id', new Bigquery(Bigquery::TYPE_STRING, ['nullable' => false])),
                     new BigqueryColumn('name', new Bigquery(Bigquery::TYPE_STRING, [])),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
-                [],
+                ['id'],
             );
         } else {
             $tableDestDef = new BigqueryTableDefinition(
@@ -1084,11 +1061,12 @@ SQL,
                 $destinationTableName,
                 false,
                 new ColumnCollection([
+                    // by default, all generic columns are nullable = false
                     BigqueryColumn::createGenericColumn('id'),
                     BigqueryColumn::createGenericColumn('name'),
                     BigqueryColumn::createTimestampColumn('_timestamp'),
                 ]),
-                [],
+                ['id'],
             );
         }
 
@@ -1104,7 +1082,7 @@ SQL,
             $tableDestDef->getSchemaName(),
             $tableDestDef->getTableName(),
             $tableDestDef->getColumnsDefinitions(),
-            [],
+            ['id'],
         );
         $bqClient->runQuery($bqClient->query($sql));
 

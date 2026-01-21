@@ -210,7 +210,7 @@ class LoadDestinationManagerTest extends TestCase
         // Should not throw exception
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
 
-        $this->assertTrue(true); // Assertion to make PHPUnit happy
+        $this->expectNotToPerformAssertions();
     }
 
     public function testValidateIncrementalFailsMissingColumnInSource(): void
@@ -365,10 +365,10 @@ class LoadDestinationManagerTest extends TestCase
         // Should not throw exception even though _timestamp is not in source
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
 
-        $this->assertTrue(true); // Assertion to make PHPUnit happy
+        $this->expectNotToPerformAssertions();
     }
 
-    public function testValidateIncrementalAllowsStringTableConversion(): void
+    public function testValidateIncrementalDisallowsTypedTableConversion(): void
     {
         // Source has typed columns
         $sourceColumns = new ColumnCollection([
@@ -401,10 +401,53 @@ class LoadDestinationManagerTest extends TestCase
         $bqClient = $this->createMock(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
-        // Should not throw exception - allows any type -> STRING conversion
-        $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
+        try {
+            $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
+            $this->fail('Casting is not allowed on incremental load when source is typed table.');
+        } catch (ColumnsMismatchException $e) {
+            $this->assertEquals(
+                'Column definitions mismatch. '
+                . "Details: 'id' mapping 'INTEGER NOT NULL' / 'STRING'; 'amount' mapping 'NUMERIC' / 'STRING'",
+                $e->getMessage(),
+            );
+        }
+    }
 
-        $this->assertTrue(true);
+    public function testValidateIncrementalAllowsStringTableConversion(): void
+    {
+        // Source has typed columns
+        $sourceColumns = new ColumnCollection([
+            new BigqueryColumn('id', new BigqueryDatatype('STRING', ['nullable' => true])),
+            new BigqueryColumn('amount', new BigqueryDatatype('STRING', ['nullable' => true])),
+        ]);
+
+        // Destination is a string table (all STRING types)
+        $destColumns = new ColumnCollection([
+            new BigqueryColumn('id', new BigqueryDatatype('INTEGER', ['nullable' => false])),
+            new BigqueryColumn('amount', new BigqueryDatatype('NUMERIC', ['nullable' => true])),
+        ]);
+
+        $destDefinition = new BigqueryTableDefinition(
+            'test_dataset',
+            'dest_table',
+            false,
+            $destColumns,
+            [],
+        );
+
+        $sourceDefinition = new BigqueryTableDefinition(
+            'source_dataset',
+            'source_table',
+            false,
+            $sourceColumns,
+            [],
+        );
+
+        $bqClient = $this->createMock(BigQueryClient::class);
+        $manager = new LoadDestinationManager($bqClient);
+
+        $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
+        $this->expectNotToPerformAssertions();
     }
 
     public function testCreateTable(): void
@@ -432,7 +475,6 @@ class LoadDestinationManagerTest extends TestCase
         $manager = new LoadDestinationManager($bqClient);
         // BigQuery doesn't support primary keys, pass empty array
         $manager->createTable('test_dataset', 'new_table', $columns, []);
-
         // Test passes if runQuery was called
     }
 
@@ -472,6 +514,6 @@ class LoadDestinationManagerTest extends TestCase
         // Should not throw exception - case-insensitive comparison
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
 
-        $this->assertTrue(true);
+        $this->expectNotToPerformAssertions();
     }
 }

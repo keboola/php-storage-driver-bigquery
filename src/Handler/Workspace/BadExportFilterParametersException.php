@@ -22,26 +22,33 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
         );
     }
 
-    /**
-     * @throws self
-     */
-    public static function handleWrongTypeInFilters(BigqueryException|BadRequestException $e): void
-    {
-        if (str_contains($e->getMessage(), 'No matching signature for operator ')) {
-            $expectedActualPattern = '/types:\s(.*?)\./';
-            preg_match($expectedActualPattern, $e->getMessage(), $matches);
-            assert(isset($matches[1]));
-            $expected = trim(explode(',', $matches[1])[0]);
-            $actual = trim(explode(',', $matches[1])[1]);
+    public static function handleWrongTypeInFilters(
+        BigqueryException|BadRequestException $e,
+    ): self|BigqueryException|BadRequestException {
+        $decodedMessage = DecodeErrorMessage::getErrorMessage($e);
+        if (str_contains($decodedMessage, 'No matching signature for operator ')) {
+            $expectedActualPattern = '/types:\s(.*?)(\\n|\.)/';
+            preg_match($expectedActualPattern, $decodedMessage, $matches);
+            if (array_key_exists(1, $matches)) {
+                $expected = trim(explode(',', $matches[1])[0]);
+                $actual = trim(explode(',', $matches[1])[1]);
 
-            throw new self(
-                message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
+                return new self(
+                    message: sprintf('Invalid filter value, expected:"%s", actual:"%s".', $expected, $actual),
+                    previous: $e,
+                );
+            }
+        }
+
+        if (str_contains($e->getMessage(), 'Invalid')) {
+            return new self(
+                message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
         }
 
-        if (str_contains($e->getMessage(), 'Invalid')) {
-            throw new self(
+        if (str_contains($e->getMessage(), 'Unable to find common supertype')) {
+            return new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
@@ -66,11 +73,13 @@ class BadExportFilterParametersException extends Exception implements NonRetryab
             //    "status": "INVALID_ARGUMENT"
             //  }
             //}
-            throw new self(
+            return new self(
                 message: DecodeErrorMessage::getErrorMessage($e),
                 previous: $e,
             );
         }
+
+        return $e;
     }
 
     public static function createUnsupportedDatatypeInWhereFilter(string $columnName, string $columnType): self

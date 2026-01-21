@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace\Load;
 
 use Generator;
-use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
@@ -15,7 +14,6 @@ use Keboola\StorageDriver\Backend\BigQuery\Clustering;
 use Keboola\StorageDriver\Backend\BigQuery\RangePartitioning;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\BadExportFilterParametersException;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\MaximumLengthOverflowException;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
@@ -23,6 +21,7 @@ use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportType;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
@@ -136,7 +135,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
@@ -154,7 +153,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $this->assertSame(3, $response->getImportedRowsCount());
         $this->assertSame(
-            [], // optimized full load is not returning imported columns
+            ['col1', 'col4'],
             iterator_to_array($response->getImportedColumns()),
         );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
@@ -162,11 +161,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
     }
 
-    /**
-     * Full load to storage from workspace
-     * This is output mapping, timestamp is updated
-     */
-    public function testImportTableFromTableFullLoadWithTimestamp(): void
+    public function testImportTableFromTableFullLoadWithColumnMapping(): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -219,7 +214,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
             [],
         );
@@ -257,11 +251,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
-                ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp'),
+                ->setNumberOfIgnoredLines(0),
         );
 
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
@@ -284,15 +277,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-
-        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
     }
 
     /**
      * Full load to storage from workspace with deduplication
      * This is output mapping, timestamp is updated
      */
-    public function testImportTableFromTableFullLoadWithTimestampWithDeduplication(): void
+    public function testImportTableFromTableFullLoadWithColumnMappingAndDedup(): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -347,9 +338,8 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col4'), // <- different col rename
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            ['col1'],
         );
         $sql = $qb->getCreateTableCommand(
             $tableDestDef->getSchemaName(),
@@ -387,11 +377,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $dedupCols[] = 'col1';
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
-                ->setTimestampColumn('_timestamp')
                 ->setDedupColumnsNames($dedupCols),
         );
 
@@ -415,7 +404,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
-        $this->assertTimestamp($bqClient, $bucketDatabaseName, $destinationTableName);
         $data = $this->fetchTable(
             $bqClient,
             $bucketDatabaseName,
@@ -441,13 +429,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
     // simulate output mapping load table to table with requirePartition filter
     public function testPartitionedTableWithRequirePartitionFilter(): void
     {
-        $tableName = $this->getTestHash() . '_Test_table';
+        $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         // cleanup from previous failed runs
-        $this->dropTableIfExists($bqClient, $bucketDatasetName, $tableName);
+        $this->dropTableIfExists($bqClient, $bucketDatasetName, $sourceTableName);
         $this->dropTableIfExists($bqClient, $bucketDatasetName, $destinationTableName);
 
         // CREATE TABLE
@@ -481,10 +469,17 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 )
                 ->setRequirePartitionFilter(true),
         );
+
+        $srcColumns = clone $columns;
+        $srcColumns[] = (new TableColumnShared)
+            ->setName('_timestamp')
+            ->setType(Bigquery::TYPE_TIMESTAMP)
+            ->setNullable(false);
+
         $command = (new CreateTableCommand())
             ->setPath($path)
-            ->setTableName($tableName)
-            ->setColumns($columns)
+            ->setTableName($sourceTableName)
+            ->setColumns($srcColumns)
             ->setMeta($any);
         $handler(
             $this->projectCredentials,
@@ -492,11 +487,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             [],
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
-
-        $columns[] = (new TableColumnShared)
-            ->setName('_timestamp')
-            ->setType(Bigquery::TYPE_TIMESTAMP)
-            ->setNullable(false);
 
         $command = (new CreateTableCommand())
             ->setPath($path)
@@ -526,7 +516,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $cmd->setSource(
             (new LoadTableToWorkspaceCommand\SourceTableMapping())
                 ->setPath($path)
-                ->setTableName($tableName)
+                ->setTableName($sourceTableName)
                 ->setColumnMappings($columnMappings),
         );
         $cmd->setDestination(
@@ -536,7 +526,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setNumberOfIgnoredLines(0)
                 ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
@@ -668,11 +658,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 ->setPath($path)
                 ->setTableName($destinationTableName),
         );
+        $convertEmptyValues = new RepeatedField(GPBType::STRING);
+        $convertEmptyValues[] = 'col3';
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
-                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setConvertEmptyValuesToNullOnColumns($convertEmptyValues)
                 ->setNumberOfIgnoredLines(0)
                 ->setCreateMode(ImportOptions\CreateMode::REPLACE), // <- just prove that this has no effect on import
         );
@@ -695,14 +687,14 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
     public function importTypeProvide(): Generator
     {
-        yield 'full' => [ImportOptions\ImportType::FULL];
-        yield 'incremental' => [ImportOptions\ImportType::INCREMENTAL];
+        yield 'full' => [ImportType::FULL];
+        yield 'incremental' => [ImportType::INCREMENTAL];
     }
 
     /**
      * @dataProvider importTypeProvide
      */
-    public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(int $importType): void
+    public function testLoadDataToIncompatibleColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -808,39 +800,60 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
             $this->fail('should fail because of columns mismatch');
-        } catch (ColumnsMismatchException $e) {
-            $this->assertSame(
-                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
-                $e->getMessage(),
-            );
+        } catch (ImportValidationException $e) {
+            if ($importType === ImportType::FULL) {
+                $this->assertStringContainsString(
+                    'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price NUMERIC"',
+                    $e->getMessage(),
+                );
+            } else {
+                // inc load asserts the invalid columns on different place
+                $this->assertStringContainsString(
+                    'Query column 2 has type STRING which cannot be inserted into column price, which has type NUMERIC',
+                    $e->getMessage(),
+                );
+            }
         }
     }
 
-    public function importTypeBoundsProvide(): Generator
+    public function importTypeBoundsProvider(): Generator
     {
-        yield 'full' => [
-            'importType' => ImportOptions\ImportType::FULL,
-            'longContent' => 'xxxyyyxxx',
-        ];
-        yield 'incremental' => [
-            ImportOptions\ImportType::INCREMENTAL,
-            'longContent' => 'xxxyyyxxx',
-        ];
-        yield 'full error import' => [
-            'importType' => ImportOptions\ImportType::FULL,
-            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-        ];
-        yield 'incremental error import' => [
-            ImportOptions\ImportType::INCREMENTAL,
-            'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
-        ];
+        foreach ([
+                     'full' => ImportType::FULL,
+                     'inc' => ImportType::INCREMENTAL,
+                 ] as $importTypeName => $importType) {
+            foreach ([
+                         'fit' => 'xxxyyyxxx',
+                         'oversize' => 'xxxyyyxxxyyyxxxyyyx21',
+                     ] as $longContentName => $longContent) {
+                foreach ([
+                             'typed' => ImportStrategy::USER_DEFINED_TABLE,
+                             'string' => ImportStrategy::STRING_TABLE,
+                         ] as $srcTableTypeName => $srcTableType) {
+                    yield sprintf(
+                        'Import Type: "%s" | src table "%s" | content: "%s"',
+                        $importTypeName,
+                        $srcTableTypeName,
+                        $longContentName,
+                    ) => [
+                        'importType' => $importType,
+                        'longContent' => $longContentName,
+                        'srcTable' => $srcTableType,
+                    ];
+                }
+            }
+        }
     }
 
     /**
-     * @dataProvider importTypeBoundsProvide
+     * @dataProvider importTypeBoundsProvider
      */
-    public function testLoadDataToDifferentColumnLengthMismatchBounds(int $importType, string $longContent): void
-    {
+    public function testLoadDataToDifferentColumnLengthMismatchBounds(
+        int $importType,
+        string $longContent,
+        int $srcTableType,
+    ): void {
+        $contentIsTooLong = strlen($longContent) === 21;
         $sourceTableName = $this->getTestHash() . '_Test_table';
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -929,7 +942,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
+                ->setImportStrategy($srcTableType)
                 ->setImportType($importType)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -941,6 +954,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $handler->setInternalLogger($this->log);
 
         $response = null;
+        $importSuccessful = true;
         try {
             /** @var TableImportResponse $response */
             $response = $handler(
@@ -949,16 +963,28 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 [],
                 new RuntimeOptions(['runId' => $this->testRunId]),
             );
-            if (strlen($longContent) === 21) {
+            if ($contentIsTooLong) {
                 $this->fail('should fail because of column content won\'t fit');
             }
         } catch (MaximumLengthOverflowException $e) {
             $this->assertSame(
-                sprintf('Field price: STRING(20) has maximum length 20 but got a value with length 21'),
+                'Field price: STRING(20) has maximum length 20 but got a value with length 21',
                 $e->getMessage(),
             );
+            $importSuccessful = false;
+        } catch (ImportValidationException $e) {
+            $this->assertTrue(
+                ($srcTableType === ImportStrategy::USER_DEFINED_TABLE && $importType === ImportType::FULL),
+                'this case can only happenon typed table and full load',
+            );
+
+            $this->assertSame(
+                'Source destination columns mismatch. "price STRING DEFAULT \'\' NOT NULL"->"price STRING(20)"',
+                $e->getMessage(),
+            );
+            $importSuccessful = false;
         }
-        if (strlen($longContent) !== 21) {
+        if (!$contentIsTooLong && $importSuccessful) {
             $this->assertNotNull($response);
             $this->assertSame(3, $response->getImportedRowsCount());
         } else {
@@ -1063,7 +1089,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setImportStrategy(ImportStrategy::STRING_TABLE)
@@ -1184,7 +1210,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $cmd->setImportOptions(
             (new ImportOptions())
                 ->setImportStrategy(ImportStrategy::USER_DEFINED_TABLE)
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setTimestampColumn('_timestamp')
@@ -1216,6 +1242,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         $destinationTableName = $this->getTestHash() . '_dest_copy_test';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $pkColumns = ['pk_col'];
 
         // cleanup from previous failed runs
         $this->dropTableIfExists($bqClient, $bucketDatabaseName, $sourceTableName);
@@ -1246,10 +1273,10 @@ class LoadTableFromTableTest extends BaseImportTestCase
         // Insert source data (NO duplicates - all unique pk_col values)
         $insert = [];
         foreach ([
-            ['1', 'first_value'],
-            ['2', 'second_value'],
-            ['3', 'third_value'],
-        ] as $row) {
+                     ['1', 'first_value'],
+                     ['2', 'second_value'],
+                     ['3', 'third_value'],
+                 ] as $row) {
             $quotedValues = array_map([BigqueryQuote::class, 'quote'], $row);
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
@@ -1270,14 +1297,14 @@ class LoadTableFromTableTest extends BaseImportTestCase
                 BigqueryColumn::createGenericColumn('value_col'),
                 BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
-            [],
+            $pkColumns,
         );
 
         $sql = $qb->getCreateTableCommand(
             $destinationDefinition->getSchemaName(),
             $destinationDefinition->getTableName(),
             $destinationDefinition->getColumnsDefinitions(),
-            [],
+            $pkColumns,
         );
         $bqClient->runQuery($bqClient->query($sql));
 
@@ -1326,15 +1353,12 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
 
         // CRITICAL: Incremental + UPDATE_DUPLICATES + dedup columns
-        // This combination should PREVENT COPY optimization
-        $dedupColumns = new RepeatedField(GPBType::STRING);
-        $dedupColumns[] = 'pk_col';
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
-                ->setDedupColumnsNames($dedupColumns)
+                ->setDedupColumnsNames($this->buildDedupColumns($pkColumns))
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
                 ->setTimestampColumn('_timestamp')
@@ -1436,11 +1460,11 @@ class LoadTableFromTableTest extends BaseImportTestCase
         // This test uses only unique PK values to ensure deterministic results.
         $insert = [];
         foreach ([
-            ['1', 'Alice', 'value1'],
-            ['2', 'Bob', 'value2'],
-            ['3', 'Charlie', 'value3'],
-            ['5', 'Eve', 'value5'],              // NEW - unique PK
-        ] as $row) {
+                     ['1', 'Alice', 'value1'],
+                     ['2', 'Bob', 'value2'],
+                     ['3', 'Charlie', 'value3'],
+                     ['5', 'Eve', 'value5'],              // NEW - unique PK
+                 ] as $row) {
             $quotedValues = array_map([BigqueryQuote::class, 'quote'], $row);
             $insert[] = sprintf('(%s)', implode(',', $quotedValues));
         }
@@ -1546,7 +1570,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1613,13 +1637,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         // Verify updated/new rows have fresh timestamps (not 2020-01-01)
         $result = $bqClient->runQuery($bqClient->query(sprintf(
-            'SELECT COUNT(*) as count FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
+            'SELECT COUNT(*) AS COUNT FROM %s.%s WHERE `_timestamp` > TIMESTAMP \'2020-01-02 00:00:00\'',
             BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
             BigqueryQuote::quoteSingleIdentifier($destinationTableName),
         )));
         $row = iterator_to_array($result->getIterator())[0];
         assert(is_array($row));
-        $this->assertSame('4', (string) $row['count'], 'Four rows should have updated timestamps');
+        $this->assertSame('4', (string) $row['COUNT'], 'Four rows should have updated timestamps');
 
         // Scenario 4: Test auto-creation of destination with primary keys
         $cmd2 = new LoadTableToWorkspaceCommand();
@@ -1654,7 +1678,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd2->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupCols2)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1802,7 +1826,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
             )
             ->setImportOptions(
                 (new ImportOptions())
-                    ->setImportType(ImportOptions\ImportType::FULL)
+                    ->setImportType(ImportType::FULL)
                     ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                     ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                     ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -1971,7 +1995,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
 
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setImportType(ImportType::INCREMENTAL)
                 ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                 ->setDedupColumnsNames($dedupColumns)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
@@ -2122,7 +2146,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL),
+                ->setImportType(ImportType::FULL),
         );
 
         $handler = new LoadTableToWorkspaceHandler($this->clientManager);
@@ -2179,7 +2203,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new ColumnCollection([
                 BigqueryColumn::createGenericColumn('col1'),
                 BigqueryColumn::createGenericColumn('col2'),
-                BigqueryColumn::createTimestampColumn('_timestamp'),
             ]),
             [],
         );
@@ -2260,7 +2283,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
             )
             ->setImportOptions(
                 (new ImportOptions())
-                    ->setImportType(ImportOptions\ImportType::FULL)
+                    ->setImportType(ImportType::FULL)
                     ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
                     ->setImportStrategy(ImportOptions\ImportStrategy::USER_DEFINED_TABLE)
                     ->setNumberOfIgnoredLines(0),
@@ -2380,7 +2403,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         );
         $cmd->setImportOptions(
             (new ImportOptions())
-                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setImportType(ImportType::FULL)
                 ->setDedupType(ImportOptions\DedupType::INSERT_DUPLICATES)
                 ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
                 ->setNumberOfIgnoredLines(0)
@@ -2397,10 +2420,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             new RuntimeOptions(['runId' => $this->testRunId]),
         );
         $this->assertSame(3, $response->getImportedRowsCount());
-        $this->assertSame(
-            [], // optimized full load is not returning imported columns
-            iterator_to_array($response->getImportedColumns()),
-        );
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
         $this->assertSame(3, $ref->getRowsCount());
         $this->assertSame($ref->getRowsCount(), $response->getTableRowsCount());
