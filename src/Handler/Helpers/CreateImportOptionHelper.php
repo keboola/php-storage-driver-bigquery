@@ -23,15 +23,13 @@ final class CreateImportOptionHelper
         array $features,
     ): BigqueryImportOptions {
         $usingTypes = match ($options->getImportStrategy()) {
-            ImportStrategy::STRING_TABLE => ImportOptionsInterface::USING_TYPES_STRING,
             ImportStrategy::USER_DEFINED_TABLE => ImportOptionsInterface::USING_TYPES_USER,
-            default => throw new InvalidArgumentException('Unknown import strategy ' . $options->getImportStrategy()),
+            default => ImportOptionsInterface::USING_TYPES_STRING,
         };
         $timestampMode = match ($options->getTimestampMode()) {
-            ImportOptions\TimestampMode::CURRENT_TIME => TimestampMode::CurrentTime,
             ImportOptions\TimestampMode::FROM_SOURCE => TimestampMode::FromSource,
             ImportOptions\TimestampMode::NONE => TimestampMode::None,
-            default => throw new InvalidArgumentException('Unknown timestamp mode ' . $options->getTimestampMode()),
+            default => TimestampMode::CurrentTime,
         };
         $useTimestamp = $options->getTimestampColumn() === '_timestamp';
         if ($timestampMode === TimestampMode::FromSource || $timestampMode === TimestampMode::None) {
