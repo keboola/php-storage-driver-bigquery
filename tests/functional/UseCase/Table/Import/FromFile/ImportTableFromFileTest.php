@@ -17,6 +17,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\GCSCredentials;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
@@ -418,6 +419,106 @@ class ImportTableFromFileTest extends BaseImportTestCase
             $this->fail('should fail because of nulls in required field');
         } catch (ImportValidationException $e) {
             $this->assertSame('Required field apiLimitExceededDatetime cannot be null', $e->getMessage());
+        }
+    }
+
+    /**
+     * @dataProvider typedTablesProvider
+     */
+    public function testImportTableFromFileFullLoadWithTimestampFromSource(bool $isTypedTable): void
+    {
+        $destinationTableName = $this->getTestHash() . '_Test_table_ts_full';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
+        // create tables (with old timestamps from 2014)
+        if ($isTypedTable) {
+            $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        } else {
+            $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        }
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->assertSame(3, $ref->getRowsCount());
+
+        $cmd = new TableImportFromFileCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $cmd->setFileProvider(FileProvider::GCS);
+        $cmd->setFileFormat(FileFormat::CSV);
+
+        // Include _timestamp in columns
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'col1';
+        $columns[] = 'col2';
+        $columns[] = 'col3';
+        $columns[] = '_timestamp';
+
+        $formatOptions = new Any();
+        $formatOptions->pack(
+            (new TableImportFromFileCommand\CsvTypeOptions())
+                ->setColumnsNames($columns)
+                ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
+                ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
+                ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
+        );
+        $cmd->setFormatTypeOptions($formatOptions);
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath('import')
+                ->setFileName('a_b_c_timestamp-3row.csv'),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $dedupCols[] = 'col1';
+
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupCols)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
+                ->setNumberOfIgnoredLines(1)
+                ->setTimestampColumn('_timestamp')
+                ->setTimestampMode(ImportOptions\TimestampMode::FROM_SOURCE),
+        );
+
+        $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        // Full load replaces all data: 3 rows from source deduplicated to 2 (col1=1 has duplicates)
+        $this->assertSame(2, $ref->getRowsCount());
+
+        // Verify timestamps come from SOURCE (2023-06-15), not current time
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col2', 'col3', '_timestamp'],
+        );
+
+        // All rows should have timestamp from source file: 2023-06-15
+        /** @var array{_timestamp: string} $row */
+        foreach ($data as $row) {
+            $this->assertStringContainsString('2023-06-15', $row['_timestamp']);
         }
     }
 
