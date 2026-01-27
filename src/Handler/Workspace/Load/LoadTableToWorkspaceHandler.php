@@ -337,7 +337,7 @@ class LoadTableToWorkspaceHandler extends BaseHandler
                      * 2. src table is string and casting required (19,20)
                      */
 
-                    /* when FULL loading from workspace to workspace and PKs are defined, there is no point of doing
+                    /* when FULL loading from Storage to workspace and PKs are defined, there is no point of doing
                      * deduplication because PKs are inherited from Storage (so the data are deduped already).
                      * If PKs would be passed to importer, it woulc
                      *  1. do dedup operations for no reason
