@@ -33,10 +33,14 @@ final class CreateImportOptionHelper
             ImportOptions\TimestampMode::NONE => TimestampMode::None,
             default => throw new InvalidArgumentException('Unknown timestamp mode ' . $options->getTimestampMode()),
         };
+        $useTimestamp = $options->getTimestampColumn() === '_timestamp';
+        if ($timestampMode === TimestampMode::FromSource || $timestampMode === TimestampMode::None) {
+            $useTimestamp = false;
+        }
         return new BigqueryImportOptions(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
             $options->getImportType() === ImportType::INCREMENTAL,
-            $options->getTimestampColumn() === '_timestamp',
+            $useTimestamp,
             $options->getNumberOfIgnoredLines(),
             $usingTypes,
             null,
