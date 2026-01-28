@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Helpers;
 
 use Keboola\Db\ImportExport\Backend\Bigquery\BigqueryImportOptions;
+use Keboola\Db\ImportExport\Backend\TimestampMode;
 use Keboola\Db\ImportExport\ImportOptionsInterface;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
@@ -20,19 +21,29 @@ final class CreateImportOptionHelper
         ImportOptions $options,
         array $features,
     ): BigqueryImportOptions {
-        $strategyMapping = [
-            ImportStrategy::STRING_TABLE => ImportOptionsInterface::USING_TYPES_STRING,
+        $usingTypes = match ($options->getImportStrategy()) {
             ImportStrategy::USER_DEFINED_TABLE => ImportOptionsInterface::USING_TYPES_USER,
-        ];
+            default => ImportOptionsInterface::USING_TYPES_STRING,
+        };
+        $timestampMode = match ($options->getTimestampMode()) {
+            ImportOptions\TimestampMode::FROM_SOURCE => TimestampMode::FromSource,
+            ImportOptions\TimestampMode::NONE => TimestampMode::None,
+            default => TimestampMode::CurrentTime,
+        };
+        $useTimestamp = $options->getTimestampColumn() === '_timestamp';
+        if ($timestampMode === TimestampMode::FromSource || $timestampMode === TimestampMode::None) {
+            $useTimestamp = false;
+        }
         return new BigqueryImportOptions(
             ProtobufHelper::repeatedStringToArray($options->getConvertEmptyValuesToNullOnColumns()),
             $options->getImportType() === ImportType::INCREMENTAL,
-            $options->getTimestampColumn() === '_timestamp',
+            $useTimestamp,
             $options->getNumberOfIgnoredLines(),
-            $strategyMapping[$options->getImportStrategy()],
+            $usingTypes,
             null,
             ProtobufHelper::repeatedStringToArray($options->getImportAsNull()),
             $features,
+            $timestampMode,
         );
     }
 }

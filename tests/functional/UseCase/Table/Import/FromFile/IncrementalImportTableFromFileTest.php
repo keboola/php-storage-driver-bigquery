@@ -132,4 +132,133 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
             ],
         ], $data);
     }
+
+    /**
+     * @dataProvider typedTablesProvider
+     */
+    public function testImportTableFromFileIncrementalWithTimestampFromSource(bool $isTypedTable): void
+    {
+        $destinationTableName = $this->getTestHash() . '_Test_table_ts_source';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+
+        // cleanup
+        $this->dropTableIfExists($bqClient, $bucketDatabaseName, $destinationTableName);
+
+        // create tables (with old timestamps from 2014)
+        if ($isTypedTable) {
+            $this->createDestinationTypedTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        } else {
+            $this->createDestinationTable($bucketDatabaseName, $destinationTableName, $bqClient);
+        }
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->assertSame(3, $ref->getRowsCount());
+
+        $cmd = new TableImportFromFileCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+        $cmd->setFileProvider(FileProvider::GCS);
+        $cmd->setFileFormat(FileFormat::CSV);
+
+        // Include _timestamp in columns
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'col1';
+        $columns[] = 'col2';
+        $columns[] = 'col3';
+        $columns[] = '_timestamp';
+
+        $formatOptions = new Any();
+        $formatOptions->pack(
+            (new TableImportFromFileCommand\CsvTypeOptions())
+                ->setColumnsNames($columns)
+                ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
+                ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
+                ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
+        );
+        $cmd->setFormatTypeOptions($formatOptions);
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath('import')
+                ->setFileName('a_b_c_timestamp-3row.csv'),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($destinationTableName),
+        );
+
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $dedupCols[] = 'col1';
+
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::INCREMENTAL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupCols)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setImportStrategy($isTypedTable ? ImportStrategy::USER_DEFINED_TABLE : ImportStrategy::STRING_TABLE)
+                ->setNumberOfIgnoredLines(1)
+                ->setTimestampColumn('_timestamp')
+                ->setTimestampMode(ImportOptions\TimestampMode::FROM_SOURCE),
+        );
+
+        $handler = new ImportTableFromFileHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $handler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
+        $this->assertSame(4, $ref->getRowsCount());
+
+        // Verify timestamps come from SOURCE (2023-06-15), not current time
+        /** @param array<array{col1: int|string, col2: int|string, col3: int|string, _timestamp: string}> $data */
+        $data = $this->fetchTable(
+            $bqClient,
+            $bucketDatabaseName,
+            $destinationTableName,
+            ['col1', 'col2', 'col3', '_timestamp'],
+        );
+
+        // Check that updated/new rows have source timestamp (2023), not current time
+        // Original rows that weren't updated should keep 2014 timestamps
+
+        // First, assert we have exactly the expected col1 values
+        $col1Values = array_map(
+            // @phpstan-ignore-next-line - phpstan thinks $row['col1'] is mixed
+            fn(array $row) => (string) $row['col1'],
+            $data,
+        );
+        sort($col1Values);
+        $this->assertSame(['1', '2', '3', '5'], $col1Values, 'Expected exactly col1 values: 1, 2, 3, 5');
+
+        /** @var array{_timestamp: string, col1: int|string} $row */
+        foreach ($data as $row) {
+            $col1 = (string) $row['col1'];
+
+            // Row with col1=1 was updated (existed with col1=1, col2=2, col3=4 -> now col1=1, col2=2, col3=3)
+            // Row with col1=5 is new
+            // Both should have timestamp from source file: 2023-06-15
+            // Rows with col1=2,3 weren't in source, should keep original 2014 timestamp
+            match ($col1) {
+                '1', '5' => $this->assertStringContainsString(
+                    '2023-06-15',
+                    $row['_timestamp'],
+                    "Row with col1={$col1} should have timestamp from source (2023-06-15)",
+                ),
+                '2', '3' => $this->assertStringContainsString(
+                    '2014-11-10',
+                    $row['_timestamp'],
+                    "Row with col1={$col1} should have original timestamp (2014-11-10)",
+                ),
+                default => $this->fail("Unexpected col1 value: {$col1}"),
+            };
+        }
+    }
 }
