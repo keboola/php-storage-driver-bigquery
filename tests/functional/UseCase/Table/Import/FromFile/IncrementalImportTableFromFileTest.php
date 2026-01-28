@@ -218,6 +218,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         $this->assertSame(4, $ref->getRowsCount());
 
         // Verify timestamps come from SOURCE (2023-06-15), not current time
+        /** @param array<array{col1: int|string, col2: int|string, col3: int|string, _timestamp: string}> $data */
         $data = $this->fetchTable(
             $bqClient,
             $bucketDatabaseName,
@@ -227,18 +228,37 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
 
         // Check that updated/new rows have source timestamp (2023), not current time
         // Original rows that weren't updated should keep 2014 timestamps
+
+        // First, assert we have exactly the expected col1 values
+        $col1Values = array_map(
+            // @phpstan-ignore-next-line - phpstan thinks $row['col1'] is mixed
+            fn(array $row) => (string) $row['col1'],
+            $data,
+        );
+        sort($col1Values);
+        $this->assertSame(['1', '2', '3', '5'], $col1Values, 'Expected exactly col1 values: 1, 2, 3, 5');
+
         /** @var array{_timestamp: string, col1: int|string} $row */
         foreach ($data as $row) {
+            $col1 = (string) $row['col1'];
+
             // Row with col1=1 was updated (existed with col1=1, col2=2, col3=4 -> now col1=1, col2=2, col3=3)
             // Row with col1=5 is new
             // Both should have timestamp from source file: 2023-06-15
-            if ($row['col1'] === '1' || $row['col1'] === 1 || $row['col1'] === '5' || $row['col1'] === 5) {
-                $this->assertStringContainsString('2023-06-15', $row['_timestamp']);
-            }
             // Rows with col1=2,3 weren't in source, should keep original 2014 timestamp
-            if ($row['col1'] === '2' || $row['col1'] === 2 || $row['col1'] === '3' || $row['col1'] === 3) {
-                $this->assertStringContainsString('2014-11-10', $row['_timestamp']);
-            }
+            match ($col1) {
+                '1', '5' => $this->assertStringContainsString(
+                    '2023-06-15',
+                    $row['_timestamp'],
+                    "Row with col1={$col1} should have timestamp from source (2023-06-15)",
+                ),
+                '2', '3' => $this->assertStringContainsString(
+                    '2014-11-10',
+                    $row['_timestamp'],
+                    "Row with col1={$col1} should have original timestamp (2014-11-10)",
+                ),
+                default => $this->fail("Unexpected col1 value: {$col1}"),
+            };
         }
     }
 }
