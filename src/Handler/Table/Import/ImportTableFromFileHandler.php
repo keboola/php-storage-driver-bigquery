@@ -23,6 +23,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions\ImportStrategy;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -124,10 +125,17 @@ final class ImportTableFromFileHandler extends BaseHandler
                 );
             }
             // prepare staging table definition
-            $stagingTable = StageTableDefinitionFactory::createStagingTableDefinition(
-                $destinationDefinition,
-                $source->getColumnsNames(),
-            );
+            if ($importOptions->getImportStrategy() === ImportStrategy::STRING_TABLE) {
+                $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithText(
+                    $destinationDefinition,
+                    $source->getColumnsNames(),
+                );
+            } else {
+                $stagingTable = StageTableDefinitionFactory::createStagingTableDefinition(
+                    $destinationDefinition,
+                    $source->getColumnsNames(),
+                );
+            }
             // create staging table
             $qb = new BigqueryTableQueryBuilder();
             $query = $bqClient->query(
