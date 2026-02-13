@@ -98,6 +98,27 @@ final class StageTableDefinitionFactory
         );
     }
 
+    /**
+     * @param array<string> $sourceColumnsNames
+     */
+    public static function createStagingTableDefinitionWithText(
+        BigqueryTableDefinition $destination,
+        array $sourceColumnsNames,
+    ): BigqueryTableDefinition {
+        $newDefinitions = [];
+        foreach ($sourceColumnsNames as $columnName) {
+            $newDefinitions[] = self::createVarcharColumn($columnName);
+        }
+
+        return new BigqueryTableDefinition(
+            $destination->getSchemaName(),
+            BackendHelper::generateStagingTableName(),
+            true,
+            new ColumnCollection($newDefinitions),
+            [],
+        );
+    }
+
     private static function createVarcharColumn(string $columnName): BigqueryColumn
     {
         return new BigqueryColumn(
