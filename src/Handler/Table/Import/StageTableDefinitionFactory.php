@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Import;
 
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\Db\ImportExport\Backend\Helper\BackendHelper;
+use Keboola\Db\ImportExport\Backend\ToStageImporterInterface;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand\SourceTableMapping\ColumnMapping;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
@@ -107,6 +108,26 @@ final class StageTableDefinitionFactory
     ): BigqueryTableDefinition {
         $newDefinitions = [];
         foreach ($sourceColumnsNames as $columnName) {
+            // _timestamp must keep TIMESTAMP type from destination to avoid type mismatch during MERGE
+            if ($columnName === ToStageImporterInterface::TIMESTAMP_COLUMN_NAME) {
+                /** @var BigqueryColumn $definition */
+                foreach ($destination->getColumnsDefinitions() as $definition) {
+                    if ($definition->getColumnName() === $columnName) {
+                        $newDefinitions[] = new BigqueryColumn(
+                            $columnName,
+                            new Bigquery(
+                                $definition->getColumnDefinition()->getType(),
+                                [
+                                    'length' => $definition->getColumnDefinition()->getLength(),
+                                    'nullable' => true,
+                                    'default' => $definition->getColumnDefinition()->getDefault(),
+                                ],
+                            ),
+                        );
+                        continue 2;
+                    }
+                }
+            }
             $newDefinitions[] = self::createVarcharColumn($columnName);
         }
 
