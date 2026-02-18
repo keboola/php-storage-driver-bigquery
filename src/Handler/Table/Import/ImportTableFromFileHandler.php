@@ -124,7 +124,13 @@ final class ImportTableFromFileHandler extends BaseHandler
                     $dedupColumns, // add dedup columns separately as BQ has no primary keys
                 );
             }
-            // prepare staging table definition
+            // Prepare staging table definition.
+            // STRING_TABLE: all columns are STRING — used for cross-backend CSV loads where
+            // source format may not match BigQuery's typed column expectations. Type casting
+            // is deferred to the SQL layer (FullImporter/IncrementalImporter via SqlBuilder).
+            // USER_DEFINED_TABLE: columns match destination types — used for same-backend loads
+            // where CSV format is guaranteed to be compatible with BigQuery's CSV parser.
+            // See LoadTableWithDriver::importTableDataFromStaging() for the strategy decision.
             if ($importOptions->getImportStrategy() === ImportStrategy::STRING_TABLE) {
                 $stagingTable = StageTableDefinitionFactory::createStagingTableDefinitionWithText(
                     $destinationDefinition,
