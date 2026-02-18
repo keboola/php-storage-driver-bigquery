@@ -7,6 +7,7 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Project\Drop;
 use Exception;
 use Google\Cloud\Billing\V1\ProjectBillingInfo;
 use Google\Protobuf\Internal\Message;
+use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Project\DropProjectCommand;
@@ -80,6 +81,7 @@ final class DropProjectHandler extends BaseHandler
             sprintf('projects/%s', $projectId),
         );
         foreach ($serviceAccountsInProject as $item) {
+            assert($item instanceof ServiceAccount);
             $serviceAccountsService->delete(sprintf('projects/%s/serviceAccounts/%s', $projectId, $item->getEmail()));
         }
         $projectsClient = $this->clientManager->getProjectClient($credentials);
