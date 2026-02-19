@@ -13,9 +13,11 @@ use Google\Service\CloudResourceManager\Policy;
 use Google\Service\CloudResourceManager\SetIamPolicyRequest;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\Command\Workspace\DirectGrantTable;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -66,6 +68,7 @@ final class DropWorkspaceHandler extends BaseHandler
         $keyData = json_decode($command->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);
 
         $this->deleteDataset($bqClient, $command);
+        $this->revokeDirectGrantTableIam($bqClient, $command, $keyData['client_email']);
         $this->dropIamPolicies($credentials, $keyData['client_email']);
         $this->cancelRunningJobs($bqClient, $keyData['client_email']);
         $this->deleteServiceAccount($credentials, $keyData['project_id'], $keyData['client_email']);
@@ -113,6 +116,76 @@ final class DropWorkspaceHandler extends BaseHandler
                         $e->getMessage(),
                     ));
                 }
+            }
+        }
+    }
+
+    private function revokeDirectGrantTableIam(
+        BigQueryClient $bqClient,
+        DropWorkspaceCommand $command,
+        string $serviceAccountEmail,
+    ): void {
+        $saIdentifier = 'serviceAccount:' . $serviceAccountEmail;
+
+        foreach ($command->getDirectGrantTables() as $directGrantTable) {
+            /** @var DirectGrantTable $directGrantTable */
+            $table = $bqClient->dataset(ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0])
+                ->table($directGrantTable->getTableName());
+
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($directGrantTable) {
+                // Do not retry 404 - table may have been deleted before workspace
+                if ($e->getCode() === 404) {
+                    return false;
+                }
+                $this->internalLogger->debug(sprintf(
+                    'Try revoke table IAM policy for %s.%s Err: %s',
+                    ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                    $directGrantTable->getTableName(),
+                    $e->getMessage(),
+                ));
+                return true;
+            }, 5);
+            $backOffPolicy = new ExponentialRandomBackOffPolicy(
+                5_000, // 5s
+                1.8,
+                60_000, // 1m
+            );
+            $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+            try {
+                $proxy->call(function () use ($table, $saIdentifier, $directGrantTable): void {
+                    $policy = $table->iam()->policy();
+                    $newBindings = [];
+                    foreach ($policy['bindings'] ?? [] as $binding) {
+                        $filteredMembers = array_values(array_filter(
+                            $binding['members'] ?? [],
+                            fn(string $member) => $member !== $saIdentifier,
+                        ));
+                        if ($filteredMembers !== []) {
+                            $binding['members'] = $filteredMembers;
+                            $newBindings[] = $binding;
+                        }
+                    }
+                    $policy['bindings'] = $newBindings;
+                    $table->iam()->setPolicy($policy);
+                    $this->internalLogger->debug(sprintf(
+                        'Revoked table IAM policy (dataEditor) for %s on %s.%s',
+                        $saIdentifier,
+                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $directGrantTable->getTableName(),
+                    ));
+                });
+            } catch (Throwable $e) {
+                if ($e->getCode() === 404) {
+                    // Table was deleted before workspace - skip silently
+                    $this->internalLogger->debug(sprintf(
+                        'Table %s.%s not found, skipping IAM revoke',
+                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $directGrantTable->getTableName(),
+                    ));
+                    continue;
+                }
+                throw $e;
             }
         }
     }

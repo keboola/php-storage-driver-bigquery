@@ -20,6 +20,7 @@ use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
+use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Psr\Log\LogLevel;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
@@ -187,6 +188,47 @@ final class CreateWorkspaceHandler extends BaseHandler
                 $this->internalLogger,
             );
         });
+
+        // grant table-level IAM for direct grant tables
+        foreach ($command->getDirectGrantTables() as $directGrantTable) {
+            /** @var \Keboola\StorageDriver\Command\Workspace\DirectGrantTable $directGrantTable */
+            $table = $bqClient->dataset(ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0])
+                ->table($directGrantTable->getTableName());
+
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($directGrantTable) {
+                $this->internalLogger->debug(sprintf(
+                    'Try set table IAM policy for %s.%s Err: %s',
+                    ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                    $directGrantTable->getTableName(),
+                    $e->getMessage(),
+                ));
+                return true;
+            }, 5);
+            $backOffPolicy = new ExponentialRandomBackOffPolicy(
+                5_000, // 5s
+                1.8,
+                60_000, // 1m
+            );
+            $tableIamProxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+            $tableIamProxy->call(function () use ($table, $wsServiceAcc, $directGrantTable): void {
+                $policy = $table->iam()->policy();
+                $policy['bindings'][] = [
+                    'role' => IAmPermissions::ROLES_BIGQUERY_DATA_EDITOR,
+                    'members' => ['serviceAccount:' . $wsServiceAcc->getEmail()],
+                ];
+                $table->iam()->setPolicy($policy);
+                $this->internalLogger->log(
+                    LogLevel::DEBUG,
+                    sprintf(
+                        'Set table IAM policy (dataEditor) for %s on %s.%s',
+                        $wsServiceAcc->getEmail(),
+                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $directGrantTable->getTableName(),
+                    ),
+                );
+            });
+        }
 
         // generate credentials
         [$privateKey, $publicPart,] = $iamService->createKeyFileCredentials($wsServiceAcc);
