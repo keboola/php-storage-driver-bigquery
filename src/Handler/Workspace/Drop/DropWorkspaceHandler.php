@@ -129,17 +129,21 @@ final class DropWorkspaceHandler extends BaseHandler
 
         foreach ($command->getDirectGrantTables() as $directGrantTable) {
             /** @var DirectGrantTable $directGrantTable */
-            $table = $bqClient->dataset(ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0])
+            $path = ProtobufHelper::repeatedStringToArray($directGrantTable->getPath());
+            assert(count($path) > 0, 'DirectGrantTable path must not be empty');
+            $datasetName = $path[0];
+
+            $table = $bqClient->dataset($datasetName)
                 ->table($directGrantTable->getTableName());
 
-            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($directGrantTable) {
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($datasetName, $directGrantTable) {
                 // Do not retry 404 - table may have been deleted before workspace
                 if ($e->getCode() === 404) {
                     return false;
                 }
                 $this->internalLogger->debug(sprintf(
                     'Try revoke table IAM policy for %s.%s Err: %s',
-                    ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                    $datasetName,
                     $directGrantTable->getTableName(),
                     $e->getMessage(),
                 ));
@@ -153,7 +157,7 @@ final class DropWorkspaceHandler extends BaseHandler
             $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
             try {
-                $proxy->call(function () use ($table, $saIdentifier, $directGrantTable): void {
+                $proxy->call(function () use ($table, $saIdentifier, $datasetName, $directGrantTable): void {
                     $policy = $table->iam()->policy();
                     $newBindings = [];
                     foreach ($policy['bindings'] ?? [] as $binding) {
@@ -171,7 +175,7 @@ final class DropWorkspaceHandler extends BaseHandler
                     $this->internalLogger->debug(sprintf(
                         'Revoked table IAM policy (dataEditor) for %s on %s.%s',
                         $saIdentifier,
-                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $datasetName,
                         $directGrantTable->getTableName(),
                     ));
                 });
@@ -180,7 +184,7 @@ final class DropWorkspaceHandler extends BaseHandler
                     // Table was deleted before workspace - skip silently
                     $this->internalLogger->debug(sprintf(
                         'Table %s.%s not found, skipping IAM revoke',
-                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $datasetName,
                         $directGrantTable->getTableName(),
                     ));
                     continue;

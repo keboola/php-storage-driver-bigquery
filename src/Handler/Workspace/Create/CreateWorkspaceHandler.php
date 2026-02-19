@@ -192,13 +192,17 @@ final class CreateWorkspaceHandler extends BaseHandler
         // grant table-level IAM for direct grant tables
         foreach ($command->getDirectGrantTables() as $directGrantTable) {
             /** @var \Keboola\StorageDriver\Command\Workspace\DirectGrantTable $directGrantTable */
-            $table = $bqClient->dataset(ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0])
+            $path = ProtobufHelper::repeatedStringToArray($directGrantTable->getPath());
+            assert(count($path) > 0, 'DirectGrantTable path must not be empty');
+            $datasetName = $path[0];
+
+            $table = $bqClient->dataset($datasetName)
                 ->table($directGrantTable->getTableName());
 
-            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($directGrantTable) {
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($datasetName, $directGrantTable) {
                 $this->internalLogger->debug(sprintf(
                     'Try set table IAM policy for %s.%s Err: %s',
-                    ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                    $datasetName,
                     $directGrantTable->getTableName(),
                     $e->getMessage(),
                 ));
@@ -211,19 +215,36 @@ final class CreateWorkspaceHandler extends BaseHandler
             );
             $tableIamProxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
-            $tableIamProxy->call(function () use ($table, $wsServiceAcc, $directGrantTable): void {
+            $tableIamProxy->call(function () use ($table, $wsServiceAcc, $datasetName, $directGrantTable): void {
                 $policy = $table->iam()->policy();
-                $policy['bindings'][] = [
-                    'role' => IAmPermissions::ROLES_BIGQUERY_DATA_EDITOR,
-                    'members' => ['serviceAccount:' . $wsServiceAcc->getEmail()],
-                ];
+                $role = IAmPermissions::ROLES_BIGQUERY_DATA_EDITOR;
+                $member = 'serviceAccount:' . $wsServiceAcc->getEmail();
+                $bindings = $policy['bindings'] ?? [];
+                $found = false;
+                foreach ($bindings as &$binding) {
+                    if (($binding['role'] ?? '') === $role) {
+                        if (!in_array($member, $binding['members'] ?? [], true)) {
+                            $binding['members'][] = $member;
+                        }
+                        $found = true;
+                        break;
+                    }
+                }
+                unset($binding);
+                if (!$found) {
+                    $bindings[] = [
+                        'role' => $role,
+                        'members' => [$member],
+                    ];
+                }
+                $policy['bindings'] = $bindings;
                 $table->iam()->setPolicy($policy);
                 $this->internalLogger->log(
                     LogLevel::DEBUG,
                     sprintf(
                         'Set table IAM policy (dataEditor) for %s on %s.%s',
                         $wsServiceAcc->getEmail(),
-                        ProtobufHelper::repeatedStringToArray($directGrantTable->getPath())[0],
+                        $datasetName,
                         $directGrantTable->getTableName(),
                     ),
                 );
