@@ -173,6 +173,71 @@ class PrimaryKeyTest extends BaseCase
         );
     }
 
+    public function testDuplicatesSkipCheck(): void
+    {
+        $tableName = md5($this->getName()) . '_Test_table';
+        $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
+
+        // CREATE TABLE
+        $tableStructure = [
+            'columns' => [
+                'col1' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+                'col2' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+                'col3' => [
+                    'type' => Bigquery::TYPE_INTEGER,
+                    'length' => '',
+                    'nullable' => false,
+                ],
+            ],
+            'primaryKeysNames' => [],
+        ];
+        $this->createTable($this->projectCredentials, $bucketDatabaseName, $tableName, $tableStructure);
+
+        $this->fillTableWithData(
+            $this->projectCredentials,
+            $bucketDatabaseName,
+            $tableName,
+            [['columns' => '`col1`,`col2`,`col3`', 'rows' => ['1,5,6', '1,5,6']]],
+        );
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatabaseName;
+
+        $pkNames = new RepeatedField(GPBType::STRING);
+        $pkNames[] = 'col2';
+        $pkNames[] = 'col3';
+
+        // add PK with skipDuplicatesCheck — should succeed despite duplicates
+        $addPKCommand = (new AddPrimaryKeyCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setPrimaryKeysNames($pkNames)
+            ->setSkipDuplicatesCheck(true);
+        $addPKHandler = new AddPrimaryKeyHandler($this->clientManager);
+        $addPKHandler->setInternalLogger($this->log);
+        $addPKHandler(
+            $this->projectCredentials,
+            $addPKCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $bqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->projectCredentials,
+        );
+        $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $tableName);
+        $this->assertEquals(['col2', 'col3'], $ref->getPrimaryKeysNames());
+    }
+
     public function testPKExists(): void
     {
         $tableName = md5($this->getName()) . '_Test_table';
