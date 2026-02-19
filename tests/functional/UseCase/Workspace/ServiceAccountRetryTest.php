@@ -6,9 +6,9 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
 use Google\Cloud\ResourceManager\V3\Project;
 use Google\Cloud\ResourceManager\V3\ProjectsClient;
-use Google\Service\Iam;
 use Google_Service_Iam_CreateServiceAccountRequest;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Driver\Exception\Command\TooManyRequestsException;
@@ -79,8 +79,11 @@ class ServiceAccountRetryTest extends BaseCase
         }
     }
 
-    private function createServiceAccount(Iam $iamService, string $projectServiceAccountId, string $projectName): void
-    {
+    private function createServiceAccount(
+        IAMServiceWrapper $iamService,
+        string $projectServiceAccountId,
+        string $projectName,
+    ): void {
         $serviceAccountsService = $iamService->projects_serviceAccounts;
         $createServiceAccountRequest = new Google_Service_Iam_CreateServiceAccountRequest();
 
