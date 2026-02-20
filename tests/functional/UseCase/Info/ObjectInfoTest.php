@@ -617,6 +617,41 @@ SQL,
         );
         $this->assertSame(['id', 'name', 'large'], $columnsNames);
         $this->assertEquals(TableType::NORMAL, $tableInfo->getTableType());
+
+        // table is empty (created in setUp without data)
+        $this->assertSame(0, (int) $tableInfo->getRowsCount());
+        $this->assertSame(0, (int) $tableInfo->getSizeBytes());
+    }
+
+    public function testInfoTableRowsCountAndSizeBytes(): void
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (`id`, `name`, `large`) VALUES (1, \'a\', \'x\'), (2, \'b\', \'y\')',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::TABLE);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+            $this->getTestHash(),
+        ]));
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+
+        $tableInfo = $response->getTableInfo();
+        $this->assertNotNull($tableInfo);
+        $this->assertSame(2, (int) $tableInfo->getRowsCount());
+        $this->assertGreaterThan(0, (int) $tableInfo->getSizeBytes());
     }
 
     public function testExternalTableType(): void
