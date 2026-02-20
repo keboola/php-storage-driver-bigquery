@@ -546,8 +546,18 @@ SQL,
         // If the policy changes between read and write, setPolicy() fails with 412 (ETag mismatch)
         $role = 'roles/storage.objectViewer';
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
-            // Only retry on 412 (ETag mismatch / concurrent modification)
-            return $e instanceof ServiceException && $e->getCode() === 412;
+            if (!$e instanceof ServiceException) {
+                return false;
+            }
+            // Retry on 412 (ETag mismatch / concurrent modification)
+            if ($e->getCode() === 412) {
+                return true;
+            }
+            // Retry on 400 when service account is not yet propagated after connection creation
+            if ($e->getCode() === 400 && str_contains($e->getMessage(), 'does not exist')) {
+                return true;
+            }
+            return false;
         }, 5);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             1_000, // 1s
