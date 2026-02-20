@@ -58,6 +58,10 @@ class TableReflectionResponseTransformer
         }
         $res->setPrimaryKeysNames($pk);
 
+        $tableStats = $ref->getTableStats();
+        $res->setRowsCount($ref->getRowsCount());
+        $res->setSizeBytes((int) $tableStats->getDataSizeBytes());
+
         $meta = new TableInfo\BigQueryTableMeta();
         $partitioning = $ref->getPartitioningConfiguration();
         if ($partitioning !== null) {

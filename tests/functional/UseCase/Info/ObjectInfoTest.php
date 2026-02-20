@@ -546,8 +546,18 @@ SQL,
         // If the policy changes between read and write, setPolicy() fails with 412 (ETag mismatch)
         $role = 'roles/storage.objectViewer';
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
-            // Only retry on 412 (ETag mismatch / concurrent modification)
-            return $e instanceof ServiceException && $e->getCode() === 412;
+            if (!$e instanceof ServiceException) {
+                return false;
+            }
+            // Retry on 412 (ETag mismatch / concurrent modification)
+            if ($e->getCode() === 412) {
+                return true;
+            }
+            // Retry on 400 when service account is not yet propagated after connection creation
+            if ($e->getCode() === 400 && str_contains($e->getMessage(), 'does not exist')) {
+                return true;
+            }
+            return false;
         }, 5);
         $backOffPolicy = new ExponentialRandomBackOffPolicy(
             1_000, // 1s
@@ -617,6 +627,41 @@ SQL,
         );
         $this->assertSame(['id', 'name', 'large'], $columnsNames);
         $this->assertEquals(TableType::NORMAL, $tableInfo->getTableType());
+
+        // table is empty (created in setUp without data)
+        $this->assertSame(0, (int) $tableInfo->getRowsCount());
+        $this->assertSame(0, (int) $tableInfo->getSizeBytes());
+    }
+
+    public function testInfoTableRowsCountAndSizeBytes(): void
+    {
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'INSERT INTO %s.%s (`id`, `name`, `large`) VALUES (1, \'a\', \'x\'), (2, \'b\', \'y\')',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketResponse->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($this->getTestHash()),
+        )));
+
+        $handler = new ObjectInfoHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = new ObjectInfoCommand();
+        $command->setExpectedObjectType(ObjectType::TABLE);
+        $command->setPath(ProtobufHelper::arrayToRepeatedString([
+            $this->bucketResponse->getCreateBucketObjectName(),
+            $this->getTestHash(),
+        ]));
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(ObjectInfoResponse::class, $response);
+
+        $tableInfo = $response->getTableInfo();
+        $this->assertNotNull($tableInfo);
+        $this->assertSame(2, (int) $tableInfo->getRowsCount());
+        $this->assertGreaterThan(0, (int) $tableInfo->getSizeBytes());
     }
 
     public function testExternalTableType(): void
