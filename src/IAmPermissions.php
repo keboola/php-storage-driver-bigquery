@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\BigQuery;
 
 final class IAmPermissions
 {
+    public const ROLES_BIGQUERY_DATA_EDITOR = 'roles/bigquery.dataEditor';
     public const ROLES_BIGQUERY_DATA_OWNER = 'roles/bigquery.dataOwner';
     public const ROLES_BIGQUERY_DATA_VIEWER = 'roles/bigquery.dataViewer';
     public const ROLES_BIGQUERY_JOB_USER = 'roles/bigquery.jobUser';
