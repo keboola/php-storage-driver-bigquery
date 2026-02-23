@@ -17,9 +17,13 @@ jobs:
       - name: Build Image
         run: docker compose build production
 
+      # TODO: revert back to `composer ci` once storage-driver-common is released
       - name: Check
         run: |
-          docker compose run --rm production composer ci
+          docker compose run --rm production composer phplint
+          docker compose run --rm production composer phpcs
+          docker compose run --rm production composer phpstan
+          docker compose run --rm production composer tests-unit
 
       - name: Prepare stubs
         env:
