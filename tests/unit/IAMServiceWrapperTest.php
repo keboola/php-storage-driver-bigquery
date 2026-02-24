@@ -82,9 +82,6 @@ class IAMServiceWrapperTest extends TestCase
     /**
      * @return array<string, array<string, mixed>>
      */
-    /**
-     * @return array<string, array<string, mixed>>
-     */
     private function getResourceMethods(object $resource): array
     {
         $ref = new ReflectionProperty(Resource::class, 'methods');
