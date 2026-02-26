@@ -26,7 +26,7 @@
         "google/protobuf": "^3.21",
         "keboola/php-file-storage-utils": "^0.2.5",
         "ext-json": "*",
-        "keboola/storage-driver-common": "dev-vb/DMD-981/bq_skipDuplicatesCheck#b08f8b7127df06a199e2d88c032171189c4a5c40 as 7.15.0",
+        "keboola/storage-driver-common": "^v7.15.0",
         "google/cloud-resource-manager": "^0.6.1",
         "google/cloud-service-usage": "^0.2.7",
         "google/apiclient": "^2.16",
