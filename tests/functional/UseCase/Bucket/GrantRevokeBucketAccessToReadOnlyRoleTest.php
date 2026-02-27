@@ -172,6 +172,9 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         );
 
         $this->assertSame('123_test_external', $result->getCreateBucketObjectName());
+        $this->assertSame($createdListing->getName(), $result->getSourceListing());
+        // The main project SA has no setIamPolicy permission on the listing, so sharing is not allowed
+        $this->assertFalse($result->getSourceListingSharingAllowed());
         // Validate is bucket added
         $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
         $registeredExternalBucketInMainProject = $mainBqClient->dataset('123_test_external');
@@ -348,6 +351,136 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
     }
 
+    public function testRegisterBucketSharingAllowed(): void
+    {
+        // cleanup at beginning - delete linked dataset if it exists from previous failed run
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
+        $linkedDataset = $mainBqClient->dataset('123_test_ext_sharing');
+        try {
+            if ($linkedDataset->exists()) {
+                $linkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+
+        $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
+        $externalTableName = md5($this->getName()) . '_Test_table';
+        $this->prepareTestTable($externalBucketName, $externalTableName);
+
+        $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
+        [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
+            $externalAnalyticHubClient,
+            $externalBucketName,
+        );
+
+        // Grant subscriber access on the exchange to main project SA
+        $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
+
+        // Grant listingAdmin on the listing to main project SA
+        // This allows testIamPermissions to return setIamPolicy as granted → sharing allowed
+        $this->grantMainProjectListingAdmin($externalAnalyticHubClient, $createdListing);
+
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
+            ->setDestinationObjectName('test_ext_sharing')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
+        );
+        $command->setMeta($meta);
+
+        /** @var GrantBucketAccessToReadOnlyRoleResponse $result */
+        $result = $handler(
+            $this->mainProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertSame($createdListing->getName(), $result->getSourceListing());
+        $this->assertTrue($result->getSourceListingSharingAllowed());
+    }
+
+    public function testRegisterBucketIdempotent(): void
+    {
+        // cleanup at beginning - delete linked dataset if it exists from previous failed run
+        $mainBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
+        $linkedDataset = $mainBqClient->dataset('123_test_ext_idempotent');
+        try {
+            if ($linkedDataset->exists()) {
+                $linkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+
+        $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
+        $externalTableName = md5($this->getName()) . '_Test_table';
+        $this->prepareTestTable($externalBucketName, $externalTableName);
+
+        $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
+        [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
+            $externalAnalyticHubClient,
+            $externalBucketName,
+        );
+
+        $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
+
+        $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
+        $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new GrantBucketAccessToReadOnlyRoleCommand())
+            ->setPath([
+                $parsedName['project'],
+                $parsedName['location'],
+                $parsedName['data_exchange'],
+                $parsedName['listing'],
+            ])
+            ->setDestinationObjectName('test_ext_idempotent')
+            ->setBranchId('123')
+            ->setStackPrefix($this->getStackPrefix());
+        $meta = new Any();
+        $meta->pack(
+            (new GrantBucketAccessToReadOnlyRoleCommand\GrantBucketAccessToReadOnlyRoleBigqueryMeta()),
+        );
+        $command->setMeta($meta);
+
+        // First call — normal subscription
+        /** @var GrantBucketAccessToReadOnlyRoleResponse $firstResult */
+        $firstResult = $handler(
+            $this->mainProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertSame($createdListing->getName(), $firstResult->getSourceListing());
+        $this->assertFalse($firstResult->getSourceListingSharingAllowed());
+
+        // Second call — ALREADY_EXISTS should be handled gracefully (e.g. during external bucket refresh)
+        /** @var GrantBucketAccessToReadOnlyRoleResponse $secondResult */
+        $secondResult = $handler(
+            $this->mainProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertSame($createdListing->getName(), $secondResult->getSourceListing());
+        $this->assertFalse($secondResult->getSourceListingSharingAllowed());
+    }
+
     private function prepareTestTable(string $bucketDatabaseName, string $externalTableName): void
     {
         $this->createTestTable($this->externalProjectCredentials, $bucketDatabaseName, $externalTableName);
@@ -423,6 +556,21 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         // 1.2 Create listing for extern bucket
         $createdListing = $externalAnalyticHubClient->createListing($dataExchange->getName(), $listingId, $listing);
         return [$dataExchange, $createdListing];
+    }
+
+    private function grantMainProjectListingAdmin(
+        AnalyticsHubServiceClient $externalAnalyticHubClient,
+        Listing $listing,
+    ): void {
+        $mainCredentials = CredentialsHelper::getCredentialsArray($this->mainProjectCredentials);
+        $iamPolicy = $externalAnalyticHubClient->getIamPolicy($listing->getName());
+        $bindings = $iamPolicy->getBindings();
+        $bindings[] = new Binding([
+            'role' => 'roles/analyticshub.listingAdmin',
+            'members' => ['serviceAccount:' . $mainCredentials['client_email']],
+        ]);
+        $iamPolicy->setBindings($bindings);
+        $externalAnalyticHubClient->setIamPolicy($listing->getName(), $iamPolicy);
     }
 
     private function grantMainProjectToRegisterExternalBucket(
