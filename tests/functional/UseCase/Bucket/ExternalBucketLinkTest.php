@@ -22,17 +22,23 @@ use Throwable;
 
 class ExternalBucketLinkTest extends BaseCase
 {
-    private GenericBackendCredentials $kbc1Credentials;
+    private GenericBackendCredentials $mainProjectCredentials;
 
-    private GenericBackendCredentials $exBqCredentials;
+    private GenericBackendCredentials $ebProducerCredentials;
+
+    private GenericBackendCredentials $linkedCredentials;
 
     protected function setUp(): void
     {
         parent::setUp();
         // KBC1 = projects[0]: the project that registered the external bucket and wants to link it
-        $this->kbc1Credentials = $this->projects[0][0];
-        // exBQ = projects[1]: the external project that owns the Analytics Hub listing
-        $this->exBqCredentials = $this->projects[1][0];
+        $this->mainProjectCredentials = $this->projects[0][0];
+
+        // project that supposes to link the bucket (KBC2) by sharing from KBC1
+        $this->linkedCredentials = $this->projects[1][0];
+
+        // exBQ = projects[2]: the external project that owns the Analytics Hub listing
+        $this->ebProducerCredentials = $this->projects[2][0];
     }
 
     /**
@@ -47,60 +53,75 @@ class ExternalBucketLinkTest extends BaseCase
      */
     public function testLinkExternalBucket(): void
     {
-        $exBqBucketResponse = $this->createTestBucket($this->exBqCredentials);
+        $exBqBucketResponse = $this->createTestBucket($this->ebProducerCredentials);
         $exBqDatasetName = $exBqBucketResponse->getCreateBucketObjectName();
 
-        $kbc1Credentials = CredentialsHelper::getCredentialsArray($this->kbc1Credentials);
-        $kbc1ProjectId = $kbc1Credentials['project_id'];
+        // project where the EB will be registered to and where it is shared from. AKA KBC1
+        $mainProjectCredentials = CredentialsHelper::getCredentialsArray($this->mainProjectCredentials);
+
+        // project where the EB will be linked to. AKA KBC2
+        $linkingProjectCredentials = CredentialsHelper::getCredentialsArray($this->linkedCredentials);
+        $linkingProjectId = $linkingProjectCredentials['project_id'];
 
         $nameGenerator = new NameGenerator($this->getStackPrefix());
         $linkedBucketId = $this->getTestHash() . 'in.c-Linked';
         $linkedDatasetName = $nameGenerator->createObjectNameForBucketInProject($linkedBucketId, null);
 
-        $kbc1BqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->kbc1Credentials);
+        $mainProjectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->mainProjectCredentials);
+        $linkingProjectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->linkedCredentials);
 
         // cleanup at beginning - delete linked dataset if it exists from previous failed run
         try {
-            if ($kbc1BqClient->dataset($linkedDatasetName)->exists()) {
-                $kbc1BqClient->dataset($linkedDatasetName)->delete(['deleteContents' => true]);
+            if ($mainProjectBqClient->dataset($linkedDatasetName)->exists()) {
+                $mainProjectBqClient->dataset($linkedDatasetName)->delete(['deleteContents' => true]);
+            }
+            if ($linkingProjectBqClient->dataset($linkedDatasetName)->exists()) {
+                $linkingProjectBqClient->dataset($linkedDatasetName)->delete(['deleteContents' => true]);
             }
         } catch (Throwable) {
             // ignore
         }
 
+        // 1. register the EB - producer creates an exchange and listing pointing to the external bucket,
+        // and set KBC1 as subscriber and listing admin so KBC1 can share and link the bucket
+
         // exBQ creates exchange + listing pointing to exBQ's dataset
-        $exBqAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->exBqCredentials);
+        $exBqAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->ebProducerCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
             $exBqAnalyticHubClient,
-            $this->exBqCredentials,
+            $this->ebProducerCredentials,
             $exBqDatasetName,
         );
 
-        // exBQ grants roles/analyticshub.subscriber on the exchange to KBC1's SA
+        // 1.2 exBQ grants roles/analyticshub.subscriber on the exchange to KBC1's SA
         // so KBC1 can call subscribeListing
         $iamExchangePolicy = $exBqAnalyticHubClient->getIamPolicy($dataExchange->getName());
         $exchangeBindings = $iamExchangePolicy->getBindings();
         $exchangeBindings[] = new Binding([
             'role' => 'roles/analyticshub.subscriber',
-            'members' => ['serviceAccount:' . $kbc1Credentials['client_email']],
+            'members' => ['serviceAccount:' . $mainProjectCredentials['client_email']],
         ]);
         $iamExchangePolicy->setBindings($exchangeBindings);
         $exBqAnalyticHubClient->setIamPolicy($dataExchange->getName(), $iamExchangePolicy);
 
-        // exBQ grants roles/analyticshub.listingAdmin on the listing to KBC1's SA
+        // 1.3 exBQ grants roles/analyticshub.listingAdmin on the listing to KBC1's SA
         // so KBC1 can grant subscriber access to KBC2 (get/set IAM policy on listing)
         $iamListingPolicy = $exBqAnalyticHubClient->getIamPolicy($createdListing->getName());
         $listingBindings = $iamListingPolicy->getBindings();
         $listingBindings[] = new Binding([
             'role' => 'roles/analyticshub.listingAdmin',
-            'members' => ['serviceAccount:' . $kbc1Credentials['client_email']],
+            'members' => ['serviceAccount:' . $mainProjectCredentials['client_email']],
         ]);
         $iamListingPolicy->setBindings($listingBindings);
         $exBqAnalyticHubClient->setIamPolicy($createdListing->getName(), $iamListingPolicy);
 
-        // Use exBQ's SA as a proxy for KBC2's SA
-        $exBqCredentialsArr = CredentialsHelper::getCredentialsArray($this->exBqCredentials);
-        $kbc2ServiceAccountEmail = $exBqCredentialsArr['client_email'];
+        /*
+         * 2.0. link bucket in KBC2 (linking), passing the listing reference and target SA email in meta
+         * to signal LinkBucketHandler it's an external listing
+         * sharing bucket from KBC1 is not needed because it is in exchanger from exEB already, and it will use this one
+         * We need to do is set KBC2 as a subscriber. And we should be able do that, beacuse we have the listingAdmin
+         */
+        $linkinProjectServiceAccountEmail = $linkingProjectCredentials['client_email'];
 
         // KBC1 calls LinkBucketHandler to link the external bucket into KBC1's project
         $handler = new LinkBucketHandler($this->clientManager);
@@ -108,20 +129,21 @@ class ExternalBucketLinkTest extends BaseCase
 
         $command = (new LinkBucketCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setTargetProjectId($kbc1ProjectId)
+            ->setTargetProjectId($linkingProjectId)
             ->setTargetBucketId($linkedBucketId)
             ->setSourceShareRoleName($createdListing->getName());
 
         $meta = new Any();
         $meta->pack(
             (new LinkBucketCommand\LinkBucketBigqueryMeta())
-                ->setTargetServiceAccountEmail($kbc2ServiceAccountEmail),
+                ->setTargetServiceAccountEmail($linkinProjectServiceAccountEmail),
         );
         $command->setMeta($meta);
 
         /** @var LinkedBucketResponse $result */
         $result = $handler(
-            $this->kbc1Credentials,
+            // using the root credentials of both projects
+            $this->getCredentials(),
             $command,
             [],
             new RuntimeOptions(),
@@ -131,7 +153,7 @@ class ExternalBucketLinkTest extends BaseCase
         $this->assertSame($linkedDatasetName, $result->getLinkedBucketObjectName());
 
         // Verify the linked dataset was created in KBC1's project
-        $this->assertTrue($kbc1BqClient->dataset($linkedDatasetName)->exists());
+        $this->assertTrue($linkingProjectBqClient->dataset($linkedDatasetName)->exists());
 
         // Verify KBC2's SA now has roles/analyticshub.subscriber on the listing
         $updatedListingPolicy = $exBqAnalyticHubClient->getIamPolicy($createdListing->getName());
@@ -140,7 +162,7 @@ class ExternalBucketLinkTest extends BaseCase
         foreach ($updatedListingPolicy->getBindings() as $binding) {
             if ($binding->getRole() === 'roles/analyticshub.subscriber') {
                 foreach ($binding->getMembers() as $member) {
-                    if ($member === 'serviceAccount:' . $kbc2ServiceAccountEmail) {
+                    if ($member === 'serviceAccount:' . $linkinProjectServiceAccountEmail) {
                         $subscriberGranted = true;
                         break 2;
                     }
@@ -151,7 +173,7 @@ class ExternalBucketLinkTest extends BaseCase
             $subscriberGranted,
             sprintf(
                 "KBC2's SA '%s' should have roles/analyticshub.subscriber on the listing",
-                $kbc2ServiceAccountEmail,
+                $linkinProjectServiceAccountEmail,
             ),
         );
     }
@@ -163,13 +185,15 @@ class ExternalBucketLinkTest extends BaseCase
         AnalyticsHubServiceClient $externalAnalyticHubClient,
         GenericBackendCredentials $externalProjectCredentials,
         string $bucketDatabaseName,
-        string $location = BaseCase::DEFAULT_LOCATION,
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];
 
         $dataExchangeId = str_replace('-', '_', $externalProjectStringId) . '_external';
-        $formattedParent = $externalAnalyticHubClient->locationName($externalProjectStringId, $location);
+        $formattedParent = $externalAnalyticHubClient->locationName(
+            $externalProjectStringId,
+            BaseCase::DEFAULT_LOCATION,
+        );
 
         $dataExchange = new DataExchange();
         $dataExchange->setDisplayName($dataExchangeId);
@@ -177,7 +201,7 @@ class ExternalBucketLinkTest extends BaseCase
         try {
             $dataExchangeName = AnalyticsHubServiceClient::dataExchangeName(
                 $externalProjectStringId,
-                $location,
+                BaseCase::DEFAULT_LOCATION,
                 $dataExchangeId,
             );
             $dataExchange = $externalAnalyticHubClient->getDataExchange($dataExchangeName);
