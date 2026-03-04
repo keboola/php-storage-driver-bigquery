@@ -12,6 +12,10 @@ use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand\LinkBucketBigqueryMeta;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
@@ -64,7 +68,7 @@ final class LinkBucketHandler extends BaseHandler
         // in the command meta. External listings (Analytics Hub listings from a user's own project,
         // not KBC-managed) require granting subscriber access to KBC2's SA on the listing before subscribing.
         $commandMeta = $command->getMeta();
-        $bqMeta = $commandMeta !== null ? $commandMeta->unpack() : null;
+        $bqMeta = $commandMeta?->unpack();
         $targetServiceAccountEmail = ($bqMeta instanceof LinkBucketBigqueryMeta)
             ? $bqMeta->getTargetServiceAccountEmail()
             : '';
@@ -72,28 +76,32 @@ final class LinkBucketHandler extends BaseHandler
 
         if ($isExternalListing) {
             // Grant roles/analyticshub.subscriber to KBC2's SA on the listing.
-            // This is idempotent — if the binding already exists, setIamPolicy is a no-op for that entry.
-            $iamPolicy = $analyticHubClient->getIamPolicy($listing);
-            $existingBindings = $iamPolicy->getBindings();
-
             $subscriberMember = 'serviceAccount:' . $targetServiceAccountEmail;
-            $subscriberRole = 'roles/analyticshub.subscriber';
 
-            // Check if KBC2 already has the subscriber role binding on this listing
-            $alreadyGranted = false;
-            /** @var Binding $binding */
-            foreach ($existingBindings as $binding) {
-                if ($binding->getRole() === $subscriberRole) {
-                    foreach ($binding->getMembers() as $member) {
-                        if ($member === $subscriberMember) {
-                            $alreadyGranted = true;
-                            break 2;
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+                if (in_array($e->getCode(), GCPClientManager::ERROR_CODES_FOR_RETRY_IAM)) {
+                    return true;
+                }
+                return false;
+            }, 20);
+            $proxy = new RetryProxy($retryPolicy, new ExponentialRandomBackOffPolicy());
+            $proxy->call(function () use ($analyticHubClient, $listing, $subscriberMember): void {
+                $subscriberRole = 'roles/analyticshub.subscriber';
+                $currentPolicy = $analyticHubClient->getIamPolicy($listing);
+                $existingBindings = $currentPolicy->getBindings();
+
+                // Check if KBC2 already has the subscriber role binding on this listing
+                /** @var Binding $binding */
+                foreach ($existingBindings as $binding) {
+                    if ($binding->getRole() === $subscriberRole) {
+                        foreach ($binding->getMembers() as $member) {
+                            if ($member === $subscriberMember) {
+                                return; // already granted, nothing to do
+                            }
                         }
                     }
                 }
-            }
 
-            if (!$alreadyGranted) {
                 $newBindings = iterator_to_array($existingBindings);
                 $newBindings[] = new Binding([
                     'role' => $subscriberRole,
@@ -101,9 +109,9 @@ final class LinkBucketHandler extends BaseHandler
                 ]);
                 $newPolicy = new Policy();
                 $newPolicy->setBindings($newBindings);
-                $newPolicy->setEtag($iamPolicy->getEtag());
+                $newPolicy->setEtag($currentPolicy->getEtag());
                 $analyticHubClient->setIamPolicy($listing, $newPolicy);
-            }
+            });
         }
 
         $datasetReference = new DestinationDatasetReference();
