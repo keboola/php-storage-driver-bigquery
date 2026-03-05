@@ -12,15 +12,15 @@ use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\NameGenerator;
-use Retry\BackOff\ExponentialRandomBackOffPolicy;
-use Retry\Policy\CallableRetryPolicy;
-use Retry\RetryProxy;
-use Throwable;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand\LinkBucketBigqueryMeta;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 
 final class LinkBucketHandler extends BaseHandler
 {
