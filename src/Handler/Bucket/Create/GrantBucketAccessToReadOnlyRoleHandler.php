@@ -118,10 +118,7 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
                 throw SubscribeListingObjectNotFoundException::handleException($e);
             }
 
-            if ($e->getCode() === Code::ALREADY_EXISTS) {
-                // Subscription already exists (e.g. called again during external bucket refresh).
-                // This is not an error — we still need to check permissions and return the listing reference.
-            } else {
+            if ($e->getCode() !== Code::ALREADY_EXISTS) {
                 throw $e;
             }
         }
