@@ -135,4 +135,64 @@ class ClearWorkspaceTest extends BaseCase
         $this->assertTrue($this->isDatabaseExists($projectBqClient, $response->getWorkspaceObjectName()));
         $this->assertTrue($this->isUserExists($iamService, $response->getWorkspaceUserName()));
     }
+
+    /**
+     * SUPPORT-15365: ClearWorkspace must delete all tables even when the BigQuery
+     * tables.list API paginates (default page size ~50). A previous bug caused the
+     * iterator to skip the first page after an existence-check call to current().
+     */
+    public function testClearWorkspaceWithPaginatedTables(): void
+    {
+        $tableCount = 55;
+
+        [
+            $credentials,
+            $response,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+        $this->assertInstanceOf(GenericBackendCredentials::class, $credentials);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $response);
+
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $credentials);
+        $datasetName = BigqueryQuote::quoteSingleIdentifier($response->getWorkspaceObjectName());
+
+        // Create 55 tables to exceed the default page size (~50) of tables.list API
+        for ($i = 1; $i <= $tableCount; $i++) {
+            $tableName = sprintf('test_table_%02d', $i);
+            $wsBqClient->runQuery($wsBqClient->query(sprintf(
+                'CREATE TABLE %s.`%s` (`id` INTEGER);',
+                $datasetName,
+                $tableName,
+            )));
+        }
+
+        // Verify all tables exist
+        $projectBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $tablesBeforeClear = iterator_to_array(
+            $projectBqClient->dataset($response->getWorkspaceObjectName())->tables(),
+        );
+        $this->assertCount($tableCount, $tablesBeforeClear);
+
+        // CLEAR - this must delete all 55 tables, not just those on page 2+
+        $handler = new ClearWorkspaceHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+        $command = (new ClearWorkspaceCommand())
+            ->setWorkspaceObjectName($response->getWorkspaceObjectName());
+
+        $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Verify ALL tables are gone
+        $tablesAfterClear = iterator_to_array(
+            $projectBqClient->dataset($response->getWorkspaceObjectName())->tables(),
+        );
+        $this->assertCount(0, $tablesAfterClear, sprintf(
+            'Expected 0 tables after clear, but found %d. '
+            . 'This indicates the clear operation skipped some tables due to pagination.',
+            count($tablesAfterClear),
+        ));
+    }
 }
