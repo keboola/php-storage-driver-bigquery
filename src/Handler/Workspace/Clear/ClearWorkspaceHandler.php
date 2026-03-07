@@ -51,14 +51,12 @@ final class ClearWorkspaceHandler extends BaseHandler
             $queryTags,
         );
 
-        $tablesInDataset = $bqClient->dataset($command->getWorkspaceObjectName())->tables();
+        $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
         try {
-            /*
-             * Bigquery doesn't support something like DELETE ALL FROM SCHEMA
-             * in case if dataset not exist fetch and in case of error
-             * throw exception or return null in case of ignore error
-            */
-            $tablesInDataset->current();
+            // SUPPORT-15365: Use a separate throwaway iterator for the dataset existence check.
+            // Calling current() on an iterator before foreach corrupts pagination state —
+            // rewind() does not reset the pageToken, causing foreach to skip the first page.
+            $dataset->tables()->current();
         } catch (Throwable $e) {
             if (!$command->getIgnoreErrors()) {
                 throw $e;
@@ -69,7 +67,7 @@ final class ClearWorkspaceHandler extends BaseHandler
         $preserveTables = ProtobufHelper::repeatedStringToArray($command->getObjectsToPreserve());
 
         /** @var Table $table */
-        foreach ($tablesInDataset as $table) {
+        foreach ($dataset->tables() as $table) {
             if (in_array($table->id(), $preserveTables, true)) {
                 continue;
             }
