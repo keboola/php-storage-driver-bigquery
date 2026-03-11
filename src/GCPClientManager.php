@@ -50,7 +50,9 @@ class GCPClientManager
     ];
     public const SCOPES_CLOUD_PLATFORM = 'https://www.googleapis.com/auth/cloud-platform';
 
-    public const ERROR_CODES_FOR_RETRY_IAM = [409, 401, 403, 429];
+    // 409/401/403/429 = HTTP codes used by REST-based IAM clients
+    // 10 = gRPC ABORTED (concurrent IAM policy ETag conflict, used by Analytics Hub gRPC client)
+    public const ERROR_CODES_FOR_RETRY_IAM = [409, 401, 403, 429, 10];
 
     /** @var array<FoldersClient|ProjectsClient|ServiceUsageClient|AnalyticsHubServiceClient> */
     private array $clients = [];

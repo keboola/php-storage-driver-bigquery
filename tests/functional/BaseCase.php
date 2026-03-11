@@ -68,6 +68,7 @@ class BaseCase extends TestCase
      * @var array{
      *     0:array{GenericBackendCredentials, CreateProjectResponse},
      *     1:array{GenericBackendCredentials, CreateProjectResponse},
+     *     2:array{GenericBackendCredentials, CreateProjectResponse},
      * }
      */
     // @phpstan-ignore-next-line
@@ -98,16 +99,27 @@ class BaseCase extends TestCase
             unlink('/tmp/prj1-res');
         }
 
+        if (file_exists('/tmp/prj2-cred')) {
+            unlink('/tmp/prj2-cred');
+        }
+        if (file_exists('/tmp/prj2-res')) {
+            unlink('/tmp/prj2-res');
+        }
+
         $this->dropProjects($this->getStackPrefix());
         $suffix = date('mdHis') . self::getRand();
         $project0 = $this->createProject('main-' . $suffix);
         $project1 = $this->createProject('link-' . $suffix);
+        $project2 = $this->createProject('eb-' . $suffix);
 
         file_put_contents('/tmp/prj0-cred', $project0[0]->serializeToJsonString());
         file_put_contents('/tmp/prj0-res', $project0[1]->serializeToJsonString());
 
         file_put_contents('/tmp/prj1-cred', $project1[0]->serializeToJsonString());
         file_put_contents('/tmp/prj1-res', $project1[1]->serializeToJsonString());
+
+        file_put_contents('/tmp/prj2-cred', $project2[0]->serializeToJsonString());
+        file_put_contents('/tmp/prj2-res', $project2[1]->serializeToJsonString());
     }
 
     protected function setUp(): void
@@ -154,15 +166,23 @@ class BaseCase extends TestCase
                 ->setRegion(self::DEFAULT_LOCATION),
         );
         $prj0Cred->setMeta($meta);
-
         $prj0Res = new CreateProjectResponse();
         $prj0Res->mergeFromJsonString((string) file_get_contents('/tmp/prj0-res'));
 
         $prj1Cred = new GenericBackendCredentials();
         $prj1Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj1-cred'));
         $prj1Cred->setMeta($meta);
+
         $prj1Res = new CreateProjectResponse();
         $prj1Res->mergeFromJsonString((string) file_get_contents('/tmp/prj1-res'));
+
+        $prj2Cred = new GenericBackendCredentials();
+        $prj2Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj2-cred'));
+        $prj2Cred->setMeta($meta);
+
+        $prj2Res = new CreateProjectResponse();
+        $prj2Res->mergeFromJsonString((string) file_get_contents('/tmp/prj2-res'));
+
         $this->projects = [
             [
                 $prj0Cred,
@@ -171,6 +191,10 @@ class BaseCase extends TestCase
             [
                 $prj1Cred,
                 $prj1Res,
+            ],
+            [
+                $prj2Cred,
+                $prj2Res,
             ],
         ];
     }
