@@ -96,6 +96,7 @@ class ExternalBucketLinkTest extends BaseCase
             $exBqAnalyticHubClient,
             $this->ebProducerCredentials,
             $exBqDatasetName,
+            substr($this->getTestHash(), 0, 16),
         );
 
         // 1.2 exBQ grants roles/analyticshub.subscriber on the exchange to KBC1's SA
@@ -229,6 +230,7 @@ class ExternalBucketLinkTest extends BaseCase
             $exBqAnalyticHubClient,
             $this->ebProducerCredentials,
             $exBqDatasetName,
+            substr($this->getTestHash(), 0, 16),
         );
 
         // grant roles/analyticshub.subscriber on the exchange to KBC1's SA
@@ -407,11 +409,12 @@ class ExternalBucketLinkTest extends BaseCase
         AnalyticsHubServiceClient $externalAnalyticHubClient,
         GenericBackendCredentials $externalProjectCredentials,
         string $bucketDatabaseName,
+        string $uniqueSuffix,
     ): array {
         $externalCredentials = CredentialsHelper::getCredentialsArray($externalProjectCredentials);
         $externalProjectStringId = $externalCredentials['project_id'];
 
-        $dataExchangeId = str_replace('-', '_', $externalProjectStringId) . '_external';
+        $dataExchangeId = str_replace('-', '_', $externalProjectStringId) . '_' . $uniqueSuffix . '_external';
         $formattedParent = $externalAnalyticHubClient->locationName(
             $externalProjectStringId,
             BaseCase::DEFAULT_LOCATION,
@@ -438,7 +441,7 @@ class ExternalBucketLinkTest extends BaseCase
             $dataExchange,
         );
 
-        $listingId = str_replace('-', '_', $externalProjectStringId) . '_listing';
+        $listingId = str_replace('-', '_', $externalProjectStringId) . '_' . $uniqueSuffix . '_listing';
         $lst = new BigQueryDatasetSource([
             'dataset' => sprintf(
                 'projects/%s/datasets/%s',
