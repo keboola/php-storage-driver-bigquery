@@ -13,12 +13,17 @@ use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
 use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateViewHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\NameGenerator;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkedBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
@@ -28,6 +33,7 @@ use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
+use Keboola\StorageDriver\Command\Table\CreateViewCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
@@ -417,28 +423,43 @@ class ShareLinkBucketTest extends BaseCase
     }
 
     /**
-     * PoC for DMD-1104: Can a VIEW created in source dataset be accessed via Analytics Hub linked dataset?
+     * Cross-bucket VIEW test for DMD-1104:
+     * Table lives in bucket Ba, VIEW alias is created in bucket Bb pointing to Ba's table,
+     * only Bb is shared via Analytics Hub. Verifies that the VIEW in Bb (referencing Ba)
+     * is accessible through the linked dataset in the target project.
      *
-     * Flow: CREATE VIEW in source dataset -> share dataset via Analytics Hub -> link in target project
-     * -> verify VIEW is accessible and returns correct data through the linked dataset.
+     * Flow: Ba = table, Bb = VIEW(Ba.table) -> share Bb -> link Bb -> verify VIEW works
      */
     public function testViewInSourceDatasetAccessibleViaLinkedDataset(): void
     {
-        // 1. Create source bucket + table with data
-        $bucketResponse = $this->createTestBucket($this->sourceProjectCredentials);
-        $bucketDatabaseName = $bucketResponse->getCreateBucketObjectName();
-        $linkedBucketSchemaName = $bucketDatabaseName . '_LINKED';
+        // Parse source project ID (needed for stale cleanup and sharing)
+        $sourcePublicPart = (array) json_decode(
+            $this->sourceProjectResponse->getProjectUserName(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        /** @var string $sourceProjectId */
+        $sourceProjectId = $sourcePublicPart['project_id'];
 
         $sourceBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $this->sourceProjectCredentials,
         );
-
-        // Cleanup stale linked dataset from previous runs
         $targetBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $this->targetProjectCredentials,
         );
+
+        // --- Stale cleanup ---
+        // Compute expected Bb dataset name for stale cleanup
+        $bucketBbId = $this->getTestHash() . 'in.c-Test2';
+        $bucketBbShareId = $this->getTestHash() . 'Bb'; // listing ID -- only [A-Za-z0-9_]
+        $nameGenerator = new NameGenerator($this->getStackPrefix());
+        $expectedBbDatasetName = $nameGenerator->createObjectNameForBucketInProject($bucketBbId, null);
+        $linkedBucketSchemaName = $expectedBbDatasetName . '_LINKED';
+
+        // Cleanup stale linked dataset from previous runs
         try {
             $staleLinkedDataset = $targetBqClient->dataset($linkedBucketSchemaName);
             if ($staleLinkedDataset->exists()) {
@@ -449,31 +470,58 @@ class ShareLinkBucketTest extends BaseCase
         }
 
         // Cleanup stale listing from previous runs
-        $sourcePublicPart = (array) json_decode(
-            $this->sourceProjectResponse->getProjectUserName(),
-            true,
-            512,
-            JSON_THROW_ON_ERROR,
-        );
-        /** @var string $sourceProjectId */
-        $sourceProjectId = $sourcePublicPart['project_id'];
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->sourceProjectCredentials);
         try {
             $staleListingName = AnalyticsHubServiceClient::listingName(
                 $sourceProjectId,
                 BaseCase::DEFAULT_LOCATION,
                 $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
-                $this->getTestHash(),
+                $bucketBbShareId,
             );
             $analyticHubClient->deleteListing($staleListingName);
         } catch (Throwable) {
             // ignore
         }
 
-        $handler = new CreateTableHandler($this->clientManager);
-        $handler->setInternalLogger($this->log);
+        // Cleanup stale Bb dataset from previous runs
+        try {
+            $staleBbDataset = $sourceBqClient->dataset($expectedBbDatasetName);
+            if ($staleBbDataset->exists()) {
+                $staleBbDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+
+        // --- 1. Create two buckets in source project ---
+        // Ba = table bucket (uses standard createTestBucket)
+        $bucketBaResponse = $this->createTestBucket($this->sourceProjectCredentials);
+        $bucketBaName = $bucketBaResponse->getCreateBucketObjectName();
+
+        // Bb = VIEW bucket (manual creation with different bucketId)
+        $bbHandler = new CreateBucketHandler($this->clientManager);
+        $bbHandler->setInternalLogger($this->log);
+        $bbCommand = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setBucketId($bucketBbId);
+        $bbMeta = new Any();
+        $bbMeta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
+        $bbCommand->setMeta($bbMeta);
+        /** @var CreateBucketResponse $bbResponse */
+        $bbResponse = $bbHandler(
+            $this->sourceProjectCredentials,
+            $bbCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(CreateBucketResponse::class, $bbResponse);
+        $bucketBbName = $bbResponse->getCreateBucketObjectName();
+
+        // --- 2. Create table + data in Ba ---
+        $tableHandler = new CreateTableHandler($this->clientManager);
+        $tableHandler->setInternalLogger($this->log);
         $path = new RepeatedField(GPBType::STRING);
-        $path[] = $bucketDatabaseName;
+        $path[] = $bucketBaName;
         $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
         $columns[] = (new TableColumnShared())
             ->setName('ID')
@@ -485,7 +533,7 @@ class ShareLinkBucketTest extends BaseCase
             ->setPath($path)
             ->setTableName(self::TESTTABLE_BEFORE_NAME)
             ->setColumns($columns);
-        $handler(
+        $tableHandler(
             $this->sourceProjectCredentials,
             $command,
             [],
@@ -494,7 +542,7 @@ class ShareLinkBucketTest extends BaseCase
 
         $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
             'INSERT INTO %s.%s (`ID`, `NAME`) VALUES (%s, %s), (%s, %s), (%s, %s)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($bucketBaName),
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
             BigqueryQuote::quote('1'),
             BigqueryQuote::quote('alice'),
@@ -504,47 +552,67 @@ class ShareLinkBucketTest extends BaseCase
             BigqueryQuote::quote('charlie'),
         )));
 
-        // 2. Create VIEW in source dataset (simulates alias materialized as VIEW)
+        // --- 3. Create VIEW in Bb pointing to Ba's table (cross-dataset) ---
         $viewName = 'ALIAS_VIEW';
-        $viewSql = sprintf(
-            'CREATE VIEW %s.%s AS (SELECT * FROM %s.%s)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier($viewName),
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
-            BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
+        $createViewHandler = new CreateViewHandler($this->clientManager);
+        $createViewHandler->setInternalLogger($this->log);
+        $createViewCommand = (new CreateViewCommand())
+            ->setPath([$bucketBbName])
+            ->setSourcePath([$bucketBaName])
+            ->setViewName($viewName)
+            ->setSourceTableName(self::TESTTABLE_BEFORE_NAME);
+        $createViewHandler(
+            $this->sourceProjectCredentials,
+            $createViewCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
         );
-        $sourceBqClient->runQuery($sourceBqClient->query($viewSql));
 
-        // Create filtered VIEW (simulates filtered alias with WHERE clause)
+        // --- 4. Create filtered VIEW in Bb pointing to Ba (raw SQL, handler doesn't support WHERE) ---
         $filteredViewName = 'FILTERED_ALIAS_VIEW';
         $filteredViewSql = sprintf(
             'CREATE VIEW %s.%s AS (SELECT * FROM %s.%s WHERE `ID` > %s)',
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($bucketBbName),
             BigqueryQuote::quoteSingleIdentifier($filteredViewName),
-            BigqueryQuote::quoteSingleIdentifier($bucketDatabaseName),
+            BigqueryQuote::quoteSingleIdentifier($bucketBaName),
             BigqueryQuote::quoteSingleIdentifier(self::TESTTABLE_BEFORE_NAME),
             BigqueryQuote::quote('1'),
         );
         $sourceBqClient->runQuery($sourceBqClient->query($filteredViewSql));
 
-        // Verify VIEWs work in source dataset
-        $sourceView = $sourceBqClient->dataset($bucketDatabaseName)->table($viewName);
-        $this->assertTrue($sourceView->exists(), 'VIEW should exist in source dataset');
-        $sourceViewRows = $this->queryView($sourceBqClient, $bucketDatabaseName, $viewName);
+        // --- Grant Ba dataset access for filtered VIEW (created via raw SQL, not handler) ---
+        // The ALIAS_VIEW authorized view grant is handled automatically by CreateViewHandler.
+        // The FILTERED_ALIAS_VIEW was created via raw SQL, so we must grant it manually.
+        $baDataset = $sourceBqClient->dataset($bucketBaName);
+        $baInfo = $baDataset->reload();
+        $currentAccess = $baInfo['access'] ?? [];
+        $currentAccess[] = [
+            'view' => [
+                'projectId' => $sourceProjectId,
+                'datasetId' => $bucketBbName,
+                'tableId' => $filteredViewName,
+            ],
+        ];
+        $baDataset->update(['access' => $currentAccess]);
+
+        // Verify VIEWs work in source Bb dataset
+        $sourceView = $sourceBqClient->dataset($bucketBbName)->table($viewName);
+        $this->assertTrue($sourceView->exists(), 'VIEW should exist in Bb dataset');
+        $sourceViewRows = $this->queryView($sourceBqClient, $bucketBbName, $viewName);
         $this->assertCount(3, $sourceViewRows, 'Source VIEW should return all 3 rows');
 
-        $sourceFilteredView = $sourceBqClient->dataset($bucketDatabaseName)->table($filteredViewName);
-        $this->assertTrue($sourceFilteredView->exists(), 'Filtered VIEW should exist in source dataset');
-        $sourceFilteredRows = $this->queryView($sourceBqClient, $bucketDatabaseName, $filteredViewName);
+        $sourceFilteredView = $sourceBqClient->dataset($bucketBbName)->table($filteredViewName);
+        $this->assertTrue($sourceFilteredView->exists(), 'Filtered VIEW should exist in Bb dataset');
+        $sourceFilteredRows = $this->queryView($sourceBqClient, $bucketBbName, $filteredViewName);
         $this->assertCount(2, $sourceFilteredRows, 'Source filtered VIEW should return 2 rows');
 
-        // 3. Share bucket via Analytics Hub (sourceProjectId already parsed in cleanup above)
+        // --- 5. Share Bb (NOT Ba) via Analytics Hub ---
         $shareHandler = new ShareBucketHandler($this->clientManager);
         $shareHandler->setInternalLogger($this->log);
         $shareCommand = (new ShareBucketCommand())
             ->setSourceProjectId($sourceProjectId)
-            ->setSourceBucketObjectName($bucketDatabaseName)
-            ->setSourceBucketId($this->getTestHash())
+            ->setSourceBucketObjectName($bucketBbName)
+            ->setSourceBucketId($bucketBbShareId)
             ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
 
         $meta = new Any();
@@ -561,7 +629,7 @@ class ShareLinkBucketTest extends BaseCase
         $listing = $shareResult->getBucketShareRoleName();
         $this->assertNotEmpty($listing);
 
-        // 4. Link bucket to target project
+        // --- 6. Link Bb in target project ---
         $publicPart = (array) json_decode(
             $this->targetProjectResponse->getProjectUserName(),
             true,
@@ -593,7 +661,7 @@ class ShareLinkBucketTest extends BaseCase
         $linkedBucketSchemaName = $linkResult->getLinkedBucketObjectName();
         $this->assertNotEmpty($linkedBucketSchemaName);
 
-        // 5. Verify linked dataset exists
+        // --- 7. Verify linked dataset exists and VIEWs are accessible ---
         $targetBqClient = $this->clientManager->getBigQueryClient(
             $this->testRunId,
             $this->targetProjectCredentials,
@@ -602,32 +670,26 @@ class ShareLinkBucketTest extends BaseCase
         $targetDataset = $targetBqClient->dataset($linkedBucketSchemaName);
         $this->assertTrue($targetDataset->exists());
 
-        // Verify source table is accessible via linked dataset
-        $linkedTable = $targetDataset->table(self::TESTTABLE_BEFORE_NAME);
-        $this->assertTrue($linkedTable->exists());
-        $linkedTableRows = iterator_to_array($linkedTable->rows());
-        $this->assertCount(3, $linkedTableRows);
-
-        // 6. KEY TEST: Verify VIEW is accessible via linked dataset
+        // VIEW is accessible via linked dataset
         $linkedView = $targetDataset->table($viewName);
         $this->assertTrue($linkedView->exists(), 'VIEW should be visible in linked dataset');
         $linkedViewRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $viewName);
         $this->assertCount(3, $linkedViewRows, 'VIEW via linked dataset should return all 3 rows');
 
-        // 7. Verify filtered VIEW is accessible via linked dataset
+        // Filtered VIEW is accessible via linked dataset
         $linkedFilteredView = $targetDataset->table($filteredViewName);
         $this->assertTrue($linkedFilteredView->exists(), 'Filtered VIEW should be visible in linked dataset');
         $linkedFilteredRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $filteredViewName);
         $this->assertCount(2, $linkedFilteredRows, 'Filtered VIEW via linked dataset should return 2 rows');
 
-        // 8. Create workspace in target project and load VIEW via LoadTableToWorkspaceHandler
+        // --- 8. Create workspace in target project and load VIEW via LoadTableToWorkspaceHandler ---
         [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
             $this->targetProjectCredentials,
             $this->targetProjectResponse,
         );
         $workspaceDataset = $workspaceResponse->getWorkspaceObjectName();
 
-        // 9. Load VIEW from linked dataset into workspace using FULL import
+        // --- 9. Load VIEW from linked dataset into workspace using FULL import ---
         $wsLoadDestTable = 'WS_LOADED_FROM_VIEW';
         $loadCmd = new LoadTableToWorkspaceCommand();
 
@@ -665,7 +727,7 @@ class ShareLinkBucketTest extends BaseCase
         $wsLoadedRows = $this->queryView($targetBqClient, $workspaceDataset, $wsLoadDestTable);
         $this->assertCount(3, $wsLoadedRows, 'Workspace table loaded from VIEW should have 3 rows');
 
-        // 10. Load filtered VIEW from linked dataset into workspace
+        // --- 10. Load filtered VIEW from linked dataset into workspace ---
         $wsLoadFilteredTable = 'WS_LOADED_FROM_FILTERED_VIEW';
         $loadFilteredCmd = new LoadTableToWorkspaceCommand();
 
@@ -699,37 +761,41 @@ class ShareLinkBucketTest extends BaseCase
         $wsFilteredRows = $this->queryView($targetBqClient, $workspaceDataset, $wsLoadFilteredTable);
         $this->assertCount(2, $wsFilteredRows, 'Workspace table loaded from filtered VIEW should have 2 rows');
 
-        // 11. Verify workspace user can see loaded tables and read from them
+        // --- 11. Verify workspace user can see loaded tables and read from them ---
         $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $workspaceCredentials);
 
-        // WS user can see and read the table loaded from VIEW
         $wsUserTable = $wsBqClient->dataset($workspaceDataset)->table($wsLoadDestTable);
         $this->assertTrue($wsUserTable->exists(), 'WS user should see table loaded from VIEW');
         $wsUserRows = $this->queryView($wsBqClient, $workspaceDataset, $wsLoadDestTable);
         $this->assertCount(3, $wsUserRows, 'WS user should read 3 rows from table loaded from VIEW');
 
-        // WS user can see and read the table loaded from filtered VIEW
         $wsUserFilteredTable = $wsBqClient->dataset($workspaceDataset)->table($wsLoadFilteredTable);
         $this->assertTrue($wsUserFilteredTable->exists(), 'WS user should see table loaded from filtered VIEW');
         $wsUserFilteredRows = $this->queryView($wsBqClient, $workspaceDataset, $wsLoadFilteredTable);
         $this->assertCount(2, $wsUserFilteredRows, 'WS user should read 2 rows from table loaded from filtered VIEW');
 
-        // 12. Verify workspace user can read VIEWs in linked dataset directly via RO storage access
+        // --- 12. Verify workspace user can read VIEWs in linked dataset directly ---
         $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
         $this->assertCount(3, $wsLinkedViewRows, 'WS user should read VIEW in linked dataset directly');
 
         $wsLinkedFilteredRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $filteredViewName);
         $this->assertCount(2, $wsLinkedFilteredRows, 'WS user should read filtered VIEW in linked dataset directly');
 
-        // WS user can also read the source table in linked dataset directly
-        $wsLinkedTableRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, self::TESTTABLE_BEFORE_NAME);
-        $this->assertCount(3, $wsLinkedTableRows, 'WS user should read source table in linked dataset directly');
-
-        // 13. Cleanup: unlink -> unshare
+        // --- 13. Cleanup: unlink Bb -> unshare Bb ---
         $this->cleanupLinkedDataset(
             $linkedBucketSchemaName,
             $listing,
         );
+
+        // Cleanup Bb dataset
+        try {
+            $bbDataset = $sourceBqClient->dataset($bucketBbName);
+            if ($bbDataset->exists()) {
+                $bbDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
     }
 
     /**
