@@ -18,6 +18,8 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\AddColumnHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateViewHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
@@ -32,8 +34,10 @@ use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Table\AddColumnCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateViewCommand;
+use Keboola\StorageDriver\Command\Table\DropColumnCommand;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
@@ -788,6 +792,448 @@ class ShareLinkBucketTest extends BaseCase
         );
 
         // Cleanup Bb dataset
+        try {
+            $bbDataset = $sourceBqClient->dataset($bucketBbName);
+            if ($bbDataset->exists()) {
+                $bbDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+    }
+
+    /**
+     * Test that column changes on a source table are reflected through
+     * a cross-dataset VIEW accessed via a linked dataset.
+     *
+     * BigQuery VIEWs with SELECT * resolve columns at query time, so adding
+     * or dropping columns on the source table is automatically visible through
+     * the VIEW without recreating it.
+     */
+    public function testSourceTableColumnChangesReflectedViaLinkedView(): void
+    {
+        // Parse source project ID
+        $sourcePublicPart = (array) json_decode(
+            $this->sourceProjectResponse->getProjectUserName(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        /** @var string $sourceProjectId */
+        $sourceProjectId = $sourcePublicPart['project_id'];
+
+        $sourceBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->sourceProjectCredentials,
+        );
+        $targetBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials,
+        );
+
+        // --- Stale cleanup ---
+        $bucketBbId = $this->getTestHash() . 'in.c-TestColChange';
+        $bucketBbShareId = $this->getTestHash() . 'BbCol';
+        $nameGenerator = new NameGenerator($this->getStackPrefix());
+        $expectedBbDatasetName = $nameGenerator->createObjectNameForBucketInProject($bucketBbId, null);
+        $linkedBucketSchemaName = $expectedBbDatasetName . '_LINKED';
+
+        // Cleanup stale linked dataset
+        try {
+            $staleLinkedDataset = $targetBqClient->dataset($linkedBucketSchemaName);
+            if ($staleLinkedDataset->exists()) {
+                $staleLinkedDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+
+        // Cleanup stale listing
+        $analyticHubClient = $this->clientManager->getAnalyticHubClient($this->sourceProjectCredentials);
+        try {
+            $staleListingName = AnalyticsHubServiceClient::listingName(
+                $sourceProjectId,
+                BaseCase::DEFAULT_LOCATION,
+                $this->sourceProjectResponse->getProjectReadOnlyRoleName(),
+                $bucketBbShareId,
+            );
+            $analyticHubClient->deleteListing($staleListingName);
+        } catch (Throwable) {
+            // ignore
+        }
+
+        // Cleanup stale Bb dataset
+        try {
+            $staleBbDataset = $sourceBqClient->dataset($expectedBbDatasetName);
+            if ($staleBbDataset->exists()) {
+                $staleBbDataset->delete(['deleteContents' => true]);
+            }
+        } catch (Throwable) {
+            // ignore
+        }
+
+        // --- 1. Create two buckets in source project ---
+        $bucketBaResponse = $this->createTestBucket($this->sourceProjectCredentials);
+        $bucketBaName = $bucketBaResponse->getCreateBucketObjectName();
+
+        $bbHandler = new CreateBucketHandler($this->clientManager);
+        $bbHandler->setInternalLogger($this->log);
+        $bbCommand = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setBucketId($bucketBbId);
+        $bbMeta = new Any();
+        $bbMeta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
+        $bbCommand->setMeta($bbMeta);
+        /** @var CreateBucketResponse $bbResponse */
+        $bbResponse = $bbHandler(
+            $this->sourceProjectCredentials,
+            $bbCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertInstanceOf(CreateBucketResponse::class, $bbResponse);
+        $bucketBbName = $bbResponse->getCreateBucketObjectName();
+
+        // --- 2. Create table with ID, NAME columns in Ba ---
+        $tableName = self::TESTTABLE_BEFORE_NAME;
+        $tableHandler = new CreateTableHandler($this->clientManager);
+        $tableHandler->setInternalLogger($this->log);
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketBaName;
+        $columns = new RepeatedField(GPBType::MESSAGE, TableColumnShared::class);
+        $columns[] = (new TableColumnShared())
+            ->setName('ID')
+            ->setType(Bigquery::TYPE_STRING);
+        $columns[] = (new TableColumnShared())
+            ->setName('NAME')
+            ->setType(Bigquery::TYPE_STRING);
+        $command = (new CreateTableCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumns($columns);
+        $tableHandler(
+            $this->sourceProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Insert 3 rows
+        $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
+            'INSERT INTO %s.%s (`ID`, `NAME`) VALUES (%s, %s), (%s, %s), (%s, %s)',
+            BigqueryQuote::quoteSingleIdentifier($bucketBaName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+            BigqueryQuote::quote('1'),
+            BigqueryQuote::quote('alice'),
+            BigqueryQuote::quote('2'),
+            BigqueryQuote::quote('bob'),
+            BigqueryQuote::quote('3'),
+            BigqueryQuote::quote('charlie'),
+        )));
+
+        // --- 3. Create SELECT * VIEW in Bb -> Ba ---
+        $viewName = 'ALIAS_VIEW';
+        $createViewHandler = new CreateViewHandler($this->clientManager);
+        $createViewHandler->setInternalLogger($this->log);
+        $createViewCommand = (new CreateViewCommand())
+            ->setPath([$bucketBbName])
+            ->setSourcePath([$bucketBaName])
+            ->setViewName($viewName)
+            ->setSourceTableName($tableName);
+        $createViewHandler(
+            $this->sourceProjectCredentials,
+            $createViewCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // --- 4. Create filtered VIEW in Bb (WHERE ID > '1') ---
+        $filteredViewName = 'FILTERED_ALIAS_VIEW';
+        $filteredViewSql = sprintf(
+            'CREATE VIEW %s.%s AS (SELECT * FROM %s.%s WHERE `ID` > %s)',
+            BigqueryQuote::quoteSingleIdentifier($bucketBbName),
+            BigqueryQuote::quoteSingleIdentifier($filteredViewName),
+            BigqueryQuote::quoteSingleIdentifier($bucketBaName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+            BigqueryQuote::quote('1'),
+        );
+        $sourceBqClient->runQuery($sourceBqClient->query($filteredViewSql));
+
+        // Grant Ba dataset access for filtered VIEW (raw SQL view needs manual grant)
+        $baDataset = $sourceBqClient->dataset($bucketBaName);
+        $baInfo = $baDataset->reload();
+        $currentAccess = $baInfo['access'] ?? [];
+        $currentAccess[] = [
+            'view' => [
+                'projectId' => $sourceProjectId,
+                'datasetId' => $bucketBbName,
+                'tableId' => $filteredViewName,
+            ],
+        ];
+        $baDataset->update(['access' => $currentAccess]);
+
+        // --- 5. Share Bb via Analytics Hub ---
+        $shareHandler = new ShareBucketHandler($this->clientManager);
+        $shareHandler->setInternalLogger($this->log);
+        $shareCommand = (new ShareBucketCommand())
+            ->setSourceProjectId($sourceProjectId)
+            ->setSourceBucketObjectName($bucketBbName)
+            ->setSourceBucketId($bucketBbShareId)
+            ->setSourceProjectReadOnlyRoleName($this->sourceProjectResponse->getProjectReadOnlyRoleName());
+
+        $meta = new Any();
+        $meta->pack(new ShareBucketCommand\ShareBucketBigqueryCommandMeta());
+        $shareCommand->setMeta($meta);
+        $shareResult = $shareHandler(
+            $this->getCredentials(),
+            $shareCommand,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertInstanceOf(ShareBucketResponse::class, $shareResult);
+        $listing = $shareResult->getBucketShareRoleName();
+        $this->assertNotEmpty($listing);
+
+        // --- 6. Link Bb in target project ---
+        $publicPart = (array) json_decode(
+            $this->targetProjectResponse->getProjectUserName(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        /** @var string $targetProjectId */
+        $targetProjectId = $publicPart['project_id'];
+
+        $linkHandler = new LinkBucketHandler($this->clientManager);
+        $linkHandler->setInternalLogger($this->log);
+        $linkCommand = (new LinkBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setTargetProjectId($targetProjectId)
+            ->setTargetBucketId($linkedBucketSchemaName)
+            ->setSourceShareRoleName($listing);
+
+        $linkMeta = new Any();
+        $linkMeta->pack(new LinkBucketCommand\LinkBucketBigqueryMeta());
+        $linkCommand->setMeta($linkMeta);
+        $linkResult = $linkHandler(
+            $this->getCredentials(),
+            $linkCommand,
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertInstanceOf(LinkedBucketResponse::class, $linkResult);
+        $linkedBucketSchemaName = $linkResult->getLinkedBucketObjectName();
+        $this->assertNotEmpty($linkedBucketSchemaName);
+
+        // --- 7. Verify initial state: both VIEWs work ---
+        $targetBqClient = $this->clientManager->getBigQueryClient(
+            $this->testRunId,
+            $this->targetProjectCredentials,
+        );
+
+        $targetDataset = $targetBqClient->dataset($linkedBucketSchemaName);
+        $this->assertTrue($targetDataset->exists());
+
+        $linkedViewRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(3, $linkedViewRows, 'VIEW via linked dataset should return 3 rows initially');
+
+        $linkedFilteredRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(2, $linkedFilteredRows, 'Filtered VIEW via linked dataset should return 2 rows initially');
+
+        // --- 7b. Create workspace in target project for RO role verification ---
+        [$workspaceCredentials, $workspaceResponse] = $this->createTestWorkspace(
+            $this->targetProjectCredentials,
+            $this->targetProjectResponse,
+        );
+        $workspaceDataset = $workspaceResponse->getWorkspaceObjectName();
+        $wsBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $workspaceCredentials);
+
+        $loadHandler = new LoadTableToWorkspaceHandler($this->clientManager);
+        $loadHandler->setInternalLogger($this->log);
+        $sourcePath = new RepeatedField(GPBType::STRING);
+        $sourcePath[] = $linkedBucketSchemaName;
+
+        // Workspace user can read VIEWs in linked dataset directly (initial state)
+        $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(3, $wsLinkedViewRows, 'WS user should read 3 rows from VIEW initially');
+        $wsLinkedFilteredRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(2, $wsLinkedFilteredRows, 'WS user should read 2 rows from filtered VIEW initially');
+
+        // --- 8. Add column AGE to source table ---
+        $addColumnHandler = new AddColumnHandler($this->clientManager);
+        $addColumnHandler->setInternalLogger($this->log);
+        $addColumnCommand = (new AddColumnCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumnDefinition(
+                (new TableColumnShared())
+                    ->setName('AGE')
+                    ->setType(Bigquery::TYPE_STRING)
+                    ->setNullable(true),
+            );
+        $addColumnHandler(
+            $this->sourceProjectCredentials,
+            $addColumnCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Insert a new row with the new column
+        $sourceBqClient->runQuery($sourceBqClient->query(sprintf(
+            'INSERT INTO %s.%s (`ID`, `NAME`, `AGE`) VALUES (%s, %s, %s)',
+            BigqueryQuote::quoteSingleIdentifier($bucketBaName),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+            BigqueryQuote::quote('4'),
+            BigqueryQuote::quote('dave'),
+            BigqueryQuote::quote('25'),
+        )));
+
+        // Verify VIEW via linked dataset: 4 rows, AGE column present
+        $linkedViewRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(4, $linkedViewRows, 'VIEW should return 4 rows after adding column and row');
+        $this->assertArrayHasKey('AGE', $linkedViewRows[0], 'New AGE column should be visible through VIEW');
+
+        // Verify filtered VIEW: 3 rows (ID > '1' = bob, charlie, dave), AGE column present
+        $linkedFilteredRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(3, $linkedFilteredRows, 'Filtered VIEW should return 3 rows after adding column and row');
+        $this->assertArrayHasKey('AGE', $linkedFilteredRows[0], 'New AGE column should be visible through filtered VIEW');
+
+        // Verify workspace user (RO role) sees added column via direct query
+        $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(4, $wsLinkedViewRows, 'WS user should read 4 rows from VIEW after add column');
+        $this->assertArrayHasKey('AGE', $wsLinkedViewRows[0], 'WS user should see AGE column in VIEW');
+
+        $wsLinkedFilteredRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(3, $wsLinkedFilteredRows, 'WS user should read 3 rows from filtered VIEW after add column');
+        $this->assertArrayHasKey('AGE', $wsLinkedFilteredRows[0], 'WS user should see AGE column in filtered VIEW');
+
+        // Recreate VIEW to refresh BigQuery metadata (frozen at creation time)
+        $createViewHandler(
+            $this->sourceProjectCredentials,
+            $createViewCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Load VIEW into workspace after add column
+        $wsAddColTable = 'WS_VIEW_AFTER_ADD_COL';
+        $loadCmd = new LoadTableToWorkspaceCommand();
+        $loadCmd->setSource(
+            (new LoadTableToWorkspaceCommand\SourceTableMapping())
+                ->setPath($sourcePath)
+                ->setTableName($viewName),
+        );
+        $destPath = new RepeatedField(GPBType::STRING);
+        $destPath[] = $workspaceDataset;
+        $loadCmd->setDestination(
+            (new Table())
+                ->setPath($destPath)
+                ->setTableName($wsAddColTable),
+        );
+        $loadCmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL),
+        );
+        /** @var TableImportResponse $loadResponse */
+        $loadResponse = $loadHandler(
+            $this->targetProjectCredentials,
+            $loadCmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertSame(4, $loadResponse->getImportedRowsCount());
+        $wsLoadedRows = $this->queryView($targetBqClient, $workspaceDataset, $wsAddColTable);
+        $this->assertCount(4, $wsLoadedRows, 'WS loaded table should have 4 rows after add column');
+        $this->assertArrayHasKey('AGE', $wsLoadedRows[0], 'WS loaded table should have AGE column');
+
+        // --- 9. Drop NAME column from source table ---
+        $dropColumnHandler = new DropColumnHandler($this->clientManager);
+        $dropColumnHandler->setInternalLogger($this->log);
+        $dropColumnCommand = (new DropColumnCommand())
+            ->setPath($path)
+            ->setTableName($tableName)
+            ->setColumnName('NAME');
+        $dropColumnHandler(
+            $this->sourceProjectCredentials,
+            $dropColumnCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Verify VIEW via linked dataset: 4 rows, only ID and AGE columns
+        $linkedViewRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(4, $linkedViewRows, 'VIEW should still return 4 rows after dropping column');
+        $this->assertArrayHasKey('ID', $linkedViewRows[0], 'ID column should remain');
+        $this->assertArrayHasKey('AGE', $linkedViewRows[0], 'AGE column should remain');
+        $this->assertArrayNotHasKey('NAME', $linkedViewRows[0], 'Dropped NAME column should not be visible');
+
+        // Verify filtered VIEW: 3 rows, only ID and AGE columns
+        $linkedFilteredRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(3, $linkedFilteredRows, 'Filtered VIEW should still return 3 rows after dropping column');
+        $this->assertArrayHasKey('ID', $linkedFilteredRows[0], 'ID column should remain in filtered VIEW');
+        $this->assertArrayHasKey('AGE', $linkedFilteredRows[0], 'AGE column should remain in filtered VIEW');
+        $this->assertArrayNotHasKey('NAME', $linkedFilteredRows[0], 'Dropped NAME column should not be visible in filtered VIEW');
+
+        // Verify workspace user (RO role) sees dropped column via direct query
+        $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
+        $this->assertCount(4, $wsLinkedViewRows, 'WS user should read 4 rows from VIEW after drop column');
+        $this->assertArrayHasKey('ID', $wsLinkedViewRows[0], 'WS user should see ID in VIEW after drop');
+        $this->assertArrayHasKey('AGE', $wsLinkedViewRows[0], 'WS user should see AGE in VIEW after drop');
+        $this->assertArrayNotHasKey('NAME', $wsLinkedViewRows[0], 'WS user should not see NAME in VIEW after drop');
+
+        $wsLinkedFilteredRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $filteredViewName);
+        $this->assertCount(3, $wsLinkedFilteredRows, 'WS user should read 3 rows from filtered VIEW after drop column');
+        $this->assertArrayNotHasKey('NAME', $wsLinkedFilteredRows[0], 'WS user should not see NAME in filtered VIEW after drop');
+
+        // Recreate VIEW to refresh BigQuery metadata (frozen at creation time)
+        $createViewHandler(
+            $this->sourceProjectCredentials,
+            $createViewCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        // Load VIEW into workspace after drop column
+        $wsDropColTable = 'WS_VIEW_AFTER_DROP_COL';
+        $loadDropCmd = new LoadTableToWorkspaceCommand();
+        $loadDropCmd->setSource(
+            (new LoadTableToWorkspaceCommand\SourceTableMapping())
+                ->setPath($sourcePath)
+                ->setTableName($viewName),
+        );
+        $destDropPath = new RepeatedField(GPBType::STRING);
+        $destDropPath[] = $workspaceDataset;
+        $loadDropCmd->setDestination(
+            (new Table())
+                ->setPath($destDropPath)
+                ->setTableName($wsDropColTable),
+        );
+        $loadDropCmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL),
+        );
+        /** @var TableImportResponse $loadDropResponse */
+        $loadDropResponse = $loadHandler(
+            $this->targetProjectCredentials,
+            $loadDropCmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+        $this->assertSame(4, $loadDropResponse->getImportedRowsCount());
+        $wsDroppedRows = $this->queryView($targetBqClient, $workspaceDataset, $wsDropColTable);
+        $this->assertCount(4, $wsDroppedRows, 'WS loaded table should have 4 rows after drop column');
+        $this->assertArrayHasKey('ID', $wsDroppedRows[0]);
+        $this->assertArrayHasKey('AGE', $wsDroppedRows[0]);
+        $this->assertArrayNotHasKey('NAME', $wsDroppedRows[0], 'WS loaded table should not have NAME after drop');
+
+        // --- 10. Cleanup ---
+        $this->cleanupLinkedDataset(
+            $linkedBucketSchemaName,
+            $listing,
+        );
+
         try {
             $bbDataset = $sourceBqClient->dataset($bucketBbName);
             if ($bbDataset->exists()) {
