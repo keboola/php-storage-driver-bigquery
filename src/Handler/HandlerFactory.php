@@ -30,6 +30,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropColumnHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Alter\DropPrimaryKeyHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableFromTimeTravelHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateTableHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Create\CreateViewHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Drop\DropTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Export\ExportTableToFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
@@ -66,6 +67,7 @@ use Keboola\StorageDriver\Command\Table\AlterColumnCommand;
 use Keboola\StorageDriver\Command\Table\CreateProfileTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateTableFromTimeTravelCommand;
+use Keboola\StorageDriver\Command\Table\CreateViewCommand;
 use Keboola\StorageDriver\Command\Table\DeleteTableRowsCommand;
 use Keboola\StorageDriver\Command\Table\DropColumnCommand;
 use Keboola\StorageDriver\Command\Table\DropPrimaryKeyCommand;
@@ -102,6 +104,7 @@ final class HandlerFactory
             CreateProjectCommand::class => new CreateProjectHandler($manager),
             CreateTableCommand::class => new CreateTableHandler($manager),
             CreateTableFromTimeTravelCommand::class => new CreateTableFromTimeTravelHandler($manager),
+            CreateViewCommand::class => new CreateViewHandler($manager),
             CreateWorkspaceCommand::class => new CreateWorkspaceHandler($manager),
             DeleteTableRowsCommand::class => new DeleteTableRowsHandler($manager),
             DropBucketCommand::class => new DropBucketHandler($manager),
