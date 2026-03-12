@@ -367,7 +367,10 @@ class CreateViewTest extends BaseCase
                 break;
             }
         }
-        $this->assertTrue($found, 'Source dataset access list should contain authorized view entry for cross-dataset VIEW');
+        $this->assertTrue(
+            $found,
+            'Source dataset access list should contain authorized view entry for cross-dataset VIEW',
+        );
 
         // Verify idempotency: re-running handler should not duplicate the grant
         $handler(

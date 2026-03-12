@@ -56,6 +56,8 @@ final class CreateViewHandler extends BaseHandler
         $sourceDatasetName = $command->getSourcePath()->count() > 0
             ? $command->getSourcePath()[0]
             : $datasetName;
+        assert(is_string($sourceDatasetName));
+        assert($sourceDatasetName !== '', 'CreateViewCommand.sourcePath is required');
 
         /** @var string[] $columns */
         $columns = iterator_to_array($command->getColumns());

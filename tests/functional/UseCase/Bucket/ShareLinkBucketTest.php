@@ -1098,7 +1098,11 @@ class ShareLinkBucketTest extends BaseCase
         // Verify filtered VIEW: 3 rows (ID > '1' = bob, charlie, dave), AGE column present
         $linkedFilteredRows = $this->queryView($targetBqClient, $linkedBucketSchemaName, $filteredViewName);
         $this->assertCount(3, $linkedFilteredRows, 'Filtered VIEW should return 3 rows after adding column and row');
-        $this->assertArrayHasKey('AGE', $linkedFilteredRows[0], 'New AGE column should be visible through filtered VIEW');
+        $this->assertArrayHasKey(
+            'AGE',
+            $linkedFilteredRows[0],
+            'New AGE column should be visible through filtered VIEW',
+        );
 
         // Verify workspace user (RO role) sees added column via direct query
         $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
@@ -1174,7 +1178,11 @@ class ShareLinkBucketTest extends BaseCase
         $this->assertCount(3, $linkedFilteredRows, 'Filtered VIEW should still return 3 rows after dropping column');
         $this->assertArrayHasKey('ID', $linkedFilteredRows[0], 'ID column should remain in filtered VIEW');
         $this->assertArrayHasKey('AGE', $linkedFilteredRows[0], 'AGE column should remain in filtered VIEW');
-        $this->assertArrayNotHasKey('NAME', $linkedFilteredRows[0], 'Dropped NAME column should not be visible in filtered VIEW');
+        $this->assertArrayNotHasKey(
+            'NAME',
+            $linkedFilteredRows[0],
+            'Dropped NAME column should not be visible in filtered VIEW',
+        );
 
         // Verify workspace user (RO role) sees dropped column via direct query
         $wsLinkedViewRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $viewName);
@@ -1185,7 +1193,11 @@ class ShareLinkBucketTest extends BaseCase
 
         $wsLinkedFilteredRows = $this->queryView($wsBqClient, $linkedBucketSchemaName, $filteredViewName);
         $this->assertCount(3, $wsLinkedFilteredRows, 'WS user should read 3 rows from filtered VIEW after drop column');
-        $this->assertArrayNotHasKey('NAME', $wsLinkedFilteredRows[0], 'WS user should not see NAME in filtered VIEW after drop');
+        $this->assertArrayNotHasKey(
+            'NAME',
+            $wsLinkedFilteredRows[0],
+            'WS user should not see NAME in filtered VIEW after drop',
+        );
 
         // Recreate VIEW to refresh BigQuery metadata (frozen at creation time)
         $createViewHandler(
