@@ -18,7 +18,6 @@ final class ViewBucketTestContext
         public readonly string $linkedBucketSchemaName,
         public readonly string $listing,
         public readonly string $viewName,
-        public readonly ?string $filteredViewName,
         public readonly string $tableName,
         public readonly BigQueryClient $sourceBqClient,
         public readonly BigQueryClient $targetBqClient,
