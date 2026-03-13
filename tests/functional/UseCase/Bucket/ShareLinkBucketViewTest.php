@@ -528,17 +528,20 @@ class ShareLinkBucketViewTest extends BaseCase
         );
 
         // Verify VIEW fails -- it references non-existent column NAME
-        $queryFailed = false;
         try {
             $this->queryView(
                 $this->ctx()->targetBqClient,
                 $this->ctx()->linkedBucketSchemaName,
                 $this->ctx()->viewName,
             );
-        } catch (BadRequestException) {
-            $queryFailed = true;
+            $this->fail('Column subset VIEW referencing dropped column NAME should fail');
+        } catch (BadRequestException $e) {
+            $this->assertStringContainsString(
+                'NAME',
+                $e->getMessage(),
+                'Exception should reference the missing column NAME',
+            );
         }
-        $this->assertTrue($queryFailed, 'Column subset VIEW referencing dropped column NAME should fail');
 
         // Recreate VIEW with updated column list (only ID)
         $newViewCommand = (new CreateViewCommand())
