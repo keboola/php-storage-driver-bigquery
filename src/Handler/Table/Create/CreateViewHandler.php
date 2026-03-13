@@ -13,6 +13,7 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Oper
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use LogicException;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -104,7 +105,7 @@ final class CreateViewHandler extends BaseHandler
                     Operator::ge => '>=',
                     Operator::lt => '<',
                     Operator::le => '<=',
-                    default => throw new \LogicException(sprintf('Unsupported operator: %d', $operator)),
+                    default => throw new LogicException(sprintf('Unsupported operator: %d', $operator)),
                 };
                 $whereClauses[] = sprintf('%s %s %s', $column, $sqlOperator, BigqueryQuote::quote($values[0]));
             } else {
@@ -112,7 +113,7 @@ final class CreateViewHandler extends BaseHandler
                 $sqlOperator = match ($operator) {
                     Operator::eq => 'IN',
                     Operator::ne => 'NOT IN',
-                    default => throw new \LogicException(
+                    default => throw new LogicException(
                         sprintf('Operator %d does not support multiple values', $operator),
                     ),
                 };
