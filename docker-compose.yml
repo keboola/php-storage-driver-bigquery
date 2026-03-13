@@ -10,6 +10,7 @@ services:
         - BQ_BUCKET_NAME
         - BQ_KEY_FILE
         - BUILD_ID
+        - IS_LOCAL_DEV
   dev: &dev
     <<: *prod
     image: production
