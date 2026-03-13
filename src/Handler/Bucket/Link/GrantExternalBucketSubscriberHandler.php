@@ -49,7 +49,10 @@ final class GrantExternalBucketSubscriberHandler extends BaseHandler
         $subscriberEmail = $command->getSubscriberServiceAccountEmail();
 
         assert($listing !== '', 'GrantExternalBucketSubscriberCommand.listingName must be filled in');
-        assert($subscriberEmail !== '', 'GrantExternalBucketSubscriberCommand.subscriberServiceAccountEmail must be filled in');
+        assert(
+            $subscriberEmail !== '',
+            'GrantExternalBucketSubscriberCommand.subscriberServiceAccountEmail must be filled in',
+        );
 
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
 
