@@ -53,11 +53,19 @@ final class CreateViewHandler extends BaseHandler
         $datasetName = $command->getPath()[0];
 
         // Source dataset: use sourcePath if provided, otherwise same as path
-        $sourceDatasetName = $command->getSourcePath()->count() > 0
-            ? $command->getSourcePath()[0]
-            : $datasetName;
-        assert(is_string($sourceDatasetName));
-        assert($sourceDatasetName !== '', 'CreateViewCommand.sourcePath is required');
+        if ($command->getSourcePath()->count() > 0) {
+            assert(
+                $command->getSourcePath()->count() === 1,
+                'CreateViewCommand.sourcePath size must equal 1',
+            );
+            $sourceDatasetName = $command->getSourcePath()[0];
+            assert(
+                is_string($sourceDatasetName) && $sourceDatasetName !== '',
+                'CreateViewCommand.sourcePath[0] must be non-empty string',
+            );
+        } else {
+            $sourceDatasetName = $datasetName;
+        }
 
         /** @var string[] $columns */
         $columns = iterator_to_array($command->getColumns());

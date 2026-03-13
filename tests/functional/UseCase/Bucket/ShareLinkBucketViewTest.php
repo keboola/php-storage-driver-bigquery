@@ -639,16 +639,8 @@ class ShareLinkBucketViewTest extends BaseCase
         $this->assertCount(3, $wsLinkedViewRows, 'WS user should read VIEW in linked dataset');
 
         // Workspace user should NOT be able to query source dataset Ba directly
-        $queryFailed = false;
-        try {
-            $this->queryView($wsBqClient, $this->ctx()->bucketBaName, $this->ctx()->tableName);
-        } catch (Throwable) {
-            $queryFailed = true;
-        }
-        $this->assertTrue(
-            $queryFailed,
-            'Workspace user should NOT have direct access to source dataset Ba',
-        );
+        $this->expectException(Throwable::class);
+        $this->queryView($wsBqClient, $this->ctx()->bucketBaName, $this->ctx()->tableName);
     }
 
     // ------------------------------------------------------------------
