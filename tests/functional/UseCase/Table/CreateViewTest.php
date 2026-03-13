@@ -20,6 +20,8 @@ use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Command\Table\CreateViewCommand;
 use Keboola\StorageDriver\Command\Table\DropTableCommand;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -411,5 +413,243 @@ class CreateViewTest extends BaseCase
         } catch (Throwable) {
             // ignore
         }
+    }
+
+    public function testCreateViewWithSingleValueFilter(): void
+    {
+        $viewName = $this->getTestHash() . '_VIEW_FILTER_SINGLE';
+
+        $handler = new CreateViewHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $this->bucketDatasetName;
+
+        $filterValues = new RepeatedField(GPBType::STRING);
+        $filterValues[] = 'alice';
+        $filter = (new TableWhereFilter())
+            ->setColumnsName('NAME')
+            ->setOperator(Operator::eq)
+            ->setValues($filterValues);
+        $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
+        $whereFilters[] = $filter;
+
+        $command = (new CreateViewCommand())
+            ->setPath($path)
+            ->setViewName($viewName)
+            ->setSourceTableName(self::SOURCE_TABLE_NAME)
+            ->setWhereFilters($whereFilters);
+
+        $result = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertNull($result);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $rows = iterator_to_array($bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT * FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($viewName),
+        ))));
+        $this->assertCount(1, $rows);
+        /** @var array<string, mixed> $row */
+        $row = $rows[0];
+        $this->assertSame('alice', $row['NAME']);
+
+        // Cleanup
+        $dropHandler = new DropTableHandler($this->clientManager);
+        $dropHandler->setInternalLogger($this->log);
+        $dropHandler(
+            $this->projectCredentials,
+            (new DropTableCommand())
+                ->setPath($path)
+                ->setTableName($viewName),
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+    }
+
+    public function testCreateViewWithMultiValueFilter(): void
+    {
+        $viewName = $this->getTestHash() . '_VIEW_FILTER_MULTI';
+
+        $handler = new CreateViewHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $this->bucketDatasetName;
+
+        $filterValues = new RepeatedField(GPBType::STRING);
+        $filterValues[] = 'alice';
+        $filterValues[] = 'bob';
+        $filter = (new TableWhereFilter())
+            ->setColumnsName('NAME')
+            ->setOperator(Operator::eq)
+            ->setValues($filterValues);
+        $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
+        $whereFilters[] = $filter;
+
+        $command = (new CreateViewCommand())
+            ->setPath($path)
+            ->setViewName($viewName)
+            ->setSourceTableName(self::SOURCE_TABLE_NAME)
+            ->setWhereFilters($whereFilters);
+
+        $result = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertNull($result);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $rows = iterator_to_array($bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT * FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($viewName),
+        ))));
+        $this->assertCount(2, $rows);
+
+        // Cleanup
+        $dropHandler = new DropTableHandler($this->clientManager);
+        $dropHandler->setInternalLogger($this->log);
+        $dropHandler(
+            $this->projectCredentials,
+            (new DropTableCommand())
+                ->setPath($path)
+                ->setTableName($viewName),
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+    }
+
+    public function testCreateViewWithNeOperator(): void
+    {
+        $viewName = $this->getTestHash() . '_VIEW_FILTER_NE';
+
+        $handler = new CreateViewHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $this->bucketDatasetName;
+
+        $filterValues = new RepeatedField(GPBType::STRING);
+        $filterValues[] = 'alice';
+        $filter = (new TableWhereFilter())
+            ->setColumnsName('NAME')
+            ->setOperator(Operator::ne)
+            ->setValues($filterValues);
+        $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
+        $whereFilters[] = $filter;
+
+        $command = (new CreateViewCommand())
+            ->setPath($path)
+            ->setViewName($viewName)
+            ->setSourceTableName(self::SOURCE_TABLE_NAME)
+            ->setWhereFilters($whereFilters);
+
+        $result = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertNull($result);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $rows = iterator_to_array($bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT * FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($viewName),
+        ))));
+        $this->assertCount(1, $rows);
+        /** @var array<string, mixed> $row */
+        $row = $rows[0];
+        $this->assertSame('bob', $row['NAME']);
+
+        // Cleanup
+        $dropHandler = new DropTableHandler($this->clientManager);
+        $dropHandler->setInternalLogger($this->log);
+        $dropHandler(
+            $this->projectCredentials,
+            (new DropTableCommand())
+                ->setPath($path)
+                ->setTableName($viewName),
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+    }
+
+    public function testCreateViewWithFilterAndColumnSubset(): void
+    {
+        $viewName = $this->getTestHash() . '_VIEW_FILTER_COLS';
+
+        $handler = new CreateViewHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $this->bucketDatasetName;
+
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'ID';
+        $columns[] = 'NAME';
+
+        $filterValues = new RepeatedField(GPBType::STRING);
+        $filterValues[] = 'alice';
+        $filter = (new TableWhereFilter())
+            ->setColumnsName('NAME')
+            ->setOperator(Operator::eq)
+            ->setValues($filterValues);
+        $whereFilters = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
+        $whereFilters[] = $filter;
+
+        $command = (new CreateViewCommand())
+            ->setPath($path)
+            ->setViewName($viewName)
+            ->setSourceTableName(self::SOURCE_TABLE_NAME)
+            ->setColumns($columns)
+            ->setWhereFilters($whereFilters);
+
+        $result = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertNull($result);
+
+        $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
+        $rows = iterator_to_array($bqClient->runQuery($bqClient->query(sprintf(
+            'SELECT * FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($this->bucketDatasetName),
+            BigqueryQuote::quoteSingleIdentifier($viewName),
+        ))));
+        $this->assertCount(1, $rows);
+        /** @var array<string, mixed> $row */
+        $row = $rows[0];
+        $this->assertArrayHasKey('ID', $row);
+        $this->assertArrayHasKey('NAME', $row);
+        $this->assertArrayNotHasKey('AGE', $row);
+        $this->assertSame('alice', $row['NAME']);
+
+        // Cleanup
+        $dropHandler = new DropTableHandler($this->clientManager);
+        $dropHandler->setInternalLogger($this->log);
+        $dropHandler(
+            $this->projectCredentials,
+            (new DropTableCommand())
+                ->setPath($path)
+                ->setTableName($viewName),
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
     }
 }

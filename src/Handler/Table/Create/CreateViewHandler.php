@@ -8,6 +8,8 @@ use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Table\CreateViewCommand;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
@@ -85,13 +87,53 @@ final class CreateViewHandler extends BaseHandler
             ));
         }
 
+        // Build WHERE clause from filters
+        $whereClauses = [];
+        /** @var TableWhereFilter $filter */
+        foreach ($command->getWhereFilters() as $filter) {
+            $column = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
+            /** @var string[] $values */
+            $values = iterator_to_array($filter->getValues());
+            $operator = $filter->getOperator();
+
+            if (count($values) === 1) {
+                $sqlOperator = match ($operator) {
+                    Operator::eq => '=',
+                    Operator::ne => '<>',
+                    Operator::gt => '>',
+                    Operator::ge => '>=',
+                    Operator::lt => '<',
+                    Operator::le => '<=',
+                    default => throw new \LogicException(sprintf('Unsupported operator: %d', $operator)),
+                };
+                $whereClauses[] = sprintf('%s %s %s', $column, $sqlOperator, BigqueryQuote::quote($values[0]));
+            } else {
+                // Multi-value: only eq (IN) and ne (NOT IN) are supported
+                $sqlOperator = match ($operator) {
+                    Operator::eq => 'IN',
+                    Operator::ne => 'NOT IN',
+                    default => throw new \LogicException(
+                        sprintf('Operator %d does not support multiple values', $operator),
+                    ),
+                };
+                $quotedValues = implode(', ', array_map(
+                    static fn(string $v): string => BigqueryQuote::quote($v),
+                    $values,
+                ));
+                $whereClauses[] = sprintf('%s %s (%s)', $column, $sqlOperator, $quotedValues);
+            }
+        }
+
+        $whereClause = count($whereClauses) > 0 ? ' WHERE ' . implode(' AND ', $whereClauses) : '';
+
         $sql = sprintf(
-            'CREATE OR REPLACE VIEW %s.%s AS (SELECT %s FROM %s.%s)',
+            'CREATE OR REPLACE VIEW %s.%s AS (SELECT %s FROM %s.%s%s)',
             BigqueryQuote::quoteSingleIdentifier($datasetName),
             BigqueryQuote::quoteSingleIdentifier($command->getViewName()),
             $selectExpression,
             BigqueryQuote::quoteSingleIdentifier($sourceDatasetName),
             BigqueryQuote::quoteSingleIdentifier($command->getSourceTableName()),
+            $whereClause,
         );
 
         $bqClient->runQuery($bqClient->query($sql));
