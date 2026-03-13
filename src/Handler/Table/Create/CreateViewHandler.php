@@ -11,6 +11,10 @@ use Keboola\StorageDriver\Command\Table\CreateViewCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use Retry\BackOff\ExponentialRandomBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
+use Throwable;
 
 final class CreateViewHandler extends BaseHandler
 {
@@ -100,9 +104,6 @@ final class CreateViewHandler extends BaseHandler
             $projectId = $credentialsArr['project_id'];
 
             $sourceDataset = $bqClient->dataset($sourceDatasetName);
-            $info = $sourceDataset->reload();
-            /** @var list<array<string, mixed>> $currentAccess */
-            $currentAccess = $info['access'] ?? [];
 
             $authorizedView = [
                 'projectId' => $projectId,
@@ -110,19 +111,30 @@ final class CreateViewHandler extends BaseHandler
                 'tableId' => $command->getViewName(),
             ];
 
-            // Idempotency check (for CREATE OR REPLACE VIEW re-runs)
-            $alreadyGranted = false;
-            foreach ($currentAccess as $entry) {
-                if (isset($entry['view']) && $entry['view'] === $authorizedView) {
-                    $alreadyGranted = true;
-                    break;
-                }
-            }
+            $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
+                // Retry only on 412 Precondition Failed (etag mismatch)
+                return $e->getCode() === 412;
+            }, 5);
+            $proxy = new RetryProxy($retryPolicy, new ExponentialRandomBackOffPolicy(500, 1.8, 5_000));
 
-            if (!$alreadyGranted) {
+            $proxy->call(function () use ($sourceDataset, $authorizedView): void {
+                $info = $sourceDataset->reload();
+                /** @var list<array<string, mixed>> $currentAccess */
+                $currentAccess = $info['access'] ?? [];
+
+                // Idempotency check (for CREATE OR REPLACE VIEW re-runs)
+                foreach ($currentAccess as $entry) {
+                    if (isset($entry['view']) && $entry['view'] === $authorizedView) {
+                        return;
+                    }
+                }
+
                 $currentAccess[] = ['view' => $authorizedView];
-                $sourceDataset->update(['access' => $currentAccess]);
-            }
+                $sourceDataset->update(
+                    ['access' => $currentAccess],
+                    ['etag' => $info['etag'], 'retries' => 0],
+                );
+            });
         }
 
         return null;
