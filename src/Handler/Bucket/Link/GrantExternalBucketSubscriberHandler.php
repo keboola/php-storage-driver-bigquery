@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Link;
 
+use Google\ApiCore\ApiException;
 use Google\Cloud\Iam\V1\Binding;
 use Google\Cloud\Iam\V1\Policy;
 use Google\Protobuf\Internal\Message;
+use Google\Rpc\Code;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\Command\Bucket\GrantExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
@@ -61,31 +63,38 @@ final class GrantExternalBucketSubscriberHandler extends BaseHandler
             return false;
         }, 20);
         $proxy = new RetryProxy($retryPolicy, new ExponentialRandomBackOffPolicy());
-        $proxy->call(function () use ($analyticHubClient, $listing, $subscriberRole, $subscriberMember): void {
-            $currentPolicy = $analyticHubClient->getIamPolicy($listing);
-            $existingBindings = $currentPolicy->getBindings();
+        try {
+            $proxy->call(function () use ($analyticHubClient, $listing, $subscriberRole, $subscriberMember): void {
+                $currentPolicy = $analyticHubClient->getIamPolicy($listing);
+                $existingBindings = $currentPolicy->getBindings();
 
-            /** @var Binding $binding */
-            foreach ($existingBindings as $binding) {
-                if ($binding->getRole() === $subscriberRole) {
-                    foreach ($binding->getMembers() as $member) {
-                        if ($member === $subscriberMember) {
-                            return; // already granted
+                /** @var Binding $binding */
+                foreach ($existingBindings as $binding) {
+                    if ($binding->getRole() === $subscriberRole) {
+                        foreach ($binding->getMembers() as $member) {
+                            if ($member === $subscriberMember) {
+                                return; // already granted
+                            }
                         }
                     }
                 }
-            }
 
-            $newBindings = iterator_to_array($existingBindings);
-            $newBindings[] = new Binding([
-                'role' => $subscriberRole,
-                'members' => [$subscriberMember],
-            ]);
-            $newPolicy = new Policy();
-            $newPolicy->setBindings($newBindings);
-            $newPolicy->setEtag($currentPolicy->getEtag());
-            $analyticHubClient->setIamPolicy($listing, $newPolicy);
-        });
+                $newBindings = iterator_to_array($existingBindings);
+                $newBindings[] = new Binding([
+                    'role' => $subscriberRole,
+                    'members' => [$subscriberMember],
+                ]);
+                $newPolicy = new Policy();
+                $newPolicy->setBindings($newBindings);
+                $newPolicy->setEtag($currentPolicy->getEtag());
+                $analyticHubClient->setIamPolicy($listing, $newPolicy);
+            });
+        } catch (ApiException $e) {
+            if ($e->getCode() === Code::PERMISSION_DENIED) {
+                throw GrantExternalBucketSubscriberPermissionDeniedException::fromApiException($e, $listing);
+            }
+            throw $e;
+        }
 
         return null;
     }
