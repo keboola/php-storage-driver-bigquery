@@ -68,7 +68,6 @@ class BaseCase extends TestCase
      * @var array{
      *     0:array{GenericBackendCredentials, CreateProjectResponse},
      *     1:array{GenericBackendCredentials, CreateProjectResponse},
-     *     2:array{GenericBackendCredentials, CreateProjectResponse},
      * }
      */
     // @phpstan-ignore-next-line

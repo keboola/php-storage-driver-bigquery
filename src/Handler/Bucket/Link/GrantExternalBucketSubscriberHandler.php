@@ -92,6 +92,7 @@ final class GrantExternalBucketSubscriberHandler extends BaseHandler
                 $newPolicy->setEtag($currentPolicy->getEtag());
                 $analyticHubClient->setIamPolicy($listing, $newPolicy);
             });
+        // @phpstan-ignore-next-line - ApiException is thrown inside the RetryProxy closure
         } catch (ApiException $e) {
             if ($e->getCode() === Code::PERMISSION_DENIED) {
                 throw GrantExternalBucketSubscriberPermissionDeniedException::fromApiException($e, $listing);
