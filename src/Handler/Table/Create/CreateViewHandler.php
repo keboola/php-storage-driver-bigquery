@@ -69,6 +69,9 @@ final class CreateViewHandler extends BaseHandler
 
         /** @var string[] $columns */
         $columns = iterator_to_array($command->getColumns());
+        foreach ($columns as $col) {
+            assert($col !== '', 'CreateViewCommand.columns must not contain empty strings');
+        }
         if (count($columns) === 0) {
             $selectExpression = '*';
         } else {
