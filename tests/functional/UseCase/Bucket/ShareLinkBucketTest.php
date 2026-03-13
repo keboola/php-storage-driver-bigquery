@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\ApiCore\ApiException;
-use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
-use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Core\Exception\BadRequestException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
