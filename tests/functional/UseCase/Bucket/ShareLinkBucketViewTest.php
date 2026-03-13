@@ -6,6 +6,8 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\Cloud\BigQuery\AnalyticsHub\V1\AnalyticsHubServiceClient;
 use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\Exception\BadRequestException;
+use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\RepeatedField;
@@ -533,7 +535,7 @@ class ShareLinkBucketViewTest extends BaseCase
                 $this->ctx()->linkedBucketSchemaName,
                 $this->ctx()->viewName,
             );
-        } catch (Throwable) {
+        } catch (BadRequestException) {
             $queryFailed = true;
         }
         $this->assertTrue($queryFailed, 'Column subset VIEW referencing dropped column NAME should fail');
@@ -639,7 +641,7 @@ class ShareLinkBucketViewTest extends BaseCase
         $this->assertCount(3, $wsLinkedViewRows, 'WS user should read VIEW in linked dataset');
 
         // Workspace user should NOT be able to query source dataset Ba directly
-        $this->expectException(Throwable::class);
+        $this->expectException(ServiceException::class);
         $this->queryView($wsBqClient, $this->ctx()->bucketBaName, $this->ctx()->tableName);
     }
 
