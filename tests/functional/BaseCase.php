@@ -78,32 +78,64 @@ class BaseCase extends TestCase
 
     protected ParatestFileLogger $log;
 
+    private function isLocalDev(): bool
+    {
+        return (bool) getenv('IS_LOCAL_DEV') === true;
+    }
+
     protected static function getRand(): string
     {
         return substr(md5(uniqid((string) mt_rand(), true)), 0, 3);
     }
 
+    private function getTmpDir(): string
+    {
+        if ($this->isLocalDev()) {
+            // persist credentials in logs dir for local dev
+            return __DIR__ . '/../../logs';
+        }
+        return '/tmp';
+    }
+
     private function initialize(): void
     {
-        if (file_exists('/tmp/prj0-cred')) {
-            unlink('/tmp/prj0-cred');
+        $tmpDir = $this->getTmpDir();
+        $existsPrj0Credentials = file_exists($tmpDir . '/prj0-cred');
+        $existsPrj0Response = file_exists($tmpDir . '/prj0-res');
+        $existsPrj1Credentials = file_exists($tmpDir . '/prj1-cred');
+        $existsPrj1Response = file_exists($tmpDir . '/prj1-res');
+        $existsPrj2Credentials = file_exists($tmpDir . '/prj2-cred');
+        $existsPrj2Response = file_exists($tmpDir . '/prj2-res');
+        if ($this->isLocalDev()
+            && $existsPrj0Credentials
+            && $existsPrj0Response
+            && $existsPrj1Credentials
+            && $existsPrj1Response
+            && $existsPrj2Credentials
+            && $existsPrj2Response
+        ) {
+            $this->log->add('Skipping initialize for local dev');
+            return;
         }
-        if (file_exists('/tmp/prj0-res')) {
-            unlink('/tmp/prj0-res');
+        if ($existsPrj0Credentials) {
+            unlink($tmpDir . '/prj0-cred');
+        }
+        if ($existsPrj0Response) {
+            unlink($tmpDir . '/prj0-res');
         }
 
-        if (file_exists('/tmp/prj1-cred')) {
-            unlink('/tmp/prj1-cred');
+        if ($existsPrj1Credentials) {
+            unlink($tmpDir . '/prj1-cred');
         }
-        if (file_exists('/tmp/prj1-res')) {
-            unlink('/tmp/prj1-res');
+        if ($existsPrj1Response) {
+            unlink($tmpDir . '/prj1-res');
         }
 
-        if (file_exists('/tmp/prj2-cred')) {
-            unlink('/tmp/prj2-cred');
+        if (file_exists($tmpDir . '/prj2-cred')) {
+            unlink($tmpDir . '/prj2-cred');
         }
-        if (file_exists('/tmp/prj2-res')) {
-            unlink('/tmp/prj2-res');
+        if (file_exists($tmpDir . '/prj2-res')) {
+            unlink($tmpDir . '/prj2-res');
         }
 
         $this->dropProjects($this->getStackPrefix());
@@ -112,18 +144,19 @@ class BaseCase extends TestCase
         $project1 = $this->createProject('link-' . $suffix);
         $project2 = $this->createProject('eb-' . $suffix);
 
-        file_put_contents('/tmp/prj0-cred', $project0[0]->serializeToJsonString());
-        file_put_contents('/tmp/prj0-res', $project0[1]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj0-cred', $project0[0]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj0-res', $project0[1]->serializeToJsonString());
 
-        file_put_contents('/tmp/prj1-cred', $project1[0]->serializeToJsonString());
-        file_put_contents('/tmp/prj1-res', $project1[1]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj1-cred', $project1[0]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj1-res', $project1[1]->serializeToJsonString());
 
-        file_put_contents('/tmp/prj2-cred', $project2[0]->serializeToJsonString());
-        file_put_contents('/tmp/prj2-res', $project2[1]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj2-cred', $project2[0]->serializeToJsonString());
+        file_put_contents($tmpDir . '/prj2-res', $project2[1]->serializeToJsonString());
     }
 
     protected function setUp(): void
     {
+        $tmpDir = $this->getTmpDir();
         $this->log = new ParatestFileLogger($this->getName(false));
         $this->clientManager = new GCPClientManager($this->log);
         $this->log->setPrefix($this->getTestHash());
@@ -158,7 +191,7 @@ class BaseCase extends TestCase
         }
 
         $prj0Cred = new GenericBackendCredentials();
-        $prj0Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj0-cred'));
+        $prj0Cred->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj0-cred'));
 
         $meta = new Any();
         $meta->pack(
@@ -167,21 +200,21 @@ class BaseCase extends TestCase
         );
         $prj0Cred->setMeta($meta);
         $prj0Res = new CreateProjectResponse();
-        $prj0Res->mergeFromJsonString((string) file_get_contents('/tmp/prj0-res'));
+        $prj0Res->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj0-res'));
 
         $prj1Cred = new GenericBackendCredentials();
-        $prj1Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj1-cred'));
+        $prj1Cred->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj1-cred'));
         $prj1Cred->setMeta($meta);
 
         $prj1Res = new CreateProjectResponse();
-        $prj1Res->mergeFromJsonString((string) file_get_contents('/tmp/prj1-res'));
+        $prj1Res->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj1-res'));
 
         $prj2Cred = new GenericBackendCredentials();
-        $prj2Cred->mergeFromJsonString((string) file_get_contents('/tmp/prj2-cred'));
+        $prj2Cred->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj2-cred'));
         $prj2Cred->setMeta($meta);
 
         $prj2Res = new CreateProjectResponse();
-        $prj2Res->mergeFromJsonString((string) file_get_contents('/tmp/prj2-res'));
+        $prj2Res->mergeFromJsonString((string) file_get_contents($tmpDir . '/prj2-res'));
 
         $this->projects = [
             [
