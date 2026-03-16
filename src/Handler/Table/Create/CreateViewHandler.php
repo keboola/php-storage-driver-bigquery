@@ -7,13 +7,10 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Table\Create;
 use Google\Protobuf\Internal\Message;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
-use Keboola\StorageDriver\BigQuery\QueryBuilder\CommonFilterQueryBuilder;
+use Keboola\StorageDriver\BigQuery\QueryBuilder\CreateViewQueryBuilder;
 use Keboola\StorageDriver\Command\Table\CreateViewCommand;
-use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\Shared\Driver\BaseHandler;
-use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
-use LogicException;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -76,52 +73,15 @@ final class CreateViewHandler extends BaseHandler
 
         /** @var string[] $columns */
         $columns = iterator_to_array($command->getColumns());
-        foreach ($columns as $col) {
-            assert($col !== '', 'CreateViewCommand.columns must not contain empty strings');
-        }
-        if (count($columns) === 0) {
-            $selectExpression = '*';
-        } else {
-            $selectExpression = implode(', ', array_map(
-                static fn(string $col): string => BigqueryQuote::quoteSingleIdentifier($col),
-                $columns,
-            ));
-        }
 
-        // Build WHERE clause from filters using operator maps from CommonFilterQueryBuilder
-        $whereClauses = [];
-        /** @var TableWhereFilter $filter */
-        foreach ($command->getWhereFilters() as $filter) {
-            $column = BigqueryQuote::quoteSingleIdentifier($filter->getColumnsName());
-            /** @var string[] $values */
-            $values = iterator_to_array($filter->getValues());
-            $operator = $filter->getOperator();
-
-            if (count($values) === 1) {
-                $sqlOperator = CommonFilterQueryBuilder::OPERATOR_SINGLE_VALUE[$operator]
-                    ?? throw new LogicException(sprintf('Unsupported operator: %d', $operator));
-                $whereClauses[] = sprintf('%s %s %s', $column, $sqlOperator, BigqueryQuote::quote($values[0]));
-            } else {
-                $sqlOperator = CommonFilterQueryBuilder::OPERATOR_MULTI_VALUE[$operator]
-                    ?? throw new LogicException(sprintf('Operator %d does not support multiple values', $operator));
-                $quotedValues = implode(', ', array_map(
-                    static fn(string $v): string => BigqueryQuote::quote($v),
-                    $values,
-                ));
-                $whereClauses[] = sprintf('%s %s (%s)', $column, $sqlOperator, $quotedValues);
-            }
-        }
-
-        $whereClause = count($whereClauses) > 0 ? ' WHERE ' . implode(' AND ', $whereClauses) : '';
-
-        $sql = sprintf(
-            'CREATE OR REPLACE VIEW %s.%s AS (SELECT %s FROM %s.%s%s)',
-            BigqueryQuote::quoteSingleIdentifier($datasetName),
-            BigqueryQuote::quoteSingleIdentifier($command->getViewName()),
-            $selectExpression,
-            BigqueryQuote::quoteSingleIdentifier($sourceDatasetName),
-            BigqueryQuote::quoteSingleIdentifier($command->getSourceTableName()),
-            $whereClause,
+        $queryBuilder = new CreateViewQueryBuilder();
+        $sql = $queryBuilder->buildCreateViewSql(
+            $datasetName,
+            $command->getViewName(),
+            $sourceDatasetName,
+            $command->getSourceTableName(),
+            $columns,
+            $command->getWhereFilters(),
         );
 
         $bqClient->runQuery($bqClient->query($sql));
