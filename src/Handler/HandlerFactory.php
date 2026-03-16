@@ -12,6 +12,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\GrantBucketAccessToReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
@@ -46,6 +47,7 @@ use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\GrantExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
@@ -112,6 +114,7 @@ final class HandlerFactory
             DropWorkspaceObjectCommand::class => new DropWorkspaceObjectHandler($manager),
             ExecuteQueryCommand::class => new ExecuteQueryHandler($manager),
             GrantBucketAccessToReadOnlyRoleCommand::class => new GrantBucketAccessToReadOnlyRoleHandler($manager),
+            GrantExternalBucketSubscriberCommand::class => new GrantExternalBucketSubscriberHandler($manager),
             InitBackendCommand::class => new InitBackendHandler($manager),
             LinkBucketCommand::class => new LinkBucketHandler($manager),
             LoadTableToWorkspaceCommand::class => new LoadTableToWorkspaceHandler($manager),
