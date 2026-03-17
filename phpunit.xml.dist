@@ -23,19 +23,14 @@
         </testsuite>
         <testsuite name="functional">
             <directory>tests/functional</directory>
+            <exclude>tests/functional/UseCase/Table/Export</exclude>
+            <exclude>tests/functional/UseCase/Table/Import</exclude>
         </testsuite>
         <testsuite name="Import">
             <directory>tests/functional/UseCase/Table/Import</directory>
         </testsuite>
         <testsuite name="Export">
             <directory>tests/functional/UseCase/Table/Export</directory>
-        </testsuite>
-        <testsuite name="Other">
-            <directory>tests/unit</directory>
-            <directory>tests/Unit</directory>
-            <directory>tests/functional</directory>
-            <exclude>tests/functional/UseCase/Table/Export</exclude>
-            <exclude>tests/functional/UseCase/Table/Import</exclude>
         </testsuite>
     </testsuites>
 
