@@ -78,24 +78,21 @@ class BaseCase extends TestCase
 
     protected function runTest(): mixed
     {
-        $lastException = null;
-
-        for ($attempt = 0; $attempt <= self::RETRY_COUNT; $attempt++) {
-            try {
-                return parent::runTest();
-            } catch (Throwable $e) {
-                // Don't retry skipped or incomplete tests
-                if ($this->status()->isSkipped() || $this->status()->isIncomplete()) {
-                    throw $e;
-                }
-                $lastException = $e;
-                if ($attempt < self::RETRY_COUNT) {
-                    printf("[RETRY] Attempt %d of %d for %s\n", $attempt + 1, self::RETRY_COUNT, $this->name());
-                }
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
+            // Don't retry skipped or incomplete tests
+            if ($this->status()->isSkipped() || $this->status()->isIncomplete()) {
+                return false;
             }
-        }
+            printf("[RETRY] %s: %s\n", $this->name(), substr($e->getMessage(), 0, 100));
+            return true;
+        }, self::RETRY_COUNT);
 
-        throw $lastException;
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(1_000, 2.0, 10_000);
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+        return $proxy->call(function (): mixed {
+            return parent::runTest();
+        });
     }
 
     private function isLocalDev(): bool
