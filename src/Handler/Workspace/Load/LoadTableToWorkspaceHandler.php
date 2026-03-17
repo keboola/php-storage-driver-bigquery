@@ -55,10 +55,13 @@ class LoadTableToWorkspaceHandler extends BaseHandler
 {
     public GCPClientManager $clientManager;
 
+    /** @phpstan-ignore property.unusedType */
     private ?LoadSourceFactory $sourceFactory = null;
 
+    /** @phpstan-ignore property.unusedType */
     private ?ColumnMappingService $columnMappingService = null;
 
+    /** @phpstan-ignore property.unusedType */
     private ?LoadDestinationManager $destinationManager = null;
 
     public function __construct(GCPClientManager $clientManager)

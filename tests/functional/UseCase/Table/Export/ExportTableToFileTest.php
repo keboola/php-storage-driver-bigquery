@@ -113,7 +113,6 @@ class ExportTableToFileTest extends BaseCase
             (string) getenv('BQ_BUCKET_NAME'),
             $exportDir,
         );
-        $this->assertNotNull($files);
         $this->assertCount(2, $files);
 
         // check data

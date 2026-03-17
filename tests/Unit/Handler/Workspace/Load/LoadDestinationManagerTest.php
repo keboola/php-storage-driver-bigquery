@@ -124,7 +124,6 @@ class LoadDestinationManagerTest extends TestCase
         $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
-        $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
         $this->assertEquals('test_dataset', $result->getSchemaName());
         $this->assertEquals('dest_table', $result->getTableName());
     }
@@ -140,7 +139,6 @@ class LoadDestinationManagerTest extends TestCase
         $manager = new LoadDestinationManager($bqClient);
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
-        $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
         $this->assertEquals('test_dataset', $result->getSchemaName());
         $this->assertEquals('new_table', $result->getTableName());
         $this->assertEquals([], $result->getPrimaryKeysNames());
@@ -157,7 +155,7 @@ class LoadDestinationManagerTest extends TestCase
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         // Should not create table for VIEW import type
-        $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
+        $this->assertEquals('test_dataset', $result->getSchemaName());
     }
 
     public function testResolveDestinationForClone(): void
@@ -171,7 +169,7 @@ class LoadDestinationManagerTest extends TestCase
         $result = $manager->resolveDestination($destination, $importOptions, $expectedColumns);
 
         // Should not create table for PBCLONE import type
-        $this->assertInstanceOf(BigqueryTableDefinition::class, $result);
+        $this->assertEquals('test_dataset', $result->getSchemaName());
     }
 
     public function testValidateIncrementalSuccess(): void

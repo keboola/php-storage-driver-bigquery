@@ -6,7 +6,6 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\Cloud\BigQuery\Dataset;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
@@ -58,8 +57,6 @@ class CreateDropBucketTest extends BaseCase
     public function testCreateBucketInBranch(): void
     {
         $response = $this->createTestBucket($this->projectCredentials, '123');
-
-        $this->assertInstanceOf(CreateBucketResponse::class, $response);
 
         $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 

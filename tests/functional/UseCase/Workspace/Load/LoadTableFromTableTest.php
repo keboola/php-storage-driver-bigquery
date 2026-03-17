@@ -1385,10 +1385,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             $importedColumns,
             'SQL path should return column names. Empty array would indicate COPY was used (BUG!)',
         );
-        $this->assertNotEmpty(
-            $importedColumns,
-            'CRITICAL: Imported columns must NOT be empty. Empty means COPY was used incorrectly',
-        );
 
         // Verify final row count
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);

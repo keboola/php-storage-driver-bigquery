@@ -13,7 +13,6 @@ use Keboola\Db\ImportExport\Storage\Bigquery\SelectSource;
 use Keboola\Db\ImportExport\Storage\Bigquery\Table;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ColumnsMismatchException;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadSourceFactory;
-use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\SourceContext;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\ColumnConverter;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\WorkspaceLoadQueryBuilder;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\DataType;
@@ -125,7 +124,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         $this->assertInstanceOf(Table::class, $result->source);
         $this->assertCount(3, $result->effectiveDefinition->getColumnsDefinitions());
         $this->assertEquals(['id', 'name', 'created_at'], $result->selectedColumns);
@@ -148,7 +146,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         // Should use SelectSource because not all columns are selected
         $this->assertInstanceOf(SelectSource::class, $result->source);
         $this->assertCount(2, $result->effectiveDefinition->getColumnsDefinitions());
@@ -172,7 +169,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         // Should use SelectSource because of WHERE filter
         $this->assertInstanceOf(SelectSource::class, $result->source);
     }
@@ -193,7 +189,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         // Should use SelectSource because of LIMIT
         $this->assertInstanceOf(SelectSource::class, $result->source);
     }
@@ -233,7 +228,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         $this->assertEquals(['id', 'old_name'], $result->selectedColumns);
     }
 
@@ -254,7 +248,6 @@ class LoadSourceFactoryTest extends TestCase
         $factory = new LoadSourceFactory($bqClient, $queryBuilder);
         $result = $factory->createFromCommand($command);
 
-        $this->assertInstanceOf(SourceContext::class, $result);
         $this->assertEquals(['id', 'name'], $result->selectedColumns);
     }
 }

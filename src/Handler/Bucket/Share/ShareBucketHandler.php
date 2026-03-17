@@ -56,8 +56,8 @@ final class ShareBucketHandler extends BaseHandler
             $command->getSourceBucketObjectName() !== '',
             'ShareBucketCommand.sourceBucketObjectName must be filled in',
         );
-        assert(
-            str_contains($command->getSourceProjectId(), '/') === false,
+        assert( // @phpstan-ignore function.alreadyNarrowedType
+            str_contains($command->getSourceProjectId(), '/') === false, // @phpstan-ignore identical.alwaysTrue
             'ShareBucketCommand.sourceBucketObjectName cannot contain "/"',
         );
 
