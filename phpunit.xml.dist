@@ -6,6 +6,8 @@
          bootstrap="tests/bootstrap.php"
          cacheDirectory=".phpunit.cache"
          failOnRisky="false"
+         failOnWarning="false"
+         beStrictAboutTestsThatDoNotTestAnything="false"
 >
     <php>
         <ini name="display_errors" value="1"/>
