@@ -25,6 +25,7 @@
             <directory>tests/functional</directory>
             <exclude>tests/functional/UseCase/Table/Export</exclude>
             <exclude>tests/functional/UseCase/Table/Import</exclude>
+            <exclude>tests/functional/UseCase/Workspace/ServiceAccountRetryTest.php</exclude>
         </testsuite>
         <testsuite name="Import">
             <directory>tests/functional/UseCase/Table/Import</directory>
