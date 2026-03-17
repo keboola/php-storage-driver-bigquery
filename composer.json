@@ -68,10 +68,10 @@
         "phpstan": "phpstan analyse --no-progress",
         "tests-unit": "phpunit --colors=always --testsuite unit",
         "tests-functional": "phpunit --colors=always --testsuite functional,Import,Export",
-        "paratest": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest; rc=$?; if [ $rc -gt 1 ]; then exit $rc; fi",
-        "paratest-other": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='unit,functional'; rc=$?; if [ $rc -gt 1 ]; then exit $rc; fi",
-        "paratest-import": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='Import'; rc=$?; if [ $rc -gt 1 ]; then exit $rc; fi",
-        "paratest-export": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='Export'; rc=$?; if [ $rc -gt 1 ]; then exit $rc; fi",
+        "paratest": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest",
+        "paratest-other": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='unit,functional'",
+        "paratest-import": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='Import'",
+        "paratest-export": "rm -rf /tmp/initialized||true && rm -rf ./logs/*||true && vendor/bin/paratest --testsuite='Export'",
         "tests": [
             "@tests-unit",
             "@tests-functional"
