@@ -246,6 +246,7 @@ class ExecuteQueryTest extends BaseCase
 
         // Test first row
         $this->assertArrayHasKey(0, $rows);
+        /** @var array<string, string> $row */
         $row = $rows[0];
         $this->assertEquals('another string', $row['string_col']);
         $this->assertEquals('100', $row['int_col']);

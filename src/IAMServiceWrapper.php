@@ -194,6 +194,7 @@ class IAMServiceWrapper extends Iam
             throw new NativeException('Project key credentials missing.');
         }
 
+        /** @var string $privateKey */
         $privateKey = $keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY];
         unset($keyData[self::KEY_DATA_PROPERTY_PRIVATE_KEY]);
         $publicPart = json_encode($keyData);

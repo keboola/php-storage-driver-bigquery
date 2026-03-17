@@ -148,7 +148,10 @@ final class CreateWorkspaceHandler extends BaseHandler
             $option = new GetPolicyOptions();
             $option->setRequestedPolicyVersion(Helper::REQUESTED_POLICY_VERSION);
             $getIamPolicyRequest->setOptions($option);
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+            $projects = $cloudResourceManager->projects;
+            /** @var Policy $actualPolicy */
+            $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
             $finalBinding[] = $actualPolicy->getBindings();
 
             foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
@@ -180,7 +183,7 @@ final class CreateWorkspaceHandler extends BaseHandler
                 LogLevel::DEBUG,
                 'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName,
             );
-            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $projects->setIamPolicy($projectName, $setIamPolicyRequest);
             Helper::assertServiceAccountBindings(
                 $cloudResourceManager,
                 $projectName,
@@ -216,9 +219,11 @@ final class CreateWorkspaceHandler extends BaseHandler
             $tableIamProxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
             $tableIamProxy->call(function () use ($table, $wsServiceAcc, $datasetName, $directGrantTable): void {
+                /** @var array<string, mixed> $policy */
                 $policy = $table->iam()->policy();
                 $role = IAmPermissions::ROLES_BIGQUERY_DATA_EDITOR;
                 $member = 'serviceAccount:' . $wsServiceAcc->getEmail();
+                /** @var array<int, array{role: string, members: string[]}> $bindings */
                 $bindings = $policy['bindings'] ?? [];
                 $found = false;
                 foreach ($bindings as &$binding) {

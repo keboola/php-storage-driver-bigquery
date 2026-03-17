@@ -143,12 +143,16 @@ class ManageProjectTest extends BaseCase
         );
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+        /** @var \Google_Service_CloudResourceManager_Resource_Projects $projects */
+        $projects = $cloudResourceManager->projects;
+        /** @var \Google_Service_CloudResourceManager_Policy $iamPolicy */
+        $iamPolicy = $projects->getIamPolicy(
             'projects/' . $projectId,
             (new Google_Service_CloudResourceManager_GetIamPolicyRequest()),
             [],
         );
-        $actualPolicy = $actualPolicy->getBindings();
+        /** @var \Google_Service_CloudResourceManager_Binding[] $actualPolicy */
+        $actualPolicy = $iamPolicy->getBindings();
 
         $serviceAccRoles = [];
         foreach ($actualPolicy as $policy) {
@@ -173,6 +177,7 @@ class ManageProjectTest extends BaseCase
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
 
+        /** @var array{bindings: array<int, array{role: string, members: array<string>}>} $policy */
         $policy = $fileStorageBucket->iam()->policy();
         $hasStorageObjAdminRole = false;
         foreach ($policy['bindings'] as $binding) {
@@ -286,6 +291,7 @@ class ManageProjectTest extends BaseCase
 
         $storageManager = $this->clientManager->getStorageClient($credentials);
         $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
+        /** @var array{bindings: array<int, array{role: string, members: array<string>}>} $policy */
         $policy = $fileStorageBucket->iam()->policy();
         $hasStorageObjAdminRole = false;
         foreach ($policy['bindings'] as $binding) {

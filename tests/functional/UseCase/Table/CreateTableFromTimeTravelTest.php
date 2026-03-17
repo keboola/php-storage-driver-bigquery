@@ -285,6 +285,7 @@ class CreateTableFromTimeTravelTest extends BaseCase
             $this->fail('Should fail: Table should not exist in this point of time.');
         } catch (BadRequestException $e) {
             $this->assertSame(400, $e->getCode());
+            /** @var array{creationTime: string} $tableInfo */
             $tableInfo = $bqClient->dataset($bucketDatasetName)->table($sourceTableName)->info();
             $this->assertStringContainsString('Cannot read before ' . $tableInfo['creationTime'], $e->getMessage());
         }

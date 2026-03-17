@@ -407,7 +407,7 @@ final class DeleteByTableInWorkspaceTest extends BaseCase
     }
 
     /**
-     * @param list<string> $rows
+     * @param string[] $rows
      */
     private function insertIntoTable(
         Table $table,
@@ -425,7 +425,7 @@ final class DeleteByTableInWorkspaceTest extends BaseCase
             [
                 [
                     'columns' => $columns,
-                    'rows' => $rows,
+                    'rows' => array_values($rows),
                 ],
             ],
         );

@@ -45,13 +45,19 @@ class Helper
             $option = new GetPolicyOptions();
             $option->setRequestedPolicyVersion(self::REQUESTED_POLICY_VERSION);
             $getIamPolicyRequest->setOptions($option);
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
-            $actualPolicy = $actualPolicy->getBindings();
+            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+            $projects = $cloudResourceManager->projects;
+            /** @var \Google\Service\CloudResourceManager\Policy $actualPolicyResponse */
+            $actualPolicyResponse = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            /** @var \Google\Service\CloudResourceManager\Binding[] $actualBindings */
+            $actualBindings = $actualPolicyResponse->getBindings();
 
             $serviceAccRoles = [];
-            foreach ($actualPolicy as $policy) {
-                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policy->getMembers())) {
-                    $serviceAccRoles[] = $policy->getRole();
+            foreach ($actualBindings as $policy) {
+                /** @var string[] $policyMembers */
+                $policyMembers = $policy->getMembers();
+                if (in_array('serviceAccount:' . $wsServiceAccEmail, $policyMembers)) {
+                    $serviceAccRoles[] = (string) $policy->getRole();
                 }
             }
 

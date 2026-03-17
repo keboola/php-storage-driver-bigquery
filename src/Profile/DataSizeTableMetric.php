@@ -21,6 +21,8 @@ final class DataSizeTableMetric implements TableMetricInterface
         string $table,
         BigQueryContext $context,
     ): int {
-        return (int) $context->table->info()['numBytes'];
+        /** @var array{numBytes: int|string} $tableInfo */
+        $tableInfo = $context->table->info();
+        return (int) $tableInfo['numBytes'];
     }
 }

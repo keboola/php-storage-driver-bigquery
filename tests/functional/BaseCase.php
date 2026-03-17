@@ -328,6 +328,7 @@ class BaseCase extends TestCase
 
                     $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
                     $fileStorageBucket->iam()->reload();
+                    /** @var array{bindings: array<int, array{role: string, members: array<int, string>}>} $policy */
                     $policy = $fileStorageBucket->iam()->policy();
 
                     foreach ($policy['bindings'] as $bindingKey => $binding) {
@@ -498,6 +499,7 @@ class BaseCase extends TestCase
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
+        /** @var array<string, mixed> $bucketInfo */
         $bucketInfo = $dataset->info();
         $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
         $this->assertInstanceOf(Dataset::class, $dataset);
@@ -555,18 +557,16 @@ class BaseCase extends TestCase
      */
     protected function listFilesSimple(string $bucket, string $prefix): array
     {
-        /** @var array{size: int, files: string[]} $result */
-        $result = array_reduce(
-            $this->listGCSFiles($bucket, $prefix),
-            static function (array $agg, StorageObject $file) {
-                $agg['size'] += (int) $file->info()['size'];
-                $agg['files'][] = $file->name();
-                return $agg;
-            },
-            ['size' => 0, 'files' => []],
-        );
+        $size = 0;
+        $files = [];
+        foreach ($this->listGCSFiles($bucket, $prefix) as $file) {
+            /** @var array{size: int|string} $info */
+            $info = $file->info();
+            $size += (int) $info['size'];
+            $files[] = $file->name();
+        }
 
-        return $result;
+        return ['size' => $size, 'files' => $files];
     }
 
     /**
@@ -653,6 +653,7 @@ class BaseCase extends TestCase
         if ($def->getPrimaryKeysNames() !== []) {
             $structure['primaryKeysNames'] = $def->getPrimaryKeysNames();
         }
+        /** @var array{columns: array<string, array<string, mixed>>, primaryKeysNames?: array<int, string>} $structure */
         $this->createTable(
             $credentials,
             $def->getSchemaName(),

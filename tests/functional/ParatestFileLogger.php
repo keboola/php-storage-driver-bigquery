@@ -50,6 +50,7 @@ class ParatestFileLogger extends AbstractLogger
      */
     public function log(mixed $level, Stringable|string $message, array $context = []): void
     {
-        $this->add('[' . $level . '] ' . $message . ' ' . json_encode($context, JSON_THROW_ON_ERROR, 512));
+        $levelStr = is_string($level) ? $level : (is_int($level) ? (string) $level : '');
+        $this->add('[' . $levelStr . '] ' . $message . ' ' . json_encode($context, JSON_THROW_ON_ERROR, 512));
     }
 }

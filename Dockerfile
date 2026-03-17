@@ -62,6 +62,7 @@ RUN docker-php-ext-install bcmath
 ## Composer - deps always cached unless changed
 # First copy only composer files
 COPY composer.* /code/
+COPY patch/ /code/patch/
 # Download dependencies, but don't run scripts or init autoloaders as the app is missing
 RUN composer install $COMPOSER_FLAGS --no-scripts --no-autoloader
 # copy rest of the app

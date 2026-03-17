@@ -65,6 +65,7 @@ class CreateDropBucketTest extends BaseCase
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
+        /** @var array<string, mixed> $bucketInfo */
         $bucketInfo = $dataset->info();
         $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
         $this->assertInstanceOf(Dataset::class, $dataset);

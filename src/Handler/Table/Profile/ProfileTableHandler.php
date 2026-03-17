@@ -104,7 +104,11 @@ final class ProfileTableHandler extends BaseHandler
         }
 
         $response->setProfile(json_encode($tableProfile, JSON_THROW_ON_ERROR));
-        $columns = $table->info()['schema']['fields'];
+        /** @var array<string, mixed> $tableInfo */
+        $tableInfo = $table->info();
+        /** @var array{fields: array<int, array{name: string, type: string}>} $schema */
+        $schema = $tableInfo['schema'];
+        $columns = $schema['fields'];
 
         $columnProfiles = [];
         foreach ($columns as $column) {

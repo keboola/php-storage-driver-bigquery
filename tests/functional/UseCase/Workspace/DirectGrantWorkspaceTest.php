@@ -271,6 +271,7 @@ class DirectGrantWorkspaceTest extends BaseCase
 
         foreach ([$grantedTableName, $grantedTable2Name] as $tableName) {
             $table = $bqProjectClient->dataset($bucketDatasetName)->table($tableName);
+            /** @var array{bindings?: array<int, array{role: string, members?: array<string>}>} $policy */
             $policy = $table->iam()->policy();
             foreach ($policy['bindings'] ?? [] as $binding) {
                 foreach ($binding['members'] ?? [] as $member) {

@@ -188,9 +188,12 @@ final class ImportTableFromFileHandler extends BaseHandler
         $destinationStats = $destinationRef->getTableStats();
         $response->setTableRowsCount($destinationStats->getRowsCount());
         $response->setTableSizeBytes($destinationStats->getDataSizeBytes());
-        $response->setImportedColumns(ProtobufHelper::arrayToRepeatedString($importResult->getImportedColumns()));
+        /** @var string[] $importedColumns */
+        $importedColumns = $importResult->getImportedColumns();
+        $response->setImportedColumns(ProtobufHelper::arrayToRepeatedString($importedColumns));
         $response->setImportedRowsCount($importResult->getImportedRowsCount());
         $timers = new RepeatedField(GPBType::MESSAGE, TableImportResponse\Timer::class);
+        /** @var array{name: string, durationSeconds: string} $timerArr */
         foreach ($importResult->getTimers() as $timerArr) {
             $timer = new TableImportResponse\Timer();
             $timer->setName($timerArr['name']);

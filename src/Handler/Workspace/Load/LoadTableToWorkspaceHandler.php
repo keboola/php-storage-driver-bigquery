@@ -198,9 +198,12 @@ class LoadTableToWorkspaceHandler extends BaseHandler
         $destinationStats = $destinationRef->getTableStats();
         $response->setTableRowsCount($destinationStats->getRowsCount());
         $response->setTableSizeBytes($destinationStats->getDataSizeBytes());
-        $response->setImportedColumns(ProtobufHelper::arrayToRepeatedString($importResult->getImportedColumns()));
+        /** @var string[] $importedColumns */
+        $importedColumns = $importResult->getImportedColumns();
+        $response->setImportedColumns(ProtobufHelper::arrayToRepeatedString($importedColumns));
         $response->setImportedRowsCount($importResult->getImportedRowsCount());
         $timers = new RepeatedField(GPBType::MESSAGE, TableImportResponse\Timer::class);
+        /** @var array{name: string, durationSeconds: string} $timerArr */
         foreach ($importResult->getTimers() as $timerArr) {
             $timer = new TableImportResponse\Timer();
             $timer->setName($timerArr['name']);
@@ -603,16 +606,10 @@ SQL,
     ): array {
         $columnNameMappingRequired = false;
         $dataCastingRequired = false;
+        /** @var BigqueryColumn[] $srcDefinitions */
         $srcDefinitions = iterator_to_array($sourceTableDefinition->getColumnsDefinitions());
+        /** @var BigqueryColumn[] $destDefinitions */
         $destDefinitions = iterator_to_array($destTableDefinition->getColumnsDefinitions());
-        $fn = function (string $columnName, array $definitions) {
-            foreach ($definitions as $definition) {
-                if ($columnName === $definition->getColumnName()) {
-                    return $definition;
-                }
-            }
-            return null;
-        };
         foreach ($sourceMapping->getColumnMappings() as $mapping) {
             /** @var ColumnMapping $mapping */
             $srcColumnName = $mapping->getSourceColumnName();
@@ -620,9 +617,8 @@ SQL,
             if ($srcColumnName !== $destColumnName) {
                 $columnNameMappingRequired = true;
             }
-            /** @var BigqueryColumn $srcDef */
-            $srcDef = $fn($srcColumnName, $srcDefinitions);
-            $destDef = $fn($destColumnName, $destDefinitions);
+            $srcDef = $this->findColumnByName($srcColumnName, $srcDefinitions);
+            $destDef = $this->findColumnByName($destColumnName, $destDefinitions);
             assert($srcDef !== null);
             assert($destDef !== null);
 
@@ -632,5 +628,18 @@ SQL,
             }
         }
         return [$columnNameMappingRequired, $dataCastingRequired];
+    }
+
+    /**
+     * @param BigqueryColumn[] $definitions
+     */
+    private function findColumnByName(string $columnName, array $definitions): ?BigqueryColumn
+    {
+        foreach ($definitions as $definition) {
+            if ($columnName === $definition->getColumnName()) {
+                return $definition;
+            }
+        }
+        return null;
     }
 }

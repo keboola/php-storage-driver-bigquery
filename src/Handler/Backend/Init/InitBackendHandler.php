@@ -183,9 +183,11 @@ final class InitBackendHandler extends BaseHandler
         if ($billingPermissions === null) {
             $missingPermissions = $expectedPermissions;
         } else {
+            /** @var string[] $grantedPermissions */
+            $grantedPermissions = iterator_to_array($billingPermissions->getPermissions());
             $missingPermissions = array_diff(
                 $expectedPermissions,
-                iterator_to_array($billingPermissions->getPermissions()),
+                $grantedPermissions,
             );
         }
 

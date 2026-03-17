@@ -56,6 +56,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -125,6 +126,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName,
         );
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -311,6 +313,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             'EU',
         );
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -381,6 +384,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         // This allows testIamPermissions to return setIamPolicy as granted → sharing allowed
         $this->grantMainProjectListingAdmin($externalAnalyticHubClient, $createdListing);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -437,6 +441,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $handler->setInternalLogger($this->log);

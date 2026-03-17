@@ -1640,7 +1640,9 @@ class LoadTableFromTableTest extends BaseImportTestCase
         )));
         $row = iterator_to_array($result->getIterator())[0];
         assert(is_array($row));
-        $this->assertSame('4', (string) $row['COUNT'], 'Four rows should have updated timestamps');
+        /** @var string|int $count */
+        $count = $row['COUNT'];
+        $this->assertSame('4', (string) $count, 'Four rows should have updated timestamps');
 
         // Scenario 4: Test auto-creation of destination with primary keys
         $cmd2 = new LoadTableToWorkspaceCommand();

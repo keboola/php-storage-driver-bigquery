@@ -20,7 +20,7 @@ final class DecodeErrorMessage
             return $e->getMessage();
         }
 
-        if (array_key_exists('message', $message)) {
+        if (array_key_exists('message', $message) && is_string($message['message'])) {
             return $message['message'];
         }
 
@@ -36,24 +36,28 @@ final class DecodeErrorMessage
         }
 
         if (!array_key_exists('errors', $message['error'])) {
-            if (array_key_exists('message', $message['error'])) {
+            if (array_key_exists('message', $message['error']) && is_string($message['error']['message'])) {
                 return $message['error']['message'];
             }
             return $e->getMessage();
         }
 
         if (!is_array($message['error']['errors']) || count($message['error']['errors']) === 0) {
-            if (array_key_exists('message', $message['error'])) {
+            if (array_key_exists('message', $message['error']) && is_string($message['error']['message'])) {
                 return $message['error']['message'];
             }
             return $e->getMessage();
         }
 
         if (count($message['error']['errors']) === 1) {
-            return $message['error']['errors'][0]['message'];
+            /** @var array{message: string} $firstError */
+            $firstError = $message['error']['errors'][0];
+            return $firstError['message'];
         }
+        /** @var string[] $errors */
         $errors = [];
         foreach ($message['error']['errors'] as $error) {
+            /** @var array{message: string} $error */
             $errors[] = $error['message'];
         }
 

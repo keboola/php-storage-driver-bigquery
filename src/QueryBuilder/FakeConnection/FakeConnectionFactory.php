@@ -42,7 +42,7 @@ class FakeConnectionFactory
          *     'queryTimeout'?: int,
          *     'clientSessionKeepAlive'?: bool,
          *     'maxBackoffAttempts'?:int,
-         *     'driverClass': class-string<Doctrine\DBAL\Driver>,
+         *     'driverClass': class-string<\Doctrine\DBAL\Driver>,
          *     'host': string,
          *     'user': string,
          *     'password': string,

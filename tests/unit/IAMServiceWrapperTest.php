@@ -88,6 +88,7 @@ class IAMServiceWrapperTest extends TestCase
         $ref->setAccessible(true);
         $methods = $ref->getValue($resource);
         assert(is_array($methods));
+        /** @var array<string, array<string, mixed>> $methods */
         return $methods;
     }
 }
