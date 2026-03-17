@@ -78,19 +78,25 @@ class BaseCase extends TestCase
 
     protected function runTest(): mixed
     {
-        $retryPolicy = new CallableRetryPolicy(function (Throwable $e): bool {
+        $isRetry = false;
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use (&$isRetry): bool {
             // Don't retry skipped or incomplete tests
             if ($this->status()->isSkipped() || $this->status()->isIncomplete()) {
                 return false;
             }
             printf("[RETRY] %s: %s\n", $this->name(), substr($e->getMessage(), 0, 100));
+            $isRetry = true;
             return true;
         }, self::RETRY_COUNT);
 
         $backOffPolicy = new ExponentialRandomBackOffPolicy(1_000, 2.0, 10_000);
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
-        return $proxy->call(function (): mixed {
+        return $proxy->call(function () use (&$isRetry): mixed {
+            if ($isRetry) {
+                // Re-run setUp to reset state (old RetryTrait retried runBare which includes setUp)
+                $this->setUp();
+            }
             return parent::runTest();
         });
     }
