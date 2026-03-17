@@ -29,9 +29,9 @@ class LoadDestinationManagerTest extends TestCase
      */
     private function createMockBigQueryClient(bool $tableExists = true, array $columns = []): BigQueryClient
     {
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
 
-        $table = $this->createMock(BQTable::class);
+        $table = $this->createStub(BQTable::class);
 
         if ($tableExists) {
             $table->method('exists')->willReturn(true);
@@ -45,17 +45,17 @@ class LoadDestinationManagerTest extends TestCase
             $table->method('exists')->willReturn(false);
         }
 
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('table')->willReturn($table);
 
         $bqClient->method('dataset')->willReturn($dataset);
 
         // Mock query() to return a query configuration
-        $query = $this->createMock(QueryJobConfiguration::class);
+        $query = $this->createStub(QueryJobConfiguration::class);
         $bqClient->method('query')->willReturn($query);
 
         // Mock runQuery for table creation
-        $queryResults = $this->createMock(QueryResults::class);
+        $queryResults = $this->createStub(QueryResults::class);
         $bqClient->method('runQuery')->willReturn($queryResults);
 
         return $bqClient;
@@ -63,7 +63,7 @@ class LoadDestinationManagerTest extends TestCase
 
     private function createMockDestination(string $tableName = 'dest_table'): CommandDestination
     {
-        $destination = $this->createMock(CommandDestination::class);
+        $destination = $this->createStub(CommandDestination::class);
 
         $path = new RepeatedField(GPBType::STRING);
         $path[] = 'test_dataset';
@@ -81,7 +81,7 @@ class LoadDestinationManagerTest extends TestCase
         int $importType = ImportType::FULL,
         array $dedupColumns = [],
     ): ImportOptions {
-        $options = $this->createMock(ImportOptions::class);
+        $options = $this->createStub(ImportOptions::class);
         $options->method('getImportType')->willReturn($importType);
 
         $dedupRepeated = new RepeatedField(GPBType::STRING);
@@ -204,7 +204,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception
@@ -242,7 +242,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
@@ -281,7 +281,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
@@ -320,7 +320,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         $this->expectException(ColumnsMismatchException::class);
@@ -359,7 +359,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception even though _timestamp is not in source
@@ -398,7 +398,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         try {
@@ -443,7 +443,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         $manager->validateIncrementalDestination($destDefinition, $sourceColumns, $sourceDefinition);
@@ -453,10 +453,10 @@ class LoadDestinationManagerTest extends TestCase
     public function testCreateTable(): void
     {
         $bqClient = $this->createMock(BigQueryClient::class);
-        $queryResults = $this->createMock(QueryResults::class);
+        $queryResults = $this->createStub(QueryResults::class);
 
-        // Create a mock query object to be passed to runQuery
-        $query = $this->createMock(QueryJobConfiguration::class);
+        // Create a stub query object to be passed to runQuery
+        $query = $this->createStub(QueryJobConfiguration::class);
 
         // Mock the query() method to return the query config
         $bqClient->method('query')->willReturn($query);
@@ -508,7 +508,7 @@ class LoadDestinationManagerTest extends TestCase
             [],
         );
 
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
         $manager = new LoadDestinationManager($bqClient);
 
         // Should not throw exception - case-insensitive comparison

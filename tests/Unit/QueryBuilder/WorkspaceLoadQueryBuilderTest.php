@@ -24,7 +24,7 @@ class WorkspaceLoadQueryBuilderTest extends TestCase
     public function testFilterColumnOutsideMappingDoesNotChangeSelectList(): void
     {
         $builder = new WorkspaceLoadQueryBuilder(
-            $this->createMock(BigQueryClient::class),
+            $this->createStub(BigQueryClient::class),
             new ColumnConverter(),
         );
 

@@ -54,14 +54,14 @@ class ColumnMappingServiceTest extends TestCase
      */
     private function createMockSourceMapping(array $columnMappings = []): LoadTableToWorkspaceCommand\SourceTableMapping
     {
-        $sourceMapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping::class);
+        $sourceMapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping::class);
 
-        $mappingsRepeated = $this->createMock(RepeatedField::class);
+        $mappingsRepeated = $this->createStub(RepeatedField::class);
 
         if (!empty($columnMappings)) {
             $mappings = [];
             foreach ($columnMappings as $source => $dest) {
-                $mapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
+                $mapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
                 $mapping->method('getSourceColumnName')->willReturn($source);
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappings[] = $mapping;

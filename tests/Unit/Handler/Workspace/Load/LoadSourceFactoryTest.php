@@ -29,10 +29,10 @@ class LoadSourceFactoryTest extends TestCase
      */
     private function createMockBigQueryClient(array $columns): BigQueryClient
     {
-        $bqClient = $this->createMock(BigQueryClient::class);
+        $bqClient = $this->createStub(BigQueryClient::class);
 
         // Mock the dataset and table structure for reflection
-        $table = $this->createMock(BQTable::class);
+        $table = $this->createStub(BQTable::class);
         $table->method('exists')->willReturn(true); // Table exists
         $table->method('info')->willReturn([
             'schema' => [
@@ -41,7 +41,7 @@ class LoadSourceFactoryTest extends TestCase
             'type' => 'TABLE',
         ]);
 
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('table')->willReturn($table);
 
         $bqClient->method('dataset')->willReturn($dataset);
@@ -58,9 +58,9 @@ class LoadSourceFactoryTest extends TestCase
         array $whereFilters = [],
         int $limit = 0,
     ): LoadTableToWorkspaceCommand {
-        $command = $this->createMock(LoadTableToWorkspaceCommand::class);
+        $command = $this->createStub(LoadTableToWorkspaceCommand::class);
 
-        $sourceMapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping::class);
+        $sourceMapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping::class);
 
         // Create proper RepeatedField for path
         $path = new RepeatedField(GPBType::STRING);
@@ -77,7 +77,7 @@ class LoadSourceFactoryTest extends TestCase
         );
         if (!empty($columnMappings)) {
             foreach ($columnMappings as $source => $dest) {
-                $mapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
+                $mapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
                 $mapping->method('getSourceColumnName')->willReturn($source);
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappingsRepeated[] = $mapping;
@@ -89,7 +89,7 @@ class LoadSourceFactoryTest extends TestCase
         $filtersRepeated = new RepeatedField(GPBType::MESSAGE, TableWhereFilter::class);
         if (!empty($whereFilters)) {
             foreach ($whereFilters as $columnName => $values) {
-                $filter = $this->createMock(TableWhereFilter::class);
+                $filter = $this->createStub(TableWhereFilter::class);
                 $filter->method('getColumnsName')->willReturn($columnName);
 
                 // Mock the values as RepeatedField
