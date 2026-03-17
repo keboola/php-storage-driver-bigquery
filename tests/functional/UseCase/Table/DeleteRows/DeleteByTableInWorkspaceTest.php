@@ -22,6 +22,7 @@ use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\StorageDriver\Command\Table\PreviewTableResponse;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class DeleteByTableInWorkspaceTest extends BaseCase
 {
@@ -92,7 +93,6 @@ final class DeleteByTableInWorkspaceTest extends BaseCase
     private Table $bucketTable;
 
     /**
-     * @dataProvider oneTableProvider
      * @param string[] $workspaceTableRows
      * @param array<array{
      *     column: string,
@@ -101,6 +101,7 @@ final class DeleteByTableInWorkspaceTest extends BaseCase
      * }> $filters
      * @param int[] $remainingBucketTableRowIds
      */
+    #[DataProvider('oneTableProvider')]
     public function testOneTable(array $workspaceTableRows, array $filters, array $remainingBucketTableRowIds): void
     {
         $workspace = $this->createWorkspaceInProject($this->project);

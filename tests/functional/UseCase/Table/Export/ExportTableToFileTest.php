@@ -43,11 +43,11 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Throwable;
 
-/**
- * @group Export
- */
+#[Group('Export')]
 class ExportTableToFileTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;
@@ -63,10 +63,10 @@ class ExportTableToFileTest extends BaseCase
     }
 
     /**
-     * @dataProvider simpleExportProvider
      * @param array{exportOptions: ExportOptions} $input
      * @param array<int, string>[]|null $exportData
      */
+    #[DataProvider('simpleExportProvider')]
     public function testExportTableToFile(array $input, ?array $exportData): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -127,9 +127,9 @@ class ExportTableToFileTest extends BaseCase
     }
 
     /**
-     * @dataProvider slicedExportProvider
      * @param string[] $expectedFileNames file names without the hash directory prefix
      */
+    #[DataProvider('slicedExportProvider')]
     public function testExportTableToSlicedFile(bool $isCompressed, array $expectedFileNames): void
     {
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
@@ -313,7 +313,7 @@ class ExportTableToFileTest extends BaseCase
         );
     }
 
-    public function simpleExportProvider(): Generator
+    public static function simpleExportProvider(): Generator
     {
         yield 'plain csv' => [
             [ // input
@@ -576,8 +576,8 @@ class ExportTableToFileTest extends BaseCase
     /**
      * @phpcs:ignore
      * @param array{exportOptions: ExportOptions} $params
-     * @dataProvider filterProvider
      */
+    #[DataProvider('filterProvider')]
     public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
@@ -644,7 +644,7 @@ class ExportTableToFileTest extends BaseCase
         }
     }
 
-    public function filterProvider(): Generator
+    public static function filterProvider(): Generator
     {
         yield 'non exist columns' => [
             [ // input
@@ -657,7 +657,7 @@ class ExportTableToFileTest extends BaseCase
         ];
     }
 
-    public function slicedExportProvider(): Generator
+    public static function slicedExportProvider(): Generator
     {
         // File names only - the full path with hash is built dynamically in the test
         yield 'plain csv' => [

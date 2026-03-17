@@ -46,7 +46,6 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
 use PHPUnit\Framework\TestCase;
-use PHPUnitRetry\RetryTrait;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -56,7 +55,7 @@ use Throwable;
 
 class BaseCase extends TestCase
 {
-    use RetryTrait;
+    private const RETRY_COUNT = 3;
 
     public const EU_LOCATION = 'EU';
     public const US_LOCATION = 'US';
@@ -76,6 +75,28 @@ class BaseCase extends TestCase
     protected GCPClientManager $clientManager;
 
     protected ParatestFileLogger $log;
+
+    protected function runTest(): mixed
+    {
+        $lastException = null;
+
+        for ($attempt = 0; $attempt <= self::RETRY_COUNT; $attempt++) {
+            try {
+                return parent::runTest();
+            } catch (Throwable $e) {
+                // Don't retry skipped or incomplete tests
+                if ($this->status()->isSkipped() || $this->status()->isIncomplete()) {
+                    throw $e;
+                }
+                $lastException = $e;
+                if ($attempt < self::RETRY_COUNT) {
+                    printf("[RETRY] Attempt %d of %d for %s\n", $attempt + 1, self::RETRY_COUNT, $this->name());
+                }
+            }
+        }
+
+        throw $lastException;
+    }
 
     private function isLocalDev(): bool
     {
@@ -141,10 +162,10 @@ class BaseCase extends TestCase
     protected function setUp(): void
     {
         $tmpDir = $this->getTmpDir();
-        $this->log = new ParatestFileLogger($this->getName(false));
+        $this->log = new ParatestFileLogger($this->name());
         $this->clientManager = new GCPClientManager($this->log);
         $this->log->setPrefix($this->getTestHash());
-        $this->log->add('Starting test: ' . $this->getName());
+        $this->log->add('Starting test: ' . $this->name());
         $GLOBALS['log'] = $this->log;
         if (!file_exists('/tmp/initialized')) {
             $store = new FlockStore('/tmp/test-lock');
@@ -207,8 +228,8 @@ class BaseCase extends TestCase
 
     protected function tearDown(): void
     {
-        $this->log->add('END of test' . $this->getName());
-        $this->log->add($this->getStatusMessage());
+        $this->log->add('END of test' . $this->name());
+        $this->log->add($this->status()->message());
         parent::tearDown();
     }
 
@@ -507,7 +528,7 @@ class BaseCase extends TestCase
     {
         // Include class name and full test name with data provider suffix for uniqueness
         // This ensures tests in different classes with the same method name don't collide
-        $name = static::class . '::' . $this->getName(true);
+        $name = static::class . '::' . $this->nameWithDataSet();
         // Create a raw binary sha256 hash and base64 encode it.
         $hash = base64_encode(hash('sha256', $name, true));
         // Trim base64 padding characters from the end.
@@ -841,7 +862,7 @@ class BaseCase extends TestCase
         return $checkedColumn;
     }
 
-    public function regionsProvider(): Generator
+    public static function regionsProvider(): Generator
     {
         yield [BaseCase::DEFAULT_LOCATION];
         yield [BaseCase::EU_LOCATION];

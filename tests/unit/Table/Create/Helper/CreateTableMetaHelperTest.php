@@ -13,11 +13,12 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Create\Helper\CreateTableMetaHe
 use Keboola\StorageDriver\Command\Info\TableInfo;
 use Keboola\StorageDriver\Command\Table\CreateTableCommand;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class CreateTableMetaHelperTest extends TestCase
 {
-    public function caseGenerator(): Generator
+    public static function caseGenerator(): Generator
     {
         yield 'no metadata' => [
             (new CreateTableCommand()),
@@ -132,9 +133,9 @@ class CreateTableMetaHelperTest extends TestCase
     }
 
     /**
-     * @dataProvider caseGenerator
      * @param array<mixed> $expectedOptions
      */
+    #[DataProvider('caseGenerator')]
     public function test(CreateTableCommand $cmd, array $expectedOptions): void
     {
         $output = CreateTableMetaHelper::convertTableMetaToRest($cmd);

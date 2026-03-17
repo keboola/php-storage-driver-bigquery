@@ -15,6 +15,7 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 
 class ExecuteQueryTest extends BaseCase
@@ -50,7 +51,7 @@ class ExecuteQueryTest extends BaseCase
         $this->workspaceUserName = $credentialsArr['client_email'];
     }
 
-    public function commandProvider(): Generator
+    public static function commandProvider(): Generator
     {
         yield 'restricted' => [
             function (self $that): ExecuteQueryCommand {
@@ -74,9 +75,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testExecuteQuerySimpleSelect(callable $command): void
     {
         $query = 'SELECT 1 AS col1, "test" AS col2';
@@ -102,9 +103,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testSelectAsterisk(callable $command): void
     {
         $this->createTable(
@@ -261,9 +262,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testExecuteCTAS(callable $command): void
     {
         $this->createTable(
@@ -322,9 +323,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testExecuteError(callable $command): void
     {
         $query = sprintf(
@@ -351,9 +352,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testExecuteInsert(callable $command): void
     {
         $this->createTable(
@@ -406,9 +407,9 @@ class ExecuteQueryTest extends BaseCase
     }
 
     /**
-     * @dataProvider commandProvider
      * @param callable(self):ExecuteQueryCommand $command
      */
+    #[DataProvider('commandProvider')]
     public function testExecuteAlterTable(callable $command): void
     {
         $this->createTable(

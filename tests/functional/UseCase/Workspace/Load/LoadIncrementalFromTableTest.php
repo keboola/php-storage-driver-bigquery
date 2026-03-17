@@ -30,6 +30,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Throwable;
 
 class LoadIncrementalFromTableTest extends BaseImportTestCase
@@ -176,7 +177,7 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
     }
 
 
-    public function importTableFromTableFullLoadWithTimestampTableWithTypesProvider(): Generator
+    public static function importTableFromTableFullLoadWithTimestampTableWithTypesProvider(): Generator
     {
         yield 'no feature' => [
             'features' => [],
@@ -185,11 +186,11 @@ class LoadIncrementalFromTableTest extends BaseImportTestCase
     }
 
     /**
-     * @dataProvider importTableFromTableFullLoadWithTimestampTableWithTypesProvider
      * @param string[] $features
      * Full load to storage
      * timestamp is updated on different features
      */
+    #[DataProvider('importTableFromTableFullLoadWithTimestampTableWithTypesProvider')]
     public function testImportTableFromTableFullLoadWithTimestampTableWithTypes(
         array $features,
         int $nOfUpdatedTimestamps,
@@ -724,9 +725,7 @@ SQL,
         }
     }
 
-    /**
-     * @dataProvider typedTablesProvider
-     */
+    #[DataProvider('typedTablesProvider')]
     public function testIncrementalImportEmptySourceWithDedupColumns(bool $isTypedTable): void
     {
         $sourceTableName = $this->getTestHash() . '_src_empty_dedup';
@@ -961,9 +960,7 @@ SQL,
         }
     }
 
-    /**
-     * @dataProvider typedTablesProvider
-     */
+    #[DataProvider('typedTablesProvider')]
     public function testIncrementalImportWithNullInDedupColumn(bool $isTypedTable): void
     {
         $sourceTableName = $this->getTestHash() . '_src_null_dedup';

@@ -12,6 +12,7 @@ use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Throwable;
 
@@ -28,9 +29,7 @@ class CreateDropBucketTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
     }
 
-    /**
-     * @dataProvider regionsProvider
-     */
+    #[DataProvider('regionsProvider')]
     public function testCreateDropBucket(string $region): void
     {
         $credentials = $this->getCredentials($region);

@@ -24,6 +24,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class LoadCastingFullTest extends BaseImportTestCase
 {
@@ -108,7 +109,6 @@ final class LoadCastingFullTest extends BaseImportTestCase
     }
 
     /**
-     * @dataProvider fullProvider
      * @param array{
      *       withSrcTimestamp: bool,
      *       srcTyped: bool,
@@ -117,6 +117,7 @@ final class LoadCastingFullTest extends BaseImportTestCase
      *       allowRename: bool
      *   } $scenario
      */
+    #[DataProvider('fullProvider')]
     public function testFullLoadCasting(array $scenario): void
     {
         $dataset = $this->bucketResponse->getCreateBucketObjectName();

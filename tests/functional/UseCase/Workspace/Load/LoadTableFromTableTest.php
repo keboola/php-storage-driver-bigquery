@@ -37,6 +37,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Throwable;
 
 class LoadTableFromTableTest extends BaseImportTestCase
@@ -685,15 +686,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeProvide(): Generator
+    public static function importTypeProvide(): Generator
     {
         yield 'full' => [ImportType::FULL];
         yield 'incremental' => [ImportType::INCREMENTAL];
     }
 
-    /**
-     * @dataProvider importTypeProvide
-     */
+    #[DataProvider('importTypeProvide')]
     public function testLoadDataToIncompatibleColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
@@ -816,7 +815,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeBoundsProvider(): Generator
+    public static function importTypeBoundsProvider(): Generator
     {
         foreach ([
                      'full' => ImportType::FULL,
@@ -845,9 +844,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    /**
-     * @dataProvider importTypeBoundsProvider
-     */
+    #[DataProvider('importTypeBoundsProvider')]
     public function testLoadDataToDifferentColumnLengthMismatchBounds(
         int $importType,
         string $longContent,

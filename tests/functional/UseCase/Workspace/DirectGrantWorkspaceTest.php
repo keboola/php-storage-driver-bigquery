@@ -21,11 +21,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\Group;
 use Throwable;
 
-/**
- * @group sync
- */
+#[Group('sync')]
 class DirectGrantWorkspaceTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;

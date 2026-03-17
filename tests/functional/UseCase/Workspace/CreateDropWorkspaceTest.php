@@ -33,6 +33,7 @@ use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\Group;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\BackOff\FixedBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
@@ -40,9 +41,7 @@ use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
-/**
- * @group sync
- */
+#[Group('sync')]
 class CreateDropWorkspaceTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;

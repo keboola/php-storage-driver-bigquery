@@ -19,15 +19,13 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
 use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\FunctionalTests\UseCase\Table\Import\BaseImportTestCase;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
-/**
- * @group Import
- */
+#[Group('Import')]
 class IncrementalImportTableFromFileTest extends BaseImportTestCase
 {
-    /**
-     * @dataProvider typedTablesProvider
-     */
+    #[DataProvider('typedTablesProvider')]
     public function testImportTableFromFileIncrementalLoad(bool $isTypedTable): void
     {
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -133,9 +131,7 @@ class IncrementalImportTableFromFileTest extends BaseImportTestCase
         ], $data);
     }
 
-    /**
-     * @dataProvider typedTablesProvider
-     */
+    #[DataProvider('typedTablesProvider')]
     public function testImportTableFromFileIncrementalWithTimestampFromSource(bool $isTypedTable): void
     {
         $destinationTableName = $this->getTestHash() . '_Test_table_ts_source';

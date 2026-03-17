@@ -24,6 +24,7 @@ use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class AlterColumnTest extends BaseCase
 {
@@ -42,7 +43,7 @@ class AlterColumnTest extends BaseCase
         $this->tableName = $this->getTestHash() . '_Test_table';
     }
 
-    public function invalidDefaultProvider(): Generator
+    public static function invalidDefaultProvider(): Generator
     {
         yield 'set helloworld on int' => [
             'col2Required',
@@ -58,7 +59,7 @@ class AlterColumnTest extends BaseCase
         ];
     }
 
-    public function lengthProvider(): Generator
+    public static function lengthProvider(): Generator
     {
         yield '200 -> 300' => [
             'col5WithLength',
@@ -76,7 +77,7 @@ class AlterColumnTest extends BaseCase
         ];
     }
 
-    public function nullabilityProvider(): Generator
+    public static function nullabilityProvider(): Generator
     {
         yield 'required -> required' => [
             'col2Required',
@@ -112,7 +113,7 @@ class AlterColumnTest extends BaseCase
         ];
     }
 
-    public function defaultProvider(): Generator
+    public static function defaultProvider(): Generator
     {
         yield 'set 1234 on int' => [
             'col1Nullable',
@@ -133,10 +134,10 @@ class AlterColumnTest extends BaseCase
     }
 
     /**
-     * @dataProvider nullabilityProvider
      * @param string[] $expectedSuccessLog
      * @param string[] $expectedErrorLog
      */
+    #[DataProvider('nullabilityProvider')]
     public function testNullability(
         string $columnName,
         bool $setNullable,
@@ -192,10 +193,10 @@ class AlterColumnTest extends BaseCase
     }
 
     /**
-     * @dataProvider defaultProvider
      * @param string[] $expectedSuccessLog
      * @param string[] $expectedErrorLog
      */
+    #[DataProvider('defaultProvider')]
     public function testDefault(
         string $columnName,
         string $type,
@@ -253,9 +254,8 @@ class AlterColumnTest extends BaseCase
 
     /**
      * usecases which fail even on input validation and won't even make it to execution
-     *
-     * @dataProvider invalidDefaultProvider
      */
+    #[DataProvider('invalidDefaultProvider')]
     public function testInvalidDefaults(
         string $columnName,
         string $type,
@@ -334,9 +334,9 @@ class AlterColumnTest extends BaseCase
     }
 
     /**
-     * @dataProvider lengthProvider
      * @param string[] $expectedSuccessLog
      */
+    #[DataProvider('lengthProvider')]
     public function testLength(
         string $columnName,
         string $setLength,

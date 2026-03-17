@@ -46,7 +46,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
     public function testRegisterNonExistExchanger(): void
     {
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
@@ -113,7 +113,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         // prepare test external table
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         // this part simulate user who want to register ext bucket
@@ -365,7 +365,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
 
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
@@ -426,7 +426,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
 
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);

@@ -13,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class DateColumnMetricTest extends BaseCase
 {
@@ -47,9 +48,7 @@ final class DateColumnMetricTest extends BaseCase
 
     private BigQueryContext $context;
 
-    /**
-     * @dataProvider metricProvider
-     */
+    #[DataProvider('metricProvider')]
     public function testMetric(
         ColumnMetricInterface $metric,
         string $column,
@@ -59,7 +58,7 @@ final class DateColumnMetricTest extends BaseCase
         $this->assertSame($expected, $actual);
     }
 
-    public function metricProvider(): Generator
+    public static function metricProvider(): Generator
     {
         yield 'distinctCount (date, not nullable)' => [
             new DistinctCountColumnMetric(),

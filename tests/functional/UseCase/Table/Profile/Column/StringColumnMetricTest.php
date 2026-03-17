@@ -14,6 +14,7 @@ use Keboola\StorageDriver\BigQuery\Profile\Column\NullCountColumnMetric;
 use Keboola\StorageDriver\BigQuery\Profile\ColumnMetricInterface;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class StringColumnMetricTest extends BaseCase
 {
@@ -39,9 +40,9 @@ final class StringColumnMetricTest extends BaseCase
     private BigQueryContext $context;
 
     /**
-     * @dataProvider metricProvider
      * @param array{avg: float, min: int, max: int}|int $expected
      */
+    #[DataProvider('metricProvider')]
     public function testMetric(
         ColumnMetricInterface $metric,
         string $column,
@@ -51,7 +52,7 @@ final class StringColumnMetricTest extends BaseCase
         $this->assertSame($expected, $actual);
     }
 
-    public function metricProvider(): Generator
+    public static function metricProvider(): Generator
     {
         yield 'distinctCount (not nullable)' => [
             new DistinctCountColumnMetric(),

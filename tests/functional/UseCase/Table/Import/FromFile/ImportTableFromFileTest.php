@@ -29,10 +29,10 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
-/**
- * @group Import
- */
+#[Group('Import')]
 class ImportTableFromFileTest extends BaseImportTestCase
 {
     public function testImportTableFromFileFullLoadWithDeduplication(): void
@@ -196,7 +196,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
     /**
      * @return Generator<string,array{int}>
      */
-    public function importCompressionProvider(): Generator
+    public static function importCompressionProvider(): Generator
     {
         yield 'NO Compression' => [
             TableImportFromFileCommand\CsvTypeOptions\Compression::NONE,
@@ -206,9 +206,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         ];
     }
 
-    /**
-     * @dataProvider importCompressionProvider
-     */
+    #[DataProvider('importCompressionProvider')]
     public function testImportTableFromFileFullLoadSlicedWithoutDeduplication(int $compression): void
     {
         $destinationTableName = $this->getTestHash() . '_Test_table_final';
@@ -422,9 +420,7 @@ class ImportTableFromFileTest extends BaseImportTestCase
         }
     }
 
-    /**
-     * @dataProvider typedTablesProvider
-     */
+    #[DataProvider('typedTablesProvider')]
     public function testImportTableFromFileFullLoadWithTimestampFromSource(bool $isTypedTable): void
     {
         $destinationTableName = $this->getTestHash() . '_Test_table_ts_full';

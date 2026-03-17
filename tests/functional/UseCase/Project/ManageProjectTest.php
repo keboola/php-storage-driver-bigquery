@@ -23,6 +23,7 @@ use Keboola\StorageDriver\Command\Project\DropProjectCommand;
 use Keboola\StorageDriver\Command\Project\UpdateProjectCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
@@ -56,9 +57,7 @@ class ManageProjectTest extends BaseCase
         $this->dropProjects($this->getCurrentProjectFullId());
     }
 
-    /**
-     * @dataProvider regionsProvider
-     */
+    #[DataProvider('regionsProvider')]
     public function testManageProject(string $region): void
     {
         $handler = new CreateProjectHandler($this->clientManager);
