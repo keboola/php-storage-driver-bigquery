@@ -818,7 +818,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'longContent' => 'xxxyyyxxx',
         ];
         yield 'incremental' => [
-            ImportOptions\ImportType::INCREMENTAL,
+            'importType' => ImportOptions\ImportType::INCREMENTAL,
             'longContent' => 'xxxyyyxxx',
         ];
         yield 'full error import' => [
@@ -826,7 +826,7 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
         ];
         yield 'incremental error import' => [
-            ImportOptions\ImportType::INCREMENTAL,
+            'importType' => ImportOptions\ImportType::INCREMENTAL,
             'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
         ];
     }

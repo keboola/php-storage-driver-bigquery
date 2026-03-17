@@ -836,8 +836,8 @@ class LoadTableFromTableTest extends BaseImportTestCase
                         $longContentName,
                     ) => [
                         'importType' => $importType,
-                        'longContent' => $longContentName,
-                        'srcTable' => $srcTableType,
+                        'longContent' => $longContent,
+                        'srcTableType' => $srcTableType,
                     ];
                 }
             }
