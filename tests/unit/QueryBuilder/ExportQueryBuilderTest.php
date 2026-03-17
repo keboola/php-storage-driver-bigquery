@@ -41,7 +41,7 @@ class ExportQueryBuilderTest extends TestCase
         int $rowsCount = 100_000,
         string $mode = ExportQueryBuilder::MODE_SELECT,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
 
         $columnConverter = new ColumnConverter();
         $tableColumnsDefinitions = new ColumnCollection($this->getColumnsCollection());
@@ -482,7 +482,7 @@ class ExportQueryBuilderTest extends TestCase
         string $exceptionClass,
         string $exceptionMessage,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
 
         $columnConverter = new ColumnConverter();
         $tableColumnsDefinitions = new ColumnCollection($this->getColumnsCollection());
@@ -578,7 +578,7 @@ class ExportQueryBuilderTest extends TestCase
         string $expectedSql,
         array $expectedBindings,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
         $columnConverter = new ColumnConverter();
 
         $qb = new ExportQueryBuilder($connection, $columnConverter);
@@ -683,7 +683,7 @@ class ExportQueryBuilderTest extends TestCase
 
     public function testBuildQueryFromDeleteTableRowsCommandFailed(): void
     {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
         $columnConverter = new ColumnConverter();
 
         $command = new DeleteTableRowsCommand([
