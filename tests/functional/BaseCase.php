@@ -94,7 +94,8 @@ class BaseCase extends TestCase
 
         return $proxy->call(function () use (&$isRetry): mixed {
             if ($isRetry) {
-                // Re-run setUp to reset state (old RetryTrait retried runBare which includes setUp)
+                // Clean up state from previous failed attempt before re-initializing
+                $this->tearDown();
                 $this->setUp();
             }
             return parent::runTest();

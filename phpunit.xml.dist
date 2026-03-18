@@ -19,7 +19,6 @@
     <testsuites>
         <testsuite name="unit">
             <directory>tests/unit</directory>
-            <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="functional">
             <directory>tests/functional</directory>
