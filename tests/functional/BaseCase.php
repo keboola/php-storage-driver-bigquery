@@ -45,6 +45,8 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
+use PHPUnit\Framework\IncompleteTest;
+use PHPUnit\Framework\SkippedTest;
 use PHPUnit\Framework\TestCase;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
@@ -80,8 +82,9 @@ class BaseCase extends TestCase
     {
         $isRetry = false;
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use (&$isRetry): bool {
-            // Don't retry skipped or incomplete tests
-            if ($this->status()->isSkipped() || $this->status()->isIncomplete()) {
+            // Don't retry skipped or incomplete tests — check exception type, not status(),
+            // because status is only set in runBare() after runTest() returns
+            if ($e instanceof SkippedTest || $e instanceof IncompleteTest) {
                 return false;
             }
             printf("[RETRY] %s: %s\n", $this->name(), substr($e->getMessage(), 0, 100));
