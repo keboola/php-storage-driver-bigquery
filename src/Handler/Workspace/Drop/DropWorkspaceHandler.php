@@ -158,11 +158,16 @@ final class DropWorkspaceHandler extends BaseHandler
 
             try {
                 $proxy->call(function () use ($table, $saIdentifier, $datasetName, $directGrantTable): void {
+                    /** @var array<string, mixed> $policy */
                     $policy = $table->iam()->policy();
                     $newBindings = [];
-                    foreach ($policy['bindings'] ?? [] as $binding) {
+                    /** @var array<int, array{role?: string, members?: string[]}> $policyBindings */
+                    $policyBindings = $policy['bindings'] ?? [];
+                    foreach ($policyBindings as $binding) {
+                        /** @var string[] $bindingMembers */
+                        $bindingMembers = $binding['members'] ?? [];
                         $filteredMembers = array_values(array_filter(
-                            $binding['members'] ?? [],
+                            $bindingMembers,
                             fn(string $member) => $member !== $saIdentifier,
                         ));
                         if ($filteredMembers !== []) {
@@ -235,12 +240,16 @@ final class DropWorkspaceHandler extends BaseHandler
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
             $projectName = 'projects/' . $projectCredentials['project_id'];
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
-            $actualBinding[] = $actualPolicy->getBindings();
+            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+            $projects = $cloudResourceManager->projects;
+            /** @var Policy $actualPolicy */
+            $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            /** @var Binding[] $actualBindings */
+            $actualBindings = $actualPolicy->getBindings();
 
             $newBinding = [];
             /** @var Binding $binding */
-            foreach ($actualBinding[0] as $binding) {
+            foreach ($actualBindings as $binding) {
                 $tmpBinding = new Binding();
                 $tmpBinding->setRole($binding->getRole());
                 if ($binding->getCondition() !== null) {
@@ -261,7 +270,7 @@ final class DropWorkspaceHandler extends BaseHandler
             $policy->setBindings($newBinding);
             $setIamPolicyRequest = new SetIamPolicyRequest();
             $setIamPolicyRequest->setPolicy($policy);
-            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $projects->setIamPolicy($projectName, $setIamPolicyRequest);
         });
     }
 

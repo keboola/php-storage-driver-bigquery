@@ -49,6 +49,7 @@ class UserInMemoryLogger extends AbstractLogger
         array $context = [],
     ): void {
         $msg = new LogMessage();
+        assert(is_string($level));
         $msg->setLevel(self::LOG_LEVEL_MAP[$level]);
         $msg->setMessage((string) $message);
         $ctx = new Any();

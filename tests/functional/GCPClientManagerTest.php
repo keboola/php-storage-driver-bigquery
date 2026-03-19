@@ -71,7 +71,9 @@ class GCPClientManagerTest extends TestCase
         $connection->runQuery($query);
 
         $this->assertNotEmpty($historyContainer, 'No requests were captured.');
+        assert(is_array($historyContainer));
         foreach ($historyContainer as $transaction) {
+            assert(is_array($transaction));
             /** @var Request $request */
             $request = $transaction['request'];
             $headers = $request->getHeaders();

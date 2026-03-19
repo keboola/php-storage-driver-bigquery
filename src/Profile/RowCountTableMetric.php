@@ -21,6 +21,8 @@ final class RowCountTableMetric implements TableMetricInterface
         string $table,
         BigQueryContext $context,
     ): int {
-        return (int) $context->table->info()['numRows'];
+        /** @var array{numRows: int|string} $tableInfo */
+        $tableInfo = $context->table->info();
+        return (int) $tableInfo['numRows'];
     }
 }

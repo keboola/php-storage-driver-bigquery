@@ -6,12 +6,12 @@ namespace Keboola\StorageDriver\FunctionalTests\UseCase\Bucket;
 
 use Google\Cloud\BigQuery\Dataset;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
-use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Throwable;
 
@@ -28,9 +28,7 @@ class CreateDropBucketTest extends BaseCase
         $this->projectResponse = $this->projects[0][1];
     }
 
-    /**
-     * @dataProvider regionsProvider
-     */
+    #[DataProvider('regionsProvider')]
     public function testCreateDropBucket(string $region): void
     {
         $credentials = $this->getCredentials($region);
@@ -60,12 +58,11 @@ class CreateDropBucketTest extends BaseCase
     {
         $response = $this->createTestBucket($this->projectCredentials, '123');
 
-        $this->assertInstanceOf(CreateBucketResponse::class, $response);
-
         $bigQueryClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
+        /** @var array<string, mixed> $bucketInfo */
         $bucketInfo = $dataset->info();
         $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
         $this->assertInstanceOf(Dataset::class, $dataset);

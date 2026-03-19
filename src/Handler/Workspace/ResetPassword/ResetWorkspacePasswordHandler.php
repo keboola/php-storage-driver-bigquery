@@ -75,6 +75,7 @@ final class ResetWorkspacePasswordHandler extends BaseHandler
         }
 
         // separate private and public part
+        /** @var string $privateKey */
         $privateKey = $keyData[CreateWorkspaceHandler::KEY_DATA_PROPERTY_PRIVATE_KEY];
         unset($keyData[CreateWorkspaceHandler::KEY_DATA_PROPERTY_PRIVATE_KEY]);
         $publicPart = json_encode($keyData);

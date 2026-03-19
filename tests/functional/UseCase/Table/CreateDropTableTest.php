@@ -26,6 +26,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 
 class CreateDropTableTest extends BaseCase
@@ -42,9 +43,7 @@ class CreateDropTableTest extends BaseCase
         $this->bucketResponse = $this->createTestBucket($this->projects[0][0]);
     }
 
-    /**
-     * @dataProvider regionsProvider
-     */
+    #[DataProvider('regionsProvider')]
     public function testCreateTable(string $region): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
@@ -271,7 +270,7 @@ class CreateDropTableTest extends BaseCase
 
     public function testCreateTableFailOnInvalidLength(): void
     {
-        $tableName = md5($this->getName());
+        $tableName = md5($this->name());
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -307,7 +306,7 @@ class CreateDropTableTest extends BaseCase
         CreateTableCommand\BigQueryTableMeta $meta,
         string $nameSuffix,
     ): TableInfo {
-        $tableName = md5($this->getName()) . $nameSuffix;
+        $tableName = md5($this->name()) . $nameSuffix;
         $bucketDatasetName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -346,7 +345,7 @@ class CreateDropTableTest extends BaseCase
         return $response->getTableInfo();
     }
 
-    /** @dataProvider failsDefaultTypesProvider */
+    #[DataProvider('failsDefaultTypesProvider')]
     public function testFailsDefaultsCreateTable(TableColumnShared $column): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
@@ -381,7 +380,7 @@ class CreateDropTableTest extends BaseCase
         }
     }
 
-    public function failsDefaultTypesProvider(): Generator
+    public static function failsDefaultTypesProvider(): Generator
     {
         // INT64
         yield Bigquery::TYPE_INT64 . '_fail' => [
@@ -480,7 +479,7 @@ class CreateDropTableTest extends BaseCase
         ];
     }
 
-    /** @dataProvider defaultTypesProvider */
+    #[DataProvider('defaultTypesProvider')]
     public function testDefaultsCreateTable(TableColumnShared $column): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
@@ -514,7 +513,7 @@ class CreateDropTableTest extends BaseCase
         $this->assertNotNull($response->getTableInfo());
     }
 
-    public function defaultTypesProvider(): Generator
+    public static function defaultTypesProvider(): Generator
     {
         // INT64
         yield Bigquery::TYPE_INT64 . '_string' => [

@@ -37,6 +37,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Throwable;
 
 class LoadTableFromTableTest extends BaseImportTestCase
@@ -685,15 +686,13 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeProvide(): Generator
+    public static function importTypeProvide(): Generator
     {
         yield 'full' => [ImportType::FULL];
         yield 'incremental' => [ImportType::INCREMENTAL];
     }
 
-    /**
-     * @dataProvider importTypeProvide
-     */
+    #[DataProvider('importTypeProvide')]
     public function testLoadDataToIncompatibleColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
@@ -816,7 +815,7 @@ class LoadTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeBoundsProvider(): Generator
+    public static function importTypeBoundsProvider(): Generator
     {
         foreach ([
                      'full' => ImportType::FULL,
@@ -837,17 +836,15 @@ class LoadTableFromTableTest extends BaseImportTestCase
                         $longContentName,
                     ) => [
                         'importType' => $importType,
-                        'longContent' => $longContentName,
-                        'srcTable' => $srcTableType,
+                        'longContent' => $longContent,
+                        'srcTableType' => $srcTableType,
                     ];
                 }
             }
         }
     }
 
-    /**
-     * @dataProvider importTypeBoundsProvider
-     */
+    #[DataProvider('importTypeBoundsProvider')]
     public function testLoadDataToDifferentColumnLengthMismatchBounds(
         int $importType,
         string $longContent,
@@ -1388,10 +1385,6 @@ class LoadTableFromTableTest extends BaseImportTestCase
             $importedColumns,
             'SQL path should return column names. Empty array would indicate COPY was used (BUG!)',
         );
-        $this->assertNotEmpty(
-            $importedColumns,
-            'CRITICAL: Imported columns must NOT be empty. Empty means COPY was used incorrectly',
-        );
 
         // Verify final row count
         $ref = new BigqueryTableReflection($bqClient, $bucketDatabaseName, $destinationTableName);
@@ -1643,7 +1636,9 @@ class LoadTableFromTableTest extends BaseImportTestCase
         )));
         $row = iterator_to_array($result->getIterator())[0];
         assert(is_array($row));
-        $this->assertSame('4', (string) $row['COUNT'], 'Four rows should have updated timestamps');
+        /** @var string|int $count */
+        $count = $row['COUNT'];
+        $this->assertSame('4', (string) $count, 'Four rows should have updated timestamps');
 
         // Scenario 4: Test auto-creation of destination with primary keys
         $cmd2 = new LoadTableToWorkspaceCommand();

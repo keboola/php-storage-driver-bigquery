@@ -44,7 +44,7 @@ class PolicyFilter
     {
         if (isset($array['bindings']) && is_array($array['bindings'])) {
             foreach ($array['bindings'] as &$binding) {
-                if (isset($binding['members']) && is_array($binding['members'])) {
+                if (is_array($binding) && isset($binding['members']) && is_array($binding['members'])) {
                     $binding['members'] = array_values($binding['members']);
                 }
             }

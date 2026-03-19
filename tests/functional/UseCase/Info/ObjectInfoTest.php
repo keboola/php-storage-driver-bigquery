@@ -566,6 +566,7 @@ SQL,
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
         $proxy->call(function () use ($bucket, $role, $connectionServiceAccountEmail): void {
+            /** @var array{bindings: array<int, array{role: string, members: array<string>}>} $policy */
             $policy = $bucket->iam()->policy();
             $policy['bindings'][] = [
                 'role' => $role,
@@ -839,11 +840,11 @@ SQL,
             $message,
             PHP_EOL,
             implode(PHP_EOL, array_map(
-                static fn(LogMessage $log) => sprintf(
-                    '%s: %s',
-                    LogMessage\Level::name($log->getLevel()),
-                    $log->getMessage(),
-                ),
+                static function (LogMessage $log): string {
+                    /** @var string $levelName */
+                    $levelName = LogMessage\Level::name($log->getLevel());
+                    return sprintf('%s: %s', $levelName, $log->getMessage());
+                },
                 $logs,
             ),),
         ));

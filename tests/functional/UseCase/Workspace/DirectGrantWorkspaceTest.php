@@ -21,11 +21,10 @@ use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\Group;
 use Throwable;
 
-/**
- * @group sync
- */
+#[Group('sync')]
 class DirectGrantWorkspaceTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;
@@ -272,6 +271,7 @@ class DirectGrantWorkspaceTest extends BaseCase
 
         foreach ([$grantedTableName, $grantedTable2Name] as $tableName) {
             $table = $bqProjectClient->dataset($bucketDatasetName)->table($tableName);
+            /** @var array{bindings?: array<int, array{role: string, members?: array<string>}>} $policy */
             $policy = $table->iam()->policy();
             foreach ($policy['bindings'] ?? [] as $binding) {
                 foreach ($binding['members'] ?? [] as $member) {

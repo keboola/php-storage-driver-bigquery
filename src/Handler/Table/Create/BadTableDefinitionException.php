@@ -57,8 +57,10 @@ class BadTableDefinitionException extends Exception implements NonRetryableExcep
             $decodedMessage = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
             if (is_array($decodedMessage)
                 && array_key_exists('error', $decodedMessage)
+                && is_array($decodedMessage['error'])
                 && array_key_exists('message', $decodedMessage['error'])
             ) {
+                /** @var string $message */
                 $message = $decodedMessage['error']['message'];
             }
         } catch (JsonException $e) {

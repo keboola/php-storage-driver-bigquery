@@ -63,6 +63,10 @@ final class GrantBucketAccessToReadOnlyRoleHandler extends BaseHandler
             $dataExchangerId,
             $listingId,
         ] = $command->getPath();
+        assert(is_string($projectId));
+        assert(is_string($location));
+        assert(is_string($dataExchangerId));
+        assert(is_string($listingId));
         $analyticHubClient = $this->clientManager->getAnalyticHubClient($credentials);
         $listingName = $analyticHubClient->listingName(
             $projectId,

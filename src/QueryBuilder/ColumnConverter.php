@@ -35,10 +35,12 @@ class ColumnConverter
     public function convertColumnByDataType(string $tableName, string $column, int $dataType): string
     {
         if (!in_array($dataType, self::DATA_TYPES_OPTIONS, true)) {
+            /** @var string $dataTypeName */
+            $dataTypeName = DataType::name($dataType);
             throw new QueryBuilderException(
                 sprintf(
                     'Data type %s not recognized. Possible datatypes are [%s]',
-                    DataType::name($dataType),
+                    $dataTypeName,
                     implode('|', array_map(
                         static fn(int $type) => self::DATA_TYPES_MAP[$type],
                         self::DATA_TYPES_OPTIONS,

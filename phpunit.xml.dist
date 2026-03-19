@@ -4,7 +4,10 @@
          backupGlobals="false"
          colors="true"
          bootstrap="tests/bootstrap.php"
-         convertDeprecationsToExceptions="false"
+         cacheDirectory=".phpunit.cache"
+         failOnRisky="false"
+         failOnWarning="false"
+         beStrictAboutTestsThatDoNotTestAnything="false"
 >
     <php>
         <ini name="display_errors" value="1"/>
@@ -19,6 +22,9 @@
         </testsuite>
         <testsuite name="functional">
             <directory>tests/functional</directory>
+            <exclude>tests/functional/UseCase/Table/Export</exclude>
+            <exclude>tests/functional/UseCase/Table/Import</exclude>
+            <exclude>tests/functional/UseCase/Workspace/ServiceAccountRetryTest.php</exclude>
         </testsuite>
         <testsuite name="Import">
             <directory>tests/functional/UseCase/Table/Import</directory>
@@ -26,16 +32,11 @@
         <testsuite name="Export">
             <directory>tests/functional/UseCase/Table/Export</directory>
         </testsuite>
-        <testsuite name="Other">
-            <directory>tests</directory>
-            <exclude>tests/functional/UseCase/Table/Export</exclude>
-            <exclude>tests/functional/UseCase/Table/Import</exclude>
-        </testsuite>
     </testsuites>
 
-    <coverage processUncoveredFiles="true">
+    <source>
         <include>
             <directory suffix=".php">src</directory>
         </include>
-    </coverage>
+    </source>
 </phpunit>

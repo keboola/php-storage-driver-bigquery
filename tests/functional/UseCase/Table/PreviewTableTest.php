@@ -35,6 +35,7 @@ use Keboola\StorageDriver\Command\Table\TableColumnShared;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\StorageDriver\Shared\Utils\ProtobufHelper;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Throwable;
 
 class PreviewTableTest extends BaseCase
@@ -1430,8 +1431,8 @@ class PreviewTableTest extends BaseCase
      *     orderBy?: ExportOrderBy[],
      *     filters?: ExportFilters
      * } $params
-     * @dataProvider  filterProvider
      */
+    #[DataProvider('filterProvider')]
     public function testTablePreviewWithWrongTypesInWhereFilters(array $params, string $expectExceptionMessage): void
     {
         $tableName = $this->getTestHash() . '_Test_table';
@@ -1520,7 +1521,7 @@ class PreviewTableTest extends BaseCase
         }
     }
 
-    public function filterProvider(): Generator
+    public static function filterProvider(): Generator
     {
         foreach ([
                      'ARRAY',

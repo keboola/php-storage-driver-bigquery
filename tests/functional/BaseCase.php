@@ -45,8 +45,9 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use LogicException;
+use PHPUnit\Framework\IncompleteTest;
+use PHPUnit\Framework\SkippedTest;
 use PHPUnit\Framework\TestCase;
-use PHPUnitRetry\RetryTrait;
 use Retry\BackOff\ExponentialRandomBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
 use Retry\RetryProxy;
@@ -56,7 +57,7 @@ use Throwable;
 
 class BaseCase extends TestCase
 {
-    use RetryTrait;
+    private const RETRY_COUNT = 3;
 
     public const EU_LOCATION = 'EU';
     public const US_LOCATION = 'US';
@@ -76,6 +77,33 @@ class BaseCase extends TestCase
     protected GCPClientManager $clientManager;
 
     protected ParatestFileLogger $log;
+
+    protected function runTest(): mixed
+    {
+        $isRetry = false;
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use (&$isRetry): bool {
+            // Don't retry skipped or incomplete tests — check exception type, not status(),
+            // because status is only set in runBare() after runTest() returns
+            if ($e instanceof SkippedTest || $e instanceof IncompleteTest) {
+                return false;
+            }
+            printf("[RETRY] %s: %s\n", $this->name(), substr($e->getMessage(), 0, 100));
+            $isRetry = true;
+            return true;
+        }, self::RETRY_COUNT);
+
+        $backOffPolicy = new ExponentialRandomBackOffPolicy(1_000, 2.0, 10_000);
+        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
+
+        return $proxy->call(function () use (&$isRetry): mixed {
+            if ($isRetry) {
+                // Clean up state from previous failed attempt before re-initializing
+                $this->tearDown();
+                $this->setUp();
+            }
+            return parent::runTest();
+        });
+    }
 
     private function isLocalDev(): bool
     {
@@ -141,10 +169,10 @@ class BaseCase extends TestCase
     protected function setUp(): void
     {
         $tmpDir = $this->getTmpDir();
-        $this->log = new ParatestFileLogger($this->getName(false));
+        $this->log = new ParatestFileLogger($this->name());
         $this->clientManager = new GCPClientManager($this->log);
         $this->log->setPrefix($this->getTestHash());
-        $this->log->add('Starting test: ' . $this->getName());
+        $this->log->add('Starting test: ' . $this->name());
         $GLOBALS['log'] = $this->log;
         if (!file_exists('/tmp/initialized')) {
             $store = new FlockStore('/tmp/test-lock');
@@ -207,8 +235,8 @@ class BaseCase extends TestCase
 
     protected function tearDown(): void
     {
-        $this->log->add('END of test' . $this->getName());
-        $this->log->add($this->getStatusMessage());
+        $this->log->add('END of test' . $this->name());
+        $this->log->add($this->status()->message());
         parent::tearDown();
     }
 
@@ -307,6 +335,7 @@ class BaseCase extends TestCase
 
                     $fileStorageBucket = $storageManager->bucket($fileStorageBucketName);
                     $fileStorageBucket->iam()->reload();
+                    /** @var array{bindings: array<int, array{role: string, members: array<int, string>}>} $policy */
                     $policy = $fileStorageBucket->iam()->policy();
 
                     foreach ($policy['bindings'] as $bindingKey => $binding) {
@@ -477,6 +506,7 @@ class BaseCase extends TestCase
 
         $dataset = $bigQueryClient->dataset($response->getCreateBucketObjectName());
 
+        /** @var array<string, mixed> $bucketInfo */
         $bucketInfo = $dataset->info();
         $this->assertArrayNotHasKey('defaultTableExpirationMs', $bucketInfo);
         $this->assertInstanceOf(Dataset::class, $dataset);
@@ -507,7 +537,7 @@ class BaseCase extends TestCase
     {
         // Include class name and full test name with data provider suffix for uniqueness
         // This ensures tests in different classes with the same method name don't collide
-        $name = static::class . '::' . $this->getName(true);
+        $name = static::class . '::' . $this->nameWithDataSet();
         // Create a raw binary sha256 hash and base64 encode it.
         $hash = base64_encode(hash('sha256', $name, true));
         // Trim base64 padding characters from the end.
@@ -534,18 +564,16 @@ class BaseCase extends TestCase
      */
     protected function listFilesSimple(string $bucket, string $prefix): array
     {
-        /** @var array{size: int, files: string[]} $result */
-        $result = array_reduce(
-            $this->listGCSFiles($bucket, $prefix),
-            static function (array $agg, StorageObject $file) {
-                $agg['size'] += (int) $file->info()['size'];
-                $agg['files'][] = $file->name();
-                return $agg;
-            },
-            ['size' => 0, 'files' => []],
-        );
+        $size = 0;
+        $files = [];
+        foreach ($this->listGCSFiles($bucket, $prefix) as $file) {
+            /** @var array{size: int|string} $info */
+            $info = $file->info();
+            $size += (int) $info['size'];
+            $files[] = $file->name();
+        }
 
-        return $result;
+        return ['size' => $size, 'files' => $files];
     }
 
     /**
@@ -632,6 +660,7 @@ class BaseCase extends TestCase
         if ($def->getPrimaryKeysNames() !== []) {
             $structure['primaryKeysNames'] = $def->getPrimaryKeysNames();
         }
+        /** @var array{columns: array<string, array<string, mixed>>, primaryKeysNames?: array<int, string>} $structure */
         $this->createTable(
             $credentials,
             $def->getSchemaName(),
@@ -841,7 +870,7 @@ class BaseCase extends TestCase
         return $checkedColumn;
     }
 
-    public function regionsProvider(): Generator
+    public static function regionsProvider(): Generator
     {
         yield [BaseCase::DEFAULT_LOCATION];
         yield [BaseCase::EU_LOCATION];

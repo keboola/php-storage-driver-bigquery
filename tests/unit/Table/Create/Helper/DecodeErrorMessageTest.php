@@ -7,11 +7,12 @@ namespace Keboola\StorageDriver\UnitTests\Table\Create\Helper;
 use Generator;
 use Keboola\StorageDriver\BigQuery\Handler\Helpers\DecodeErrorMessage;
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class DecodeErrorMessageTest extends TestCase
 {
-    public function errorProviderFromDirectExtraction(): Generator
+    public static function errorProviderFromDirectExtraction(): Generator
     {
         yield 'simple message' => [
             "Cannot query over table 'local-main-0529060357146-5db0.KPjdieJ68wCATN4jm1Z2ufZ9l5Og1TZ05oF3Jvowkin_c_Test.externalTableWithConnectionAndPartitioning' without a filter over column(s) 'part' that can be used for partition eliminationError while reading table: local-main-0529060357146-5db0.KPjdieJ68wCATN4jm1Z2ufZ9l5Og1TZ05oF3Jvowkin_c_Test.externalTableWithInvalidPartitioning, error message: Incompatible partition schemas.  Expected schema ([part:TYPE_INT64]) has 1 columns. Observed schema ([]) has 0 columns.", // phpcs:ignore
@@ -24,7 +25,7 @@ class DecodeErrorMessageTest extends TestCase
         ];
     }
 
-    public function errorProvider(): Generator
+    public static function errorProvider(): Generator
     {
         yield 'simple message' => [
             'Simple error message',
@@ -89,9 +90,7 @@ error.errors[1].message',
         ];
     }
 
-    /**
-     * @dataProvider errorProvider
-     */
+    #[DataProvider('errorProvider')]
     public function testGetErrorMessage(string $message, string $expectedErrorMessage): void
     {
         $this->assertSame(
@@ -99,9 +98,7 @@ error.errors[1].message',
             DecodeErrorMessage::getErrorMessage(new Exception($message)),
         );
     }
-    /**
-     * @dataProvider errorProviderFromDirectExtraction
-     */
+    #[DataProvider('errorProviderFromDirectExtraction')]
     public function testGetDirectErrorMessage(string $message, string $expectedErrorMessage): void
     {
         $this->assertSame(

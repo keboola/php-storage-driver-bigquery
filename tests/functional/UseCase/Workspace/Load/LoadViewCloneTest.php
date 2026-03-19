@@ -33,6 +33,7 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Throwable;
 use const JSON_THROW_ON_ERROR;
 
@@ -41,7 +42,7 @@ class LoadViewCloneTest extends BaseCase
     /**
      * @return Generator<string,array{ImportOptions\ImportType::*}>
      */
-    public function importTypeProvider(): Generator
+    public static function importTypeProvider(): Generator
     {
         yield 'CLONE' => [
             ImportOptions\ImportType::PBCLONE,
@@ -52,9 +53,9 @@ class LoadViewCloneTest extends BaseCase
     }
 
     /**
-     * @dataProvider importTypeProvider
      * @param ImportOptions\ImportType::* $importType
      */
+    #[DataProvider('importTypeProvider')]
     public function testConflictImport(int $importType): void
     {
         // create resources
@@ -159,9 +160,9 @@ class LoadViewCloneTest extends BaseCase
     }
 
     /**
-     * @dataProvider importTypeProvider
      * @param ImportOptions\ImportType::* $importType
      */
+    #[DataProvider('importTypeProvider')]
     public function testImportAsView(int $importType): void
     {
         // create resources
@@ -244,9 +245,9 @@ class LoadViewCloneTest extends BaseCase
     }
 
     /**
-     * @dataProvider importTypeProvider
      * @param ImportOptions\ImportType::* $importType
      */
+    #[DataProvider('importTypeProvider')]
     public function testImportAsViewSharedBucket(int $importType): void
     {
         $destinationTableName = $this->getTestHash() . '_Test_table_final';

@@ -46,7 +46,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
     public function testRegisterNonExistExchanger(): void
     {
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
         [$dataExchange, $createdListing] = $this->prepareExternalBucketForRegistration(
@@ -56,6 +56,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -113,7 +114,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         // prepare test external table
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         // this part simulate user who want to register ext bucket
@@ -125,6 +126,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             $externalBucketName,
         );
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -311,6 +313,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
             'EU',
         );
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
 
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
@@ -365,7 +368,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
 
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
@@ -381,6 +384,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         // This allows testIamPermissions to return setIamPolicy as granted → sharing allowed
         $this->grantMainProjectListingAdmin($externalAnalyticHubClient, $createdListing);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
@@ -426,7 +430,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
         }
 
         $externalBucketName = $this->bucketResponse->getCreateBucketObjectName();
-        $externalTableName = md5($this->getName()) . '_Test_table';
+        $externalTableName = md5($this->name()) . '_Test_table';
         $this->prepareTestTable($externalBucketName, $externalTableName);
 
         $externalAnalyticHubClient = $this->clientManager->getAnalyticHubClient($this->externalProjectCredentials);
@@ -437,6 +441,7 @@ class GrantRevokeBucketAccessToReadOnlyRoleTest extends BaseCase
 
         $this->grantMainProjectToRegisterExternalBucket($externalAnalyticHubClient, $dataExchange);
 
+        /** @var array<string, string> $parsedName */
         $parsedName = AnalyticsHubServiceClient::parseName($createdListing->getName());
         $handler = new GrantBucketAccessToReadOnlyRoleHandler($this->clientManager);
         $handler->setInternalLogger($this->log);

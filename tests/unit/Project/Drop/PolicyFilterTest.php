@@ -6,6 +6,7 @@ namespace Keboola\StorageDriver\UnitTests\Project\Drop;
 
 use Generator;
 use Keboola\StorageDriver\BigQuery\Handler\Project\Drop\PolicyFilter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class PolicyFilterTest extends TestCase
@@ -13,8 +14,8 @@ class PolicyFilterTest extends TestCase
 
     /**
      * @param array<string, mixed> $expected
-     * @dataProvider policyProvider
      */
+    #[DataProvider('policyProvider')]
     public function testRemoveServiceAccFromBucketPolicy(string $serviceAccToRemove, array $expected): void
     {
         $policy = [
@@ -41,7 +42,7 @@ class PolicyFilterTest extends TestCase
         $this->assertSame($expected, $filtered);
     }
 
-    public function policyProvider(): Generator
+    public static function policyProvider(): Generator
     {
         yield 'remove rb-m1-kbc-1291' => [
             'rb-m1-kbc-1291@1067394708865.iam.gserviceaccount.com',

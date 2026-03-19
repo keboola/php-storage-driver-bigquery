@@ -82,6 +82,7 @@ final class GrantExternalBucketSubscriberHandler extends BaseHandler
                     }
                 }
 
+                /** @var Binding[] $newBindings */
                 $newBindings = iterator_to_array($existingBindings);
                 $newBindings[] = new Binding([
                     'role' => $subscriberRole,

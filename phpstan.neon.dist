@@ -1,10 +1,14 @@
 parameters:
     level: max
+    treatPhpDocTypesAsCertain: false
     paths:
         - src
         - tests
     excludePaths:
     ignoreErrors:
+        - # Handler interface requires ?Message but implementations always return Message
+            identifier: return.unusedType
+            path: src/Handler/
 
 includes:
     - vendor/phpstan/phpstan-phpunit/extension.neon

@@ -33,11 +33,11 @@ use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
 use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Throwable;
 
-/**
- * @group Import
- */
+#[Group('Import')]
 class ImportTableFromTableTest extends BaseImportTestCase
 {
     /**
@@ -686,15 +686,13 @@ class ImportTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeProvide(): Generator
+    public static function importTypeProvide(): Generator
     {
         yield 'full' => [ImportOptions\ImportType::FULL];
         yield 'incremental' => [ImportOptions\ImportType::INCREMENTAL];
     }
 
-    /**
-     * @dataProvider importTypeProvide
-     */
+    #[DataProvider('importTypeProvide')]
     public function testLoadDataToDifferentColumnTypeEndsWithMismatchException(int $importType): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';
@@ -813,14 +811,14 @@ class ImportTableFromTableTest extends BaseImportTestCase
         }
     }
 
-    public function importTypeBoundsProvide(): Generator
+    public static function importTypeBoundsProvide(): Generator
     {
         yield 'full' => [
             'importType' => ImportOptions\ImportType::FULL,
             'longContent' => 'xxxyyyxxx',
         ];
         yield 'incremental' => [
-            ImportOptions\ImportType::INCREMENTAL,
+            'importType' => ImportOptions\ImportType::INCREMENTAL,
             'longContent' => 'xxxyyyxxx',
         ];
         yield 'full error import' => [
@@ -828,14 +826,12 @@ class ImportTableFromTableTest extends BaseImportTestCase
             'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
         ];
         yield 'incremental error import' => [
-            ImportOptions\ImportType::INCREMENTAL,
+            'importType' => ImportOptions\ImportType::INCREMENTAL,
             'longContent' => 'xxxyyyxxxyyyxxxyyyxxx',
         ];
     }
 
-    /**
-     * @dataProvider importTypeBoundsProvide
-     */
+    #[DataProvider('importTypeBoundsProvide')]
     public function testLoadDataToDifferentColumnLengthMismatchBounds(int $importType, string $longContent): void
     {
         $sourceTableName = $this->getTestHash() . '_Test_table';

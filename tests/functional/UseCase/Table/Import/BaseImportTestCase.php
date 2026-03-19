@@ -192,7 +192,7 @@ class BaseImportTestCase extends BaseCase
     /**
      * @return Generator<string,array{int}>
      */
-    public function importCompressionProvider(): Generator
+    public static function importCompressionProvider(): Generator
     {
         yield 'NO Compression' => [
             TableImportFromFileCommand\CsvTypeOptions\Compression::NONE,
@@ -267,7 +267,7 @@ class BaseImportTestCase extends BaseCase
     /**
      * @return Generator<string,array{boolean}>
      */
-    public function typedTablesProvider(): Generator
+    public static function typedTablesProvider(): Generator
     {
         yield 'typed ' => [true,];
         yield 'string table ' => [false,];

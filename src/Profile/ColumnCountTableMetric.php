@@ -21,6 +21,10 @@ final class ColumnCountTableMetric implements TableMetricInterface
         string $table,
         BigQueryContext $context,
     ): int {
-        return count($context->table->info()['schema']['fields']);
+        /** @var array<string, mixed> $tableInfo */
+        $tableInfo = $context->table->info();
+        /** @var array{fields: array<mixed>} $schema */
+        $schema = $tableInfo['schema'];
+        return count($schema['fields']);
     }
 }

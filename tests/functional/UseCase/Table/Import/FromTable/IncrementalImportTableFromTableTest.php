@@ -22,18 +22,17 @@ use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableReflection;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
-/**
- * @group Import
- */
+#[Group('Import')]
 class IncrementalImportTableFromTableTest extends BaseImportTestCase
 {
     /**
-     * @dataProvider typedTablesProvider
-     *
      * Incremental load to storage from workspace
      * This is output mapping, timestamp is updated
      */
+    #[DataProvider('typedTablesProvider')]
     public function testImportTableFromTableIncrementalLoad(bool $isTypedTable): void
     {
         // typed tables have to have same structure, but string tables can do the mapping
@@ -177,7 +176,7 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
     }
 
 
-    public function importTableFromTableFullLoadWithTimestampTableWithTypesProvider(): Generator
+    public static function importTableFromTableFullLoadWithTimestampTableWithTypesProvider(): Generator
     {
         yield 'no feature' => [
             'features' => [],
@@ -186,11 +185,11 @@ class IncrementalImportTableFromTableTest extends BaseImportTestCase
     }
 
     /**
-     * @dataProvider importTableFromTableFullLoadWithTimestampTableWithTypesProvider
      * @param string[] $features
      * Full load to storage
      * timestamp is updated on different features
      */
+    #[DataProvider('importTableFromTableFullLoadWithTimestampTableWithTypesProvider')]
     public function testImportTableFromTableFullLoadWithTimestampTableWithTypes(
         array $features,
         int $nOfUpdatedTimestamps,

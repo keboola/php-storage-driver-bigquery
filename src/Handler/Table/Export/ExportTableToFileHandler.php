@@ -104,7 +104,7 @@ final class ExportTableToFileHandler extends BaseHandler
             $source->getTableName(),
             false,
         );
-        /** @var array<string> $queryDataBindings */
+        /** @var array<string, mixed> $queryDataBindings */
         $queryDataBindings = $queryData->getBindings();
 
         $sourceRef = new SelectSource(

@@ -144,16 +144,18 @@ final class ExecuteQueryHandler extends BaseHandler
 
         // compose the response message
         $message = 'Query executed successfully.';
-        if (isset($result->identity()['jobId'])) {
+        /** @var array<string, string> $identity */
+        $identity = $result->identity();
+        if (isset($identity['jobId'])) {
             $message = sprintf(
                 'Query "%s" executed successfully.',
-                $result->identity()['jobId'],
+                $identity['jobId'],
             );
-            if (isset($result->identity()['projectId']) && isset($result->identity()['location'])) {
+            if (isset($identity['projectId']) && isset($identity['location'])) {
                 $message .= sprintf(
                     ' Project: %s, Location: %s',
-                    $result->identity()['projectId'],
-                    $result->identity()['location'],
+                    $identity['projectId'],
+                    $identity['location'],
                 );
             }
         }
@@ -162,13 +164,20 @@ final class ExecuteQueryHandler extends BaseHandler
             'status' => ExecuteQueryResponse\Status::Success,
             'message' => $message,
         ]);
-        if (isset($result->info()['schema'])) {
-            $columns = array_map(fn(array $f) => $f['name'], $result->info()['schema']['fields']);
+        /** @var array<string, mixed> $resultInfo */
+        $resultInfo = $result->info();
+        if (isset($resultInfo['schema'])) {
+            /** @var array{fields: array<int, array{name: string}>} $schema */
+            $schema = $resultInfo['schema'];
+            $columns = array_map(fn(array $f) => $f['name'], $schema['fields']);
+            /** @var array<int, mixed> $resultRows */
+            $resultRows = iterator_to_array($result->rows());
             $rows = array_map(function ($r) {
                 $data  = [];
                 if (!is_iterable($r)) {
                     throw new LogicException('Result rows must be iterable');
                 }
+                /** @var string $key */
                 foreach ($r as $key => $value) {
                     if ($value instanceof ValueInterface) {
                         $data[$key] = $value->__toString();
@@ -179,7 +188,7 @@ final class ExecuteQueryHandler extends BaseHandler
                 return new ExecuteQueryResponse\Data\Row([
                     'fields' => $data,
                 ]);
-            }, iterator_to_array($result->rows()));
+            }, $resultRows);
             $response->setData(new ExecuteQueryResponse\Data([
                 'rows' => $rows,
                 'columns' => $columns,

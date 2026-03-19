@@ -22,6 +22,7 @@ use Keboola\TableBackendUtils\Column\ColumnCollection;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableDefinition;
 use Keboola\TableBackendUtils\Table\Bigquery\BigqueryTableQueryBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class LoadCastingIncrementalTest extends BaseImportTestCase
 {
@@ -72,7 +73,6 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
     }
 
     /**
-     * @dataProvider incrementalProvider
      * @param array{
      *       withSrcTimestamp: bool,
      *       srcTyped: bool,
@@ -81,6 +81,7 @@ final class LoadCastingIncrementalTest extends BaseImportTestCase
      *       allowRename: bool
      *   } $scenario
      */
+    #[DataProvider('incrementalProvider')]
     public function testIncrementalLoadCasting(array $scenario): void
     {
         $dataset = $this->bucketResponse->getCreateBucketObjectName();

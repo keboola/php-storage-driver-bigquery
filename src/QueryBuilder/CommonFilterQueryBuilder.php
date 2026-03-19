@@ -356,23 +356,27 @@ abstract class CommonFilterQueryBuilder
         try {
             foreach ($sort as $orderBy) {
                 if ($orderBy->getDataType() !== DataType::STRING) {
+                    /** @var string $orderDirection */
+                    $orderDirection = ExportOrderBy\Order::name($orderBy->getOrder());
                     $query->addOrderBy(
                         $this->columnConverter->convertColumnByDataType(
                             $tableName,
                             $orderBy->getColumnName(),
                             $orderBy->getDataType(),
                         ),
-                        ExportOrderBy\Order::name($orderBy->getOrder()),
+                        $orderDirection,
                     );
                     return;
                 }
+                /** @var string $orderDirection */
+                $orderDirection = ExportOrderBy\Order::name($orderBy->getOrder());
                 $query->addOrderBy(
                     sprintf(
                         '%s.%s',
                         BigqueryQuote::quoteSingleIdentifier($tableName),
                         BigqueryQuote::quoteSingleIdentifier($orderBy->getColumnName()),
                     ),
-                    ExportOrderBy\Order::name($orderBy->getOrder()),
+                    $orderDirection,
                 );
             }
         } catch (QueryException $e) {

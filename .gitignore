@@ -5,8 +5,7 @@ composer.lock
 tests/generated/*
 !tests/generated/.gitkeep
 /docs/
-phpunit-retry.xml
-.phpunit.result.cache
+.phpunit.cache/
 /logs/
 terraform.tfvars
 terraform.tfstate

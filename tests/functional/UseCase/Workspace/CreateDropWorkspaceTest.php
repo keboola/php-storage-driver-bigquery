@@ -33,6 +33,7 @@ use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
 use Keboola\TableBackendUtils\Escaping\Bigquery\BigqueryQuote;
+use PHPUnit\Framework\Attributes\Group;
 use Retry\BackOff\ExponentialBackOffPolicy;
 use Retry\BackOff\FixedBackOffPolicy;
 use Retry\Policy\CallableRetryPolicy;
@@ -40,9 +41,7 @@ use Retry\Policy\SimpleRetryPolicy;
 use Retry\RetryProxy;
 use Throwable;
 
-/**
- * @group sync
- */
+#[Group('sync')]
 class CreateDropWorkspaceTest extends BaseCase
 {
     protected GenericBackendCredentials $projectCredentials;
@@ -100,6 +99,7 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertCount(2, $datasets);
 
         // test ws service acc is owner of ws dataset
+        /** @var array{access: array<int, array{role: string, userByEmail: string}>} $workspaceDataset */
         $workspaceDataset = $bqClient->dataset($wsResponse1->getWorkspaceObjectName())->info();
         $this->assertNotNull($workspaceDataset);
         $this->assertCount(1, $workspaceDataset['access']);
@@ -196,7 +196,9 @@ class CreateDropWorkspaceTest extends BaseCase
         $actualDatasetsInWs2 = [];
         /** @var Dataset $dataset */
         foreach ($ws2BqClient->datasets() as $dataset) {
-            $actualDatasetsInWs2[] = $dataset->info()['datasetReference']['datasetId'];
+            /** @var array{datasetReference: array{datasetId: string}} $datasetInfo */
+            $datasetInfo = $dataset->info();
+            $actualDatasetsInWs2[] = $datasetInfo['datasetReference']['datasetId'];
         }
         $this->assertNotContains($wsResponse1->getWorkspaceObjectName(), $actualDatasetsInWs2);
 
@@ -285,15 +287,19 @@ class CreateDropWorkspaceTest extends BaseCase
         $this->assertNull($datasets->getIterator()->current());
 
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+        /** @var \Google_Service_CloudResourceManager_Resource_Projects $crmProjects */
+        $crmProjects = $cloudResourceManager->projects;
+        /** @var \Google_Service_CloudResourceManager_Policy $iamPolicy */
+        $iamPolicy = $crmProjects->getIamPolicy(
             'projects/' . $projectId,
             (new GetIamPolicyRequest()),
             [],
         );
-        $actualPolicy = $actualPolicy->getBindings();
+        /** @var \Google_Service_CloudResourceManager_Binding[] $policyBindings */
+        $policyBindings = $iamPolicy->getBindings();
 
         $serviceAccRoles = [];
-        foreach ($actualPolicy as $policy) {
+        foreach ($policyBindings as $policy) {
             $membersString = json_encode($policy->getMembers());
             assert(is_string($membersString));
             if (stripos($membersString, 'deleted:serviceAccount:' . $wsServiceAccEmail) !== false) {

@@ -81,9 +81,13 @@ class QueryLabelsTest extends BaseCase
         $info = $jobDetails->info();
 
         // Verify the labels are set correctly
+        /** @var array<string, mixed> $info */
         $this->assertArrayHasKey('configuration', $info);
-        $this->assertArrayHasKey('labels', $info['configuration']);
-        $labels = $info['configuration']['labels'];
+        /** @var array<string, mixed> $configuration */
+        $configuration = $info['configuration'];
+        $this->assertArrayHasKey('labels', $configuration);
+        /** @var array<string, string> $labels */
+        $labels = $configuration['labels'];
         $this->assertNotNull($labels, 'No labels found on the query job');
 
         $this->assertArrayHasKey('run_id', $labels);

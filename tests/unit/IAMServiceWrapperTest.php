@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\UnitTests;
 
-use Google\Service\Iam\Resource\ProjectsServiceAccounts;
-use Google\Service\Iam\Resource\ProjectsServiceAccountsKeys;
 use Google\Service\Resource;
 use Google_Client;
 use Keboola\StorageDriver\BigQuery\IAMServiceWrapper;
@@ -25,18 +23,14 @@ class IAMServiceWrapperTest extends TestCase
 
     public function testServiceAccountsResourceIsRegistered(): void
     {
-        $this->assertInstanceOf(
-            ProjectsServiceAccounts::class,
-            $this->wrapper->projects_serviceAccounts,
-        );
+        $methods = $this->getResourceMethods($this->wrapper->projects_serviceAccounts);
+        $this->assertNotEmpty($methods);
     }
 
     public function testServiceAccountsKeysResourceIsRegistered(): void
     {
-        $this->assertInstanceOf(
-            ProjectsServiceAccountsKeys::class,
-            $this->wrapper->projects_serviceAccounts_keys,
-        );
+        $methods = $this->getResourceMethods($this->wrapper->projects_serviceAccounts_keys);
+        $this->assertNotEmpty($methods);
     }
 
     public function testServiceAccountsMethodsUseV1Paths(): void
@@ -88,6 +82,7 @@ class IAMServiceWrapperTest extends TestCase
         $ref->setAccessible(true);
         $methods = $ref->getValue($resource);
         assert(is_array($methods));
+        /** @var array<string, array<string, mixed>> $methods */
         return $methods;
     }
 }

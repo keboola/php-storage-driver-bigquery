@@ -24,15 +24,16 @@ use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Oper
 use Keboola\StorageDriver\Command\Table\PreviewTableCommand;
 use Keboola\TableBackendUtils\Column\Bigquery\BigqueryColumn;
 use Keboola\TableBackendUtils\Column\ColumnCollection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class ExportQueryBuilderTest extends TestCase
 {
     /**
-     * @dataProvider provideSuccessData
      * @param string[] $expectedBindings
      * @param ExportQueryBuilder::MODE_* $mode
      */
+    #[DataProvider('provideSuccessData')]
     public function testBuildQueryFromCommand(
         PreviewTableCommand $previewCommand,
         string $expectedSql,
@@ -40,7 +41,7 @@ class ExportQueryBuilderTest extends TestCase
         int $rowsCount = 100_000,
         string $mode = ExportQueryBuilder::MODE_SELECT,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
 
         $columnConverter = new ColumnConverter();
         $tableColumnsDefinitions = new ColumnCollection($this->getColumnsCollection());
@@ -71,7 +72,7 @@ class ExportQueryBuilderTest extends TestCase
         );
     }
 
-    public function provideSuccessData(): Generator
+    public static function provideSuccessData(): Generator
     {
         yield 'empty columns' => [
             new PreviewTableCommand([
@@ -473,15 +474,15 @@ class ExportQueryBuilderTest extends TestCase
     }
 
     /**
-     * @dataProvider provideFailedData
      * @param class-string<Exception> $exceptionClass
      */
+    #[DataProvider('provideFailedData')]
     public function testBuildQueryFromCommandFailed(
         PreviewTableCommand $previewCommand,
         string $exceptionClass,
         string $exceptionMessage,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
 
         $columnConverter = new ColumnConverter();
         $tableColumnsDefinitions = new ColumnCollection($this->getColumnsCollection());
@@ -504,7 +505,7 @@ class ExportQueryBuilderTest extends TestCase
         );
     }
 
-    public function provideFailedData(): Generator
+    public static function provideFailedData(): Generator
     {
         yield 'select non exist column' => [
             new PreviewTableCommand([
@@ -569,15 +570,15 @@ class ExportQueryBuilderTest extends TestCase
     }
 
     /**
-     * @dataProvider provideDeleteTableRowsData
      * @param string[] $expectedBindings
      */
+    #[DataProvider('provideDeleteTableRowsData')]
     public function testBuildQueryFromDeleteTableRowsCommand(
         DeleteTableRowsCommand $command,
         string $expectedSql,
         array $expectedBindings,
     ): void {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
         $columnConverter = new ColumnConverter();
 
         $qb = new ExportQueryBuilder($connection, $columnConverter);
@@ -682,7 +683,7 @@ class ExportQueryBuilderTest extends TestCase
 
     public function testBuildQueryFromDeleteTableRowsCommandFailed(): void
     {
-        $connection = $this->createMock(BigQueryClient::class);
+        $connection = $this->createStub(BigQueryClient::class);
         $columnConverter = new ColumnConverter();
 
         $command = new DeleteTableRowsCommand([

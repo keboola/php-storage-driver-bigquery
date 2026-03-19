@@ -159,6 +159,7 @@ final class CreateProjectHandler extends BaseHandler
         }, 20);
         $proxy = new RetryProxy($setIamPolicyRetryPolicy, new ExponentialRandomBackOffPolicy());
         $proxy->call(function () use ($fileStorageBucket, $projectServiceAccount): void {
+            /** @var array{bindings: array<int, array<string, mixed>>} $actualBucketPolicy */
             $actualBucketPolicy = $fileStorageBucket->iam()->policy();
 
             // project service account can list and get files
@@ -244,7 +245,10 @@ final class CreateProjectHandler extends BaseHandler
         string $serviceAccEmail,
     ): void {
         $getIamPolicyRequest = new GetIamPolicyRequest();
-        $actualPolicy = $cloudResourceManagerClient->projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
+        /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+        $projects = $cloudResourceManagerClient->projects;
+        /** @var Policy $actualPolicy */
+        $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest, []);
 
         $bigQueryDataOwnerBinding = new Binding();
         $bigQueryDataOwnerBinding->setMembers('serviceAccount:' . $serviceAccEmail);
@@ -276,7 +280,7 @@ final class CreateProjectHandler extends BaseHandler
         $setIamPolicyRequest = new SetIamPolicyRequest();
         $setIamPolicyRequest->setPolicy($policy);
 
-        $cloudResourceManagerClient->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+        $projects->setIamPolicy($projectName, $setIamPolicyRequest);
     }
 
     private function waitUntilServiceAccPropagate(

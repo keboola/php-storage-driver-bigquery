@@ -115,7 +115,7 @@ class PrimaryKeyTest extends BaseCase
 
     public function testDuplicates(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = md5($this->name()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -175,7 +175,7 @@ class PrimaryKeyTest extends BaseCase
 
     public function testDuplicatesSkipCheck(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = md5($this->name()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -240,7 +240,7 @@ class PrimaryKeyTest extends BaseCase
 
     public function testPKExists(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = md5($this->name()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE
@@ -293,7 +293,7 @@ class PrimaryKeyTest extends BaseCase
 
     public function testColumnIsNullable(): void
     {
-        $tableName = md5($this->getName()) . '_Test_table';
+        $tableName = md5($this->name()) . '_Test_table';
         $bucketDatabaseName = $this->bucketResponse->getCreateBucketObjectName();
 
         // CREATE TABLE

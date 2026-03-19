@@ -91,7 +91,9 @@ final class ObjectInfoHandler extends BaseHandler
                 case ObjectType::TABLE:
                     return $this->getTableResponse($path, $response, $bqClient);
                 default:
-                    throw new UnknownObjectException(ObjectType::name($command->getExpectedObjectType()));
+                    /** @var string $objectTypeName */
+                    $objectTypeName = ObjectType::name($command->getExpectedObjectType());
+                    throw new UnknownObjectException($objectTypeName);
             }
         });
         assert($response instanceof ObjectInfoResponse);
@@ -106,9 +108,13 @@ final class ObjectInfoHandler extends BaseHandler
         $datasets = $bqClient->datasets();
         /** @var Dataset $child */
         foreach ($datasets as $child) {
+            /** @var array<string, mixed> $childInfo */
+            $childInfo = $child->info();
+            /** @var array{datasetId: string} $datasetRef */
+            $datasetRef = $childInfo['datasetReference'];
             yield (new ObjectInfo())
                 ->setObjectType(ObjectType::SCHEMA)
-                ->setObjectName($child->info()['datasetReference']['datasetId']);
+                ->setObjectName($datasetRef['datasetId']);
         }
     }
 
@@ -171,6 +177,7 @@ final class ObjectInfoHandler extends BaseHandler
                 $table->id(),
             ));
             $table->reload(); // table has to be reload info from list is missing schema
+            /** @var array{id: string, type: string, tableReference: array{projectId: string, datasetId: string, tableId: string}} $info */
             $info = $table->info();
             if ($info['type'] === 'EXTERNAL') {
                 try {

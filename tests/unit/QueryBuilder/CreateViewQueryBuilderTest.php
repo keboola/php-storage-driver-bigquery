@@ -10,6 +10,7 @@ use Keboola\StorageDriver\BigQuery\QueryBuilder\CreateViewQueryBuilder;
 use Keboola\StorageDriver\BigQuery\QueryBuilder\QueryBuilderException;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter;
 use Keboola\StorageDriver\Command\Table\ImportExportShared\TableWhereFilter\Operator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class CreateViewQueryBuilderTest extends TestCase
@@ -55,9 +56,7 @@ class CreateViewQueryBuilderTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider provideSingleValueOperators
-     */
+    #[DataProvider('provideSingleValueOperators')]
     public function testWhereSingleValue(int $operator, string $expectedSqlOp): void
     {
         $filter = new TableWhereFilter();

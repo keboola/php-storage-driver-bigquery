@@ -54,14 +54,14 @@ class ColumnMappingServiceTest extends TestCase
      */
     private function createMockSourceMapping(array $columnMappings = []): LoadTableToWorkspaceCommand\SourceTableMapping
     {
-        $sourceMapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping::class);
+        $sourceMapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping::class);
 
-        $mappingsRepeated = $this->createMock(RepeatedField::class);
+        $mappingsRepeated = $this->createStub(RepeatedField::class);
 
         if (!empty($columnMappings)) {
             $mappings = [];
             foreach ($columnMappings as $source => $dest) {
-                $mapping = $this->createMock(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
+                $mapping = $this->createStub(LoadTableToWorkspaceCommand\SourceTableMapping\ColumnMapping::class);
                 $mapping->method('getSourceColumnName')->willReturn($source);
                 $mapping->method('getDestinationColumnName')->willReturn($dest);
                 $mappings[] = $mapping;
@@ -90,7 +90,6 @@ class ColumnMappingServiceTest extends TestCase
         $service = new ColumnMappingService();
         $result = $service->buildDestinationColumns($sourceDefinition, $sourceMapping);
 
-        $this->assertInstanceOf(ColumnCollection::class, $result);
         $this->assertCount(3, $result);
 
         $columns = iterator_to_array($result);
@@ -279,7 +278,6 @@ class ColumnMappingServiceTest extends TestCase
         $service = new ColumnMappingService();
         $result = $service->buildDestinationColumns($sourceDefinition, $sourceMapping);
 
-        $this->assertInstanceOf(ColumnCollection::class, $result);
         $this->assertCount(0, $result);
     }
 
@@ -370,6 +368,6 @@ class ColumnMappingServiceTest extends TestCase
         $result = $service->buildDestinationColumns($sourceDefinition, $sourceMapping);
 
         // Should handle this (second mapping overwrites first in the mock)
-        $this->assertInstanceOf(ColumnCollection::class, $result);
+        $this->assertCount(1, $result);
     }
 }
