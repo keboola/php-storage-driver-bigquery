@@ -60,8 +60,8 @@ class ResetWorkspacePasswordTest extends BaseCase
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
             // retry when old credentials still work (fail() throws AssertionFailedError)
             return $e->getMessage() === 'Should fail';
-        }, 5);
-        $proxy = new RetryProxy($retryPolicy, new ExponentialBackOffPolicy(5000));
+        }, 10);
+        $proxy = new RetryProxy($retryPolicy, new ExponentialBackOffPolicy(10000));
         $proxy->call(function () use ($credentials): void {
             $this->clientManager->close();
             $wsBqClient = $this->clientManager->getBigQueryClient(
