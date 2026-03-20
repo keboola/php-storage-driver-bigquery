@@ -62,7 +62,7 @@ class CreateDropWorkspaceUserTest extends BaseCase
         $handler->setInternalLogger($this->log);
 
         // Use a short workspaceId for SA name generation (must be ≤30 chars total)
-        $shortWsId = 'U' . self::getRand();
+        $shortWsId = 'WS' . self::getRand();
         $command = (new CreateWorkspaceUserCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setWorkspaceId($shortWsId)
