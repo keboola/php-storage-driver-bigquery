@@ -131,7 +131,10 @@ final class DropWorkspaceUserHandler extends BaseHandler
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
             $projectName = 'projects/' . $projectCredentials['project_id'];
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+            $projects = $cloudResourceManager->projects;
+            /** @var Policy $actualPolicy */
+            $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
             $actualBinding[] = $actualPolicy->getBindings();
 
             $newBinding = [];
@@ -157,7 +160,7 @@ final class DropWorkspaceUserHandler extends BaseHandler
             $policy->setBindings($newBinding);
             $setIamPolicyRequest = new SetIamPolicyRequest();
             $setIamPolicyRequest->setPolicy($policy);
-            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $projects->setIamPolicy($projectName, $setIamPolicyRequest);
         });
     }
 

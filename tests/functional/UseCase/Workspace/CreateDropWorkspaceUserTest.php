@@ -92,9 +92,12 @@ class CreateDropWorkspaceUserTest extends BaseCase
         $this->assertNotNull($newServiceAcc);
 
         // Verify the new user has OWNER access on the workspace dataset
+        /** @var array<string, mixed> $workspaceDataset */
         $workspaceDataset = $bqClient->dataset($wsResponse->getWorkspaceObjectName())->info();
+        /** @var list<array<string, mixed>> $accessList */
+        $accessList = $workspaceDataset['access'] ?? [];
         $newUserHasAccess = false;
-        foreach ($workspaceDataset['access'] as $accessEntry) {
+        foreach ($accessList as $accessEntry) {
             if (isset($accessEntry['userByEmail']) && $accessEntry['userByEmail'] === $newUserEmail) {
                 $this->assertSame('OWNER', $accessEntry['role']);
                 $newUserHasAccess = true;
@@ -182,17 +185,22 @@ class CreateDropWorkspaceUserTest extends BaseCase
 
         // Verify IAM policies have been cleaned up
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($this->projectCredentials);
-        $actualPolicy = $cloudResourceManager->projects->getIamPolicy(
+        /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+        $projects = $cloudResourceManager->projects;
+        /** @var \Google\Service\CloudResourceManager\Policy $actualPolicy */
+        $actualPolicy = $projects->getIamPolicy(
             'projects/' . $projectId,
             (new GetIamPolicyRequest()),
             [],
         );
 
+        /** @var \Google\Service\CloudResourceManager\Binding $binding */
         foreach ($actualPolicy->getBindings() as $binding) {
+            /** @var string[] $members */
             $members = $binding->getMembers();
             $this->assertNotContains(
                 'serviceAccount:' . $newUserEmail,
-                is_array($members) ? $members : iterator_to_array($members),
+                $members,
                 sprintf(
                     'Service account %s should be removed from IAM binding for role %s',
                     $newUserEmail,

@@ -114,7 +114,9 @@ final class CreateWorkspaceUserHandler extends BaseHandler
 
         // grant OWNER access on the existing workspace dataset
         $dataset = $bqClient->dataset($command->getWorkspaceObjectName());
+        /** @var array<string, mixed> $datasetInfo */
         $datasetInfo = $dataset->info();
+        /** @var list<array<string, mixed>> $access */
         $access = $datasetInfo['access'] ?? [];
         $access[] = [
             'role' => IAmPermissions::ROLES_BIGQUERY_DATA_OWNER,
@@ -140,7 +142,10 @@ final class CreateWorkspaceUserHandler extends BaseHandler
             $option = new GetPolicyOptions();
             $option->setRequestedPolicyVersion(Helper::REQUESTED_POLICY_VERSION);
             $getIamPolicyRequest->setOptions($option);
-            $actualPolicy = $cloudResourceManager->projects->getIamPolicy($projectName, $getIamPolicyRequest);
+            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
+            $projects = $cloudResourceManager->projects;
+            /** @var Policy $actualPolicy */
+            $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
             $finalBinding[] = $actualPolicy->getBindings();
 
             foreach (CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
@@ -172,7 +177,7 @@ final class CreateWorkspaceUserHandler extends BaseHandler
                 LogLevel::DEBUG,
                 'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName,
             );
-            $cloudResourceManager->projects->setIamPolicy($projectName, $setIamPolicyRequest);
+            $projects->setIamPolicy($projectName, $setIamPolicyRequest);
             Helper::assertServiceAccountBindings(
                 $cloudResourceManager,
                 $projectName,
