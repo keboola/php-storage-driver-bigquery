@@ -58,6 +58,15 @@ class NameGeneratorTest extends TestCase
         $this->assertSame('kbc-prefix-ws-123', $nameGenerator->createWorkspaceUserNameForWorkspaceId('123'));
     }
 
+    public function testCreateWorkspaceCredentialsUserName(): void
+    {
+        $nameGenerator = new NameGenerator('KBC_prefix_');
+        $userName = $nameGenerator->createWorkspaceCredentialsUserName('123');
+        $this->assertStringStartsWith('kbc-prefix-ws-123-qs-', $userName);
+        // 4 random hex chars at the end
+        $this->assertMatchesRegularExpression('/^kbc-prefix-ws-123-qs-[a-f0-9]{4}$/', $userName);
+    }
+
     public function testCreateDataExchangeId(): void
     {
         $nameGenerator = new NameGenerator('KBC_prefix_');
