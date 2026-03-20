@@ -61,9 +61,11 @@ class CreateDropWorkspaceUserTest extends BaseCase
         $handler = new CreateWorkspaceUserHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
+        // Use a short workspaceId for SA name generation (must be ≤30 chars total)
+        $shortWsId = 'U' . self::getRand();
         $command = (new CreateWorkspaceUserCommand())
             ->setStackPrefix($this->getStackPrefix())
-            ->setWorkspaceId($wsResponse->getWorkspaceObjectName())
+            ->setWorkspaceId($shortWsId)
             ->setWorkspaceObjectName($wsResponse->getWorkspaceObjectName())
             ->setProjectReadOnlyRoleName($this->projectResponse->getProjectReadOnlyRoleName());
 
