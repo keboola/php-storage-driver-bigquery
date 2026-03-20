@@ -13,6 +13,9 @@ use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordCommand;
 use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordResponse;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
+use Retry\BackOff\ExponentialBackOffPolicy;
+use Retry\Policy\CallableRetryPolicy;
+use Retry\RetryProxy;
 use Throwable;
 
 class ResetWorkspacePasswordTest extends BaseCase
@@ -52,21 +55,29 @@ class ResetWorkspacePasswordTest extends BaseCase
         );
         assert($passwordResponse instanceof ResetWorkspacePasswordResponse);
 
-        $this->clientManager->close();
-
-        $wsBqClient = $this->clientManager->getBigQueryClient(
-            $this->testRunId,
-            $credentials,
-            [],
-            null,
-            1,
-        );
-        try {
-            $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
-            $this->fail('Should fail');
-        } catch (ServiceException $e) {
-            $this->assertSame(401, $e->getCode());
-        }
+        // Old credentials may still work briefly due to GCP eventual consistency,
+        // so retry until the old key is invalidated
+        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
+            // retry when old credentials still work (fail() throws AssertionFailedError)
+            return $e->getMessage() === 'Should fail';
+        }, 5);
+        $proxy = new RetryProxy($retryPolicy, new ExponentialBackOffPolicy(5000));
+        $proxy->call(function () use ($credentials): void {
+            $this->clientManager->close();
+            $wsBqClient = $this->clientManager->getBigQueryClient(
+                $this->testRunId,
+                $credentials,
+                [],
+                null,
+                1,
+            );
+            try {
+                $wsBqClient->runQuery($wsBqClient->query('SELECT 1'));
+                $this->fail('Should fail');
+            } catch (ServiceException $e) {
+                $this->assertSame(401, $e->getCode());
+            }
+        });
 
         // check new password
         $credentials->setPrincipal($passwordResponse->getWorkspaceUserName());
