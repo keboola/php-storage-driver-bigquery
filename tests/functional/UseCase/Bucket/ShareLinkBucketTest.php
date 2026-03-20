@@ -403,7 +403,13 @@ class ShareLinkBucketTest extends BaseCase
         // after unshare the table is not available
         // in connection you can't just unshare a bucket that is lined up first so this is an edge case
         // handled in connection
-        $this->expectException(BadRequestException::class);
-        $testTableBefore->exists();
+        try {
+            $testTableBefore->exists();
+            $this->fail('Expected exception was not thrown');
+        } catch (BadRequestException) {
+            // expected - BigQuery Cloud SDK exception
+        } catch (ApiException) {
+            // expected - gRPC/REST API exception (e.g. INVALID_ARGUMENT)
+        }
     }
 }
