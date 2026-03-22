@@ -14,6 +14,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\DropBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromReadOnlyRoleHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\RevokeExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
@@ -53,6 +54,7 @@ use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
 use Keboola\StorageDriver\Command\Bucket\GrantExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Command\Bucket\LinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\RevokeBucketAccessFromReadOnlyRoleCommand;
+use Keboola\StorageDriver\Command\Bucket\RevokeExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Command\Bucket\ShareBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnlinkBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\UnshareBucketCommand;
@@ -132,6 +134,7 @@ final class HandlerFactory
             RemoveBackendCommand::class => new RemoveBackendHandler(),
             ResetWorkspacePasswordCommand::class => new ResetWorkspacePasswordHandler($manager),
             RevokeBucketAccessFromReadOnlyRoleCommand::class => new RevokeBucketAccessFromReadOnlyRoleHandler($manager),
+            RevokeExternalBucketSubscriberCommand::class => new RevokeExternalBucketSubscriberHandler($manager),
             ShareBucketCommand::class => new ShareBucketHandler($manager),
             TableExportToFileCommand::class => new ExportTableToFileHandler($manager),
             TableImportFromFileCommand::class => new ImportTableFromFileHandler($manager),

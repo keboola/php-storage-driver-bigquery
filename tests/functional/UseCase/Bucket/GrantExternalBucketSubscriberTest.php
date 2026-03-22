@@ -12,8 +12,10 @@ use Google\Cloud\Iam\V1\Binding;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberPermissionDeniedException;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\RevokeExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantExternalBucketSubscriberCommand;
+use Keboola\StorageDriver\Command\Bucket\RevokeExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Credentials\GenericBackendCredentials;
 use Keboola\StorageDriver\FunctionalTests\BaseCase;
@@ -84,6 +86,42 @@ class GrantExternalBucketSubscriberTest extends BaseCase
 
         $this->assertTrue($granted, sprintf(
             'Expected member "%s" to have role "%s" on listing "%s".',
+            $subscriberMember,
+            $subscriberRole,
+            $createdListing->getName(),
+        ));
+
+        // Revoke the subscriber role
+        $revokeHandler = new RevokeExternalBucketSubscriberHandler($this->clientManager);
+        $revokeHandler->setInternalLogger($this->log);
+
+        $revokeResult = $revokeHandler(
+            $this->externalProjectCredentials,
+            (new RevokeExternalBucketSubscriberCommand())
+                ->setListingName($createdListing->getName())
+                ->setSubscriberServiceAccountEmail($subscriberEmail),
+            [],
+            new RuntimeOptions(),
+        );
+
+        $this->assertNull($revokeResult);
+
+        // Verify the subscriber role was actually revoked
+        $iamPolicy = $externalAnalyticHubClient->getIamPolicy($createdListing->getName());
+        $stillGranted = false;
+        foreach ($iamPolicy->getBindings() as $binding) {
+            if ($binding->getRole() === $subscriberRole) {
+                foreach ($binding->getMembers() as $member) {
+                    if ($member === $subscriberMember) {
+                        $stillGranted = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        $this->assertFalse($stillGranted, sprintf(
+            'Expected member "%s" to no longer have role "%s" on listing "%s" after revoke.',
             $subscriberMember,
             $subscriberRole,
             $createdListing->getName(),
