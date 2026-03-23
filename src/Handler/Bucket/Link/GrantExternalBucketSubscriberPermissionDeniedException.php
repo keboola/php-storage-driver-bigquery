@@ -28,7 +28,7 @@ class GrantExternalBucketSubscriberPermissionDeniedException extends Exception i
         return new self(
             message: sprintf(
                 'Permission denied when granting subscriber access on listing "%s". Assign ' .
-                'listingAdmin or custom (with setIamPolicy) role  to the service account and try again.',
+                'listingAdmin or custom (with setIamPolicy) role to the service account and try again.',
                 $listingName,
             ),
             previous: $e,
