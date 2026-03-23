@@ -39,8 +39,10 @@ use Keboola\StorageDriver\BigQuery\Handler\Table\Preview\PreviewTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Table\Profile\ProfileTableHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Clear\ClearWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\CreateWorkspaceHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\CreateUser\CreateWorkspaceUserHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Drop\DropWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\DropObject\DropWorkspaceObjectHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Workspace\DropUser\DropWorkspaceUserHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
@@ -78,8 +80,10 @@ use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Table\TableImportFromTableCommand;
 use Keboola\StorageDriver\Command\Workspace\ClearWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceCommand;
+use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceUserCommand;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\DropWorkspaceObjectCommand;
+use Keboola\StorageDriver\Command\Workspace\DropWorkspaceUserCommand;
 use Keboola\StorageDriver\Command\Workspace\LoadTableToWorkspaceCommand;
 use Keboola\StorageDriver\Command\Workspace\ResetWorkspacePasswordCommand;
 use Keboola\StorageDriver\Contract\Driver\Command\DriverCommandHandlerInterface;
@@ -106,6 +110,7 @@ final class HandlerFactory
             CreateTableFromTimeTravelCommand::class => new CreateTableFromTimeTravelHandler($manager),
             CreateViewCommand::class => new CreateViewHandler($manager),
             CreateWorkspaceCommand::class => new CreateWorkspaceHandler($manager),
+            CreateWorkspaceUserCommand::class => new CreateWorkspaceUserHandler($manager),
             DeleteTableRowsCommand::class => new DeleteTableRowsHandler($manager),
             DropBucketCommand::class => new DropBucketHandler($manager),
             DropColumnCommand::class => new DropColumnHandler($manager),
@@ -114,6 +119,7 @@ final class HandlerFactory
             DropProjectCommand::class => new DropProjectHandler($manager),
             DropTableCommand::class => new DropTableHandler($manager),
             DropWorkspaceCommand::class => new DropWorkspaceHandler($manager),
+            DropWorkspaceUserCommand::class => new DropWorkspaceUserHandler($manager),
             DropWorkspaceObjectCommand::class => new DropWorkspaceObjectHandler($manager),
             ExecuteQueryCommand::class => new ExecuteQueryHandler($manager),
             GrantBucketAccessToReadOnlyRoleCommand::class => new GrantBucketAccessToReadOnlyRoleHandler($manager),

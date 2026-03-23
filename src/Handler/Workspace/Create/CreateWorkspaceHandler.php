@@ -5,13 +5,6 @@ declare(strict_types=1);
 namespace Keboola\StorageDriver\BigQuery\Handler\Workspace\Create;
 
 use Google\Protobuf\Internal\Message;
-use Google\Service\CloudResourceManager\Binding;
-use Google\Service\CloudResourceManager\Expr;
-use Google\Service\CloudResourceManager\GetIamPolicyRequest;
-use Google\Service\CloudResourceManager\GetPolicyOptions;
-use Google\Service\CloudResourceManager\Policy;
-use Google\Service\CloudResourceManager\SetIamPolicyRequest;
-use Google\Service\Iam\ServiceAccount;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
 use Keboola\StorageDriver\BigQuery\IAmPermissions;
@@ -88,37 +81,13 @@ final class CreateWorkspaceHandler extends BaseHandler
         // create WS service acc
         $iamService = $this->clientManager->getIamClient($credentials);
         $projectName = 'projects/' . $projectCredentials['project_id'];
-        $newServiceAccountName = sprintf(
-            '%s/serviceAccounts/%s@%s.iam.gserviceaccount.com',
-            $projectName,
-            $newWsServiceAccId,
-            $projectCredentials['project_id'],
-        );
 
-        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
-            $this->internalLogger->debug('Try create SA Err:' . $e->getMessage());
-            return true;
-        }, 5);
-        $backOffPolicy = new ExponentialRandomBackOffPolicy(
-            5_000, // 5s
-            1.8,
-            60_000, // 1m
-        );
-        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $wsServiceAcc = $proxy->call(function () use (
+        $wsServiceAcc = Helper::createServiceAccount(
             $iamService,
-            $newServiceAccountName,
             $newWsServiceAccId,
             $projectName,
-        ): ServiceAccount {
-            try {
-                return $iamService->projects_serviceAccounts->get($newServiceAccountName);
-            } catch (Throwable) {
-                $iamService->createServiceAccount($newWsServiceAccId, $projectName);
-            }
-            return $iamService->projects_serviceAccounts->get($newServiceAccountName);
-        });
-        assert($wsServiceAcc instanceof ServiceAccount);
+            $this->internalLogger,
+        );
 
         // create WS and grant WS service acc
         $dataset = $bqClient->createDataset($newWsDatasetName, [
@@ -132,65 +101,12 @@ final class CreateWorkspaceHandler extends BaseHandler
 
         // grant ROLES_BIGQUERY_JOB_USER to WS service acc
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
-        $retryPolicy = new CallableRetryPolicy(function (Throwable $e) {
-            $this->internalLogger->debug('Try set iam policy Err:' . $e->getMessage());
-            return true;
-        }, 10);
-        $backOffPolicy = new ExponentialRandomBackOffPolicy(
-            5_000, // 5s
-            1.8,
-            60_000, // 1m
+        Helper::grantProjectIamRoles(
+            $cloudResourceManager,
+            $projectName,
+            $wsServiceAcc,
+            $this->internalLogger,
         );
-        $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc): void {
-            $getIamPolicyRequest = new GetIamPolicyRequest();
-            $option = new GetPolicyOptions();
-            $option->setRequestedPolicyVersion(Helper::REQUESTED_POLICY_VERSION);
-            $getIamPolicyRequest->setOptions($option);
-            /** @var \Google\Service\CloudResourceManager\Resource\Projects $projects */
-            $projects = $cloudResourceManager->projects;
-            /** @var Policy $actualPolicy */
-            $actualPolicy = $projects->getIamPolicy($projectName, $getIamPolicyRequest);
-            $finalBinding[] = $actualPolicy->getBindings();
-
-            foreach (self::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
-                $bigQueryJobUserBinding = new Binding();
-                $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
-                $bigQueryJobUserBinding->setRole($role);
-
-                if ($role === IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER) {
-                    $conditionExpression = new Expr();
-                    $conditionExpression->setTitle('ReadOnly Role');
-                    $conditionExpression->setDescription('Allow read only from buckets not from other ws');
-                    $conditionExpression->setExpression(sprintf(
-                        "!resource.name.startsWith('%s/datasets/WORKSPACE_')",
-                        $projectName,
-                    ));
-                    $bigQueryJobUserBinding->setCondition($conditionExpression);
-                }
-                $finalBinding[] = $bigQueryJobUserBinding;
-            }
-
-            $policy = new Policy();
-            $policy->setVersion(Helper::REQUESTED_POLICY_VERSION);
-            $policy->setEtag($actualPolicy->getEtag());
-            $policy->setBindings($finalBinding);
-            $setIamPolicyRequest = new SetIamPolicyRequest();
-            $setIamPolicyRequest->setPolicy($policy);
-
-            $this->internalLogger->log(
-                LogLevel::DEBUG,
-                'Try set iam policy for ' . $wsServiceAcc->getEmail() . ' in ' . $projectName,
-            );
-            $projects->setIamPolicy($projectName, $setIamPolicyRequest);
-            Helper::assertServiceAccountBindings(
-                $cloudResourceManager,
-                $projectName,
-                $wsServiceAcc->getEmail(),
-                $this->internalLogger,
-            );
-        });
 
         // grant table-level IAM for direct grant tables
         foreach ($command->getDirectGrantTables() as $directGrantTable) {

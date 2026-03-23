@@ -46,6 +46,12 @@ class NameGenerator
         return str_replace('_', '-', strtolower($this->createWorkspaceCredentialsPrefix($workspaceId)));
     }
 
+    public function createWorkspaceCredentialsUserName(string $workspaceId): string
+    {
+        $rand = substr(md5(uniqid((string) mt_rand(), true)), 0, 4);
+        return str_replace('_', '-', strtolower($this->stackPrefix . '-ws-' . $workspaceId . '-qs-' . $rand));
+    }
+
     private function createWorkspaceCredentialsPrefix(string $workspaceId): string
     {
         return $this->stackPrefix . '-ws-' . $workspaceId;
