@@ -222,7 +222,7 @@ class GrantExternalBucketSubscriberTest extends BaseCase
             $this->assertSame(
                 sprintf(
                     'Permission denied when granting subscriber access on listing "%s". Assign ' .
-                    'listingAdmin or custom (with setIamPolicy) role  to the service account and try again.',
+                    'listingAdmin or custom (with setIamPolicy) role to the service account and try again.',
                     $createdListing->getName(),
                 ),
                 $e->getMessage(),
