@@ -29,7 +29,7 @@ class RevokeExternalBucketSubscriberPermissionDeniedException extends Exception 
         return new self(
             message: sprintf(
                 'Permission denied when revoking subscriber access on listing "%s". Assign ' .
-                'listingAdmin or custom (with setIamPolicy) role  to the service account and try again.',
+                'listingAdmin or custom (with setIamPolicy) role to the service account and try again.',
                 $listingName,
             ),
             previous: $e,
