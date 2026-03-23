@@ -78,21 +78,21 @@ final class RevokeExternalBucketSubscriberHandler extends BaseHandler
                 /** @var Binding $binding */
                 foreach ($existingBindings as $binding) {
                     if ($binding->getRole() === $subscriberRole) {
-                        $remainingMembers = array_filter(
-                            iterator_to_array($binding->getMembers()),
+                        $currentMembers = iterator_to_array($binding->getMembers());
+                        /** @var list<string> $remainingMembers */
+                        $remainingMembers = array_values(array_filter(
+                            $currentMembers,
                             fn(mixed $m) => $m !== $subscriberMember,
-                        );
-                        if (count($remainingMembers) !== iterator_count($binding->getMembers())) {
+                        ));
+                        if (count($remainingMembers) !== count($currentMembers)) {
                             $changed = true;
                         }
                         if (count($remainingMembers) > 0) {
-                            $newBinding = new Binding([
-                                'role' => $subscriberRole,
-                                'members' => array_values($remainingMembers),
-                            ]);
-                            $newBindings[] = $newBinding;
+                            // Mutate existing binding to preserve any additional fields (e.g., conditions)
+                            $binding->setMembers($remainingMembers);
+                            $newBindings[] = $binding;
                         }
-                        // if empty, drop the binding entirely
+                        // if empty, drop the binding entirely by not adding it to $newBindings
                     } else {
                         $newBindings[] = $binding;
                     }
