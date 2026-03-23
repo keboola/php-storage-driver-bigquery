@@ -403,13 +403,16 @@ class ShareLinkBucketTest extends BaseCase
         // after unshare the table is not available
         // in connection you can't just unshare a bucket that is lined up first so this is an edge case
         // handled in connection
+        // GCP may throw either BadRequestException (Cloud SDK) or ApiException (gRPC INVALID_ARGUMENT)
+        // depending on the transport layer used. Both indicate the same error:
+        // "Source dataset not found" after the linked bucket was unshared.
         try {
             $testTableBefore->exists();
             $this->fail('Expected exception was not thrown');
         } catch (BadRequestException) {
-            // expected - BigQuery Cloud SDK exception
+            // expected
         } catch (ApiException) {
-            // expected - gRPC/REST API exception (e.g. INVALID_ARGUMENT)
+            // expected
         }
     }
 }
