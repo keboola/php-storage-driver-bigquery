@@ -4,16 +4,30 @@ declare(strict_types=1);
 
 namespace Keboola\StorageDriver\FunctionalTests\UseCase\Workspace;
 
+use Google\Cloud\BigQuery\Dataset;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Protobuf\Any;
+use Google\Protobuf\Internal\GPBType;
+use Google\Protobuf\Internal\RepeatedField;
 use Google\Service\CloudResourceManager\GetIamPolicyRequest;
 use Google\Service\Exception as GoogleServiceException;
+use Keboola\CsvOptions\CsvOptions;
+use Keboola\Datatype\Definition\Bigquery;
 use Keboola\StorageDriver\BigQuery\CredentialsHelper;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Create\CreateBucketHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Table\Import\ImportTableFromFileHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\Create\Helper;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\CreateUser\CreateWorkspaceUserHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\DropUser\DropWorkspaceUserHandler;
+use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Common\RuntimeOptions;
 use Keboola\StorageDriver\Command\Project\CreateProjectResponse;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FileFormat;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FilePath;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\FileProvider;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\ImportOptions;
+use Keboola\StorageDriver\Command\Table\ImportExportShared\Table;
+use Keboola\StorageDriver\Command\Table\TableImportFromFileCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceResponse;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceUserCommand;
 use Keboola\StorageDriver\Command\Workspace\CreateWorkspaceUserResponse;
@@ -44,20 +58,25 @@ class CreateDropWorkspaceUserTest extends BaseCase
 
     public function testCreateDropWorkspaceUser(): void
     {
-        // First create a workspace (dataset + service account)
+        // Create two workspaces so we can test cross-workspace isolation
         [
-            $wsCredentials,
-            $wsResponse,
+            $wsCredentials1,
+            $wsResponse1,
         ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
 
-        $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials);
-        $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse);
+        [
+            ,
+            $wsResponse2,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+
+        $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials1);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse1);
 
         $bqClient = $this->clientManager->getBigQueryClient($this->testRunId, $this->projectCredentials);
         $projectCredentials = CredentialsHelper::getCredentialsArray($this->projectCredentials);
         $projectId = $projectCredentials['project_id'];
 
-        // CREATE workspace user - this creates a new service account with access to existing workspace dataset
+        // CREATE workspace user - new SA with access to existing workspace dataset
         $handler = new CreateWorkspaceUserHandler($this->clientManager);
         $handler->setInternalLogger($this->log);
 
@@ -66,7 +85,7 @@ class CreateDropWorkspaceUserTest extends BaseCase
         $command = (new CreateWorkspaceUserCommand())
             ->setStackPrefix($this->getStackPrefix())
             ->setWorkspaceId($shortWsId)
-            ->setWorkspaceObjectName($wsResponse->getWorkspaceObjectName())
+            ->setWorkspaceObjectName($wsResponse1->getWorkspaceObjectName())
             ->setProjectReadOnlyRoleName($this->projectResponse->getProjectReadOnlyRoleName());
 
         $response = $handler(
@@ -95,7 +114,7 @@ class CreateDropWorkspaceUserTest extends BaseCase
 
         // Verify the new user has OWNER access on the workspace dataset
         /** @var array<string, mixed> $workspaceDataset */
-        $workspaceDataset = $bqClient->dataset($wsResponse->getWorkspaceObjectName())->info();
+        $workspaceDataset = $bqClient->dataset($wsResponse1->getWorkspaceObjectName())->info();
         /** @var list<array<string, mixed>> $accessList */
         $accessList = $workspaceDataset['access'] ?? [];
         $newUserHasAccess = false;
@@ -128,29 +147,147 @@ class CreateDropWorkspaceUserTest extends BaseCase
             ->setPort($this->projectCredentials->getPort());
         $newUserCredentials->setMeta($meta);
 
-        // Verify the new user can query the workspace dataset
         $newUserBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $newUserCredentials);
 
-        // Create a table with the new user in the workspace
+        // =====================================================================
+        // Permission tests: verify the new workspace user has correct BQ permissions
+        // =====================================================================
+
+        // 1. New user CANNOT create datasets (buckets)
+        $uniqueBucketId = 'ws_user_perm_test_' . uniqid();
+        $bucketHandler = new CreateBucketHandler($this->clientManager);
+        $bucketHandler->setInternalLogger($this->log);
+        $bucketCommand = (new CreateBucketCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setBucketId($uniqueBucketId);
+        $bucketMeta = new Any();
+        $bucketMeta->pack(new CreateBucketCommand\CreateBucketBigqueryMeta());
+        $bucketCommand->setMeta($bucketMeta);
+        try {
+            $bucketHandler(
+                $newUserCredentials,
+                $bucketCommand,
+                [],
+                new RuntimeOptions(['runId' => $this->testRunId]),
+            );
+            $this->fail('Workspace user should not be able to create datasets');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString(
+                'User does not have bigquery.datasets.create permission in project',
+                $e->getMessage(),
+            );
+        }
+
+        // 2. Create a bucket with data for read-only permission tests
+        $tableName = 'testTable';
+        $bucketDatasetName = $this->createTestBucket($this->projectCredentials);
+        $this->createNonEmptyTableInBucket($bucketDatasetName->getCreateBucketObjectName(), $tableName);
+
+        // 3. New user CANNOT write to read-only bucket tables
+        $insertGroups = [
+            [
+                'columns' => '`id`',
+                'rows' => ['4', '5', '6'],
+            ],
+        ];
+        try {
+            $this->fillTableWithData(
+                $newUserCredentials,
+                $bucketDatasetName->getCreateBucketObjectName(),
+                $tableName,
+                $insertGroups,
+            );
+            $this->fail('Workspace user should not be able to write to read-only bucket tables');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString('Access Denied: ', $e->getMessage());
+        }
+
+        // 4. New user CAN read from bucket tables (read-only access)
+        $result = $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+            'SELECT * FROM %s.%s',
+            BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($tableName),
+        )));
+        $this->assertCount(3, $result);
+
+        // 5. New user CAN create tables in own workspace
         $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
             'CREATE TABLE %s.`test_ws_user_table` (`id` INTEGER)',
-            BigqueryQuote::quoteSingleIdentifier($wsResponse->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
-        // Verify the new user can read from the table
-        $result = $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
-            'SELECT * FROM %s.`test_ws_user_table`',
-            BigqueryQuote::quoteSingleIdentifier($wsResponse->getWorkspaceObjectName()),
+        // 6. New user CAN create views in own workspace
+        $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+            'CREATE VIEW %s.`test_ws_user_view` AS SELECT `id` FROM %s.`test_ws_user_table`',
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
-        $this->assertCount(0, $result);
 
-        // Clean up table
+        // 7. New user CANNOT see other workspace datasets
+        $actualDatasets = [];
+        /** @var Dataset $dataset */
+        foreach ($newUserBqClient->datasets() as $dataset) {
+            /** @var array{datasetReference: array{datasetId: string}} $datasetInfo */
+            $datasetInfo = $dataset->info();
+            $actualDatasets[] = $datasetInfo['datasetReference']['datasetId'];
+        }
+        $this->assertNotContains(
+            $wsResponse2->getWorkspaceObjectName(),
+            $actualDatasets,
+            'Workspace user should not see other workspace datasets',
+        );
+
+        // 8. New user CANNOT read from other workspaces
+        // First create a table in workspace2 using project credentials
+        $bqClient->runQuery($bqClient->query(sprintf(
+            'CREATE TABLE %s.`other_ws_table` (`id` INTEGER)',
+            BigqueryQuote::quoteSingleIdentifier($wsResponse2->getWorkspaceObjectName()),
+        )));
+        try {
+            $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+                'SELECT * FROM %s.`other_ws_table`',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse2->getWorkspaceObjectName()),
+            )));
+            $this->fail('Workspace user should not be able to read from other workspaces');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString(
+                'User does not have permission to query table',
+                $e->getMessage(),
+            );
+        }
+
+        // 9. New user CANNOT write into other workspaces
+        try {
+            $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+                'CREATE TABLE %s.`unauthorized_table` (`id` INTEGER)',
+                BigqueryQuote::quoteSingleIdentifier($wsResponse2->getWorkspaceObjectName()),
+            )));
+            $this->fail('Workspace user should not be able to write to other workspaces');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertStringContainsString(
+                'Permission bigquery.tables.create denied on dataset',
+                $e->getMessage(),
+            );
+        }
+
+        // Clean up workspace tables
+        $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+            'DROP VIEW %s.`test_ws_user_view`',
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
+        )));
         $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
             'DROP TABLE %s.`test_ws_user_table`',
-            BigqueryQuote::quoteSingleIdentifier($wsResponse->getWorkspaceObjectName()),
+            BigqueryQuote::quoteSingleIdentifier($wsResponse1->getWorkspaceObjectName()),
         )));
 
-        // DROP workspace user
+        // =====================================================================
+        // DROP workspace user and verify cleanup
+        // =====================================================================
+
         $dropHandler = new DropWorkspaceUserHandler($this->clientManager);
         $dropHandler->setInternalLogger($this->log);
 
@@ -210,5 +347,91 @@ class CreateDropWorkspaceUserTest extends BaseCase
                 ),
             );
         }
+    }
+
+    private function createNonEmptyTableInBucket(string $bucketDatasetName, string $tableName): void
+    {
+        $tableStructure = [
+            'columns' => [
+                'col1' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                'col2' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                'col3' => [
+                    'type' => Bigquery::TYPE_STRING,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+                '_timestamp' => [
+                    'type' => Bigquery::TYPE_TIMESTAMP,
+                    'nullable' => false,
+                    'length' => '',
+                    'default' => '\'\'',
+                ],
+            ],
+            'primaryKeysNames' => [],
+        ];
+
+        $this->createTable($this->projectCredentials, $bucketDatasetName, $tableName, $tableStructure);
+
+        $cmd = new TableImportFromFileCommand();
+        $path = new RepeatedField(GPBType::STRING);
+        $path[] = $bucketDatasetName;
+        $cmd->setFileProvider(FileProvider::GCS);
+        $cmd->setFileFormat(FileFormat::CSV);
+        $columns = new RepeatedField(GPBType::STRING);
+        $columns[] = 'col1';
+        $columns[] = 'col2';
+        $columns[] = 'col3';
+        $formatOptions = new Any();
+        $formatOptions->pack(
+            (new TableImportFromFileCommand\CsvTypeOptions())
+                ->setColumnsNames($columns)
+                ->setDelimiter(CsvOptions::DEFAULT_DELIMITER)
+                ->setEnclosure(CsvOptions::DEFAULT_ENCLOSURE)
+                ->setEscapedBy(CsvOptions::DEFAULT_ESCAPED_BY)
+                ->setSourceType(TableImportFromFileCommand\CsvTypeOptions\SourceType::SINGLE_FILE)
+                ->setCompression(TableImportFromFileCommand\CsvTypeOptions\Compression::NONE),
+        );
+        $cmd->setFormatTypeOptions($formatOptions);
+        $cmd->setFilePath(
+            (new FilePath())
+                ->setRoot((string) getenv('BQ_BUCKET_NAME'))
+                ->setPath('import')
+                ->setFileName('a_b_c-3row.csv'),
+        );
+        $cmd->setDestination(
+            (new Table())
+                ->setPath($path)
+                ->setTableName($tableName),
+        );
+        $dedupCols = new RepeatedField(GPBType::STRING);
+        $cmd->setImportOptions(
+            (new ImportOptions())
+                ->setImportType(ImportOptions\ImportType::FULL)
+                ->setDedupType(ImportOptions\DedupType::UPDATE_DUPLICATES)
+                ->setDedupColumnsNames($dedupCols)
+                ->setConvertEmptyValuesToNullOnColumns(new RepeatedField(GPBType::STRING))
+                ->setNumberOfIgnoredLines(1)
+                ->setTimestampColumn('_timestamp'),
+        );
+
+        $importHandler = new ImportTableFromFileHandler($this->clientManager);
+        $importHandler->setInternalLogger($this->log);
+        $importHandler(
+            $this->projectCredentials,
+            $cmd,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
     }
 }
