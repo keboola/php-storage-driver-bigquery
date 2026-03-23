@@ -13,6 +13,7 @@ use Keboola\StorageDriver\BigQuery\CredentialsHelper;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberPermissionDeniedException;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\RevokeExternalBucketSubscriberHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\RevokeExternalBucketSubscriberPermissionDeniedException;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketResponse;
 use Keboola\StorageDriver\Command\Bucket\GrantExternalBucketSubscriberCommand;
 use Keboola\StorageDriver\Command\Bucket\RevokeExternalBucketSubscriberCommand;
@@ -221,6 +222,42 @@ class GrantExternalBucketSubscriberTest extends BaseCase
             $this->assertSame(
                 sprintf(
                     'Permission denied when granting subscriber access on listing "%s". Assign ' .
+                    'listingAdmin or custom (with setIamPolicy) role  to the service account and try again.',
+                    $createdListing->getName(),
+                ),
+                $e->getMessage(),
+            );
+            $this->assertFalse($e->isRetryable());
+        }
+
+        // Grant subscriber correctly with external credentials so revoke has something to work with
+        $handler(
+            $this->externalProjectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(),
+        );
+
+        // Attempt to revoke with main credentials, which lack setIamPolicy on the external listing
+        $revokeHandler = new RevokeExternalBucketSubscriberHandler($this->clientManager);
+        $revokeHandler->setInternalLogger($this->log);
+
+        $revokeCommand = (new RevokeExternalBucketSubscriberCommand())
+            ->setListingName($createdListing->getName())
+            ->setSubscriberServiceAccountEmail($subscriberEmail);
+
+        try {
+            $revokeHandler(
+                $this->mainProjectCredentials,
+                $revokeCommand,
+                [],
+                new RuntimeOptions(),
+            );
+            $this->fail('Expected RevokeExternalBucketSubscriberPermissionDeniedException to be thrown.');
+        } catch (RevokeExternalBucketSubscriberPermissionDeniedException $e) {
+            $this->assertSame(
+                sprintf(
+                    'Permission denied when revoking subscriber access on listing "%s". Assign ' .
                     'listingAdmin or custom (with setIamPolicy) role  to the service account and try again.',
                     $createdListing->getName(),
                 ),
