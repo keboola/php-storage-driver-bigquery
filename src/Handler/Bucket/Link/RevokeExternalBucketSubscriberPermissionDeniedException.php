@@ -9,7 +9,8 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class RevokeExternalBucketSubscriberPermissionDeniedException extends Exception implements NonRetryableExceptionInterface
+class RevokeExternalBucketSubscriberPermissionDeniedException extends Exception implements
+    NonRetryableExceptionInterface
 {
     public function __construct(
         string $message,
