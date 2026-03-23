@@ -109,6 +109,7 @@ class GrantExternalBucketSubscriberTest extends BaseCase
         // Verify the subscriber role was actually revoked
         $iamPolicy = $externalAnalyticHubClient->getIamPolicy($createdListing->getName());
         $stillGranted = false;
+        /** @var Binding $binding */
         foreach ($iamPolicy->getBindings() as $binding) {
             if ($binding->getRole() === $subscriberRole) {
                 foreach ($binding->getMembers() as $member) {
