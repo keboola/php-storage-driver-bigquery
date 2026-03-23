@@ -6,7 +6,6 @@ namespace Keboola\StorageDriver\BigQuery\Handler\Bucket\Link;
 
 use Google\ApiCore\ApiException;
 use Google\Cloud\Iam\V1\Binding;
-use Google\Cloud\Iam\V1\Policy;
 use Google\Protobuf\Internal\Message;
 use Google\Rpc\Code;
 use Keboola\StorageDriver\BigQuery\GCPClientManager;
@@ -102,10 +101,9 @@ final class RevokeExternalBucketSubscriberHandler extends BaseHandler
                     return; // already not a subscriber, nothing to do
                 }
 
-                $newPolicy = new Policy();
-                $newPolicy->setBindings($newBindings);
-                $newPolicy->setEtag($currentPolicy->getEtag());
-                $analyticHubClient->setIamPolicy($listing, $newPolicy);
+                // Update the current policy in place to preserve other fields (e.g. version, audit configs)
+                $currentPolicy->setBindings($newBindings);
+                $analyticHubClient->setIamPolicy($listing, $currentPolicy);
             });
         // @phpstan-ignore-next-line - ApiException is thrown inside the RetryProxy closure
         } catch (ApiException $e) {
