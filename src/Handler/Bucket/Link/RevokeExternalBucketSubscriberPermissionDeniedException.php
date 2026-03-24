@@ -9,7 +9,8 @@ use Keboola\StorageDriver\Contract\Driver\Exception\NonRetryableExceptionInterfa
 use Keboola\StorageDriver\Shared\Driver\Exception\Exception;
 use Throwable;
 
-class GrantExternalBucketSubscriberPermissionDeniedException extends Exception implements NonRetryableExceptionInterface
+class RevokeExternalBucketSubscriberPermissionDeniedException extends Exception implements
+    NonRetryableExceptionInterface
 {
     public function __construct(
         string $message,
@@ -27,7 +28,7 @@ class GrantExternalBucketSubscriberPermissionDeniedException extends Exception i
     {
         return new self(
             message: sprintf(
-                'Permission denied when granting subscriber access on listing "%s". Assign ' .
+                'Permission denied when revoking subscriber access on listing "%s". Assign ' .
                 'listingAdmin or custom (with setIamPolicy) role to the service account and try again.',
                 $listingName,
             ),
