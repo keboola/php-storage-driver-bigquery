@@ -85,7 +85,13 @@ class Helper
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc, $logger, $includeDataViewer): void {
+        $proxy->call(function () use (
+            $cloudResourceManager,
+            $projectName,
+            $wsServiceAcc,
+            $logger,
+            $includeDataViewer,
+        ): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $option = new GetPolicyOptions();
             $option->setRequestedPolicyVersion(self::REQUESTED_POLICY_VERSION);
@@ -161,7 +167,13 @@ class Helper
         }
 
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail, $logger, $includeDataViewer): void {
+        $proxy->call(function () use (
+            $cloudResourceManager,
+            $projectName,
+            $wsServiceAccEmail,
+            $logger,
+            $includeDataViewer,
+        ): void {
             $logger->log(LogLevel::DEBUG, 'Try check iam policy for ' . $wsServiceAccEmail . ' in ' . $projectName);
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $option = new GetPolicyOptions();
