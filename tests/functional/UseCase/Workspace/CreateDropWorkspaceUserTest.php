@@ -349,6 +349,115 @@ class CreateDropWorkspaceUserTest extends BaseCase
         }
     }
 
+    /**
+     * Tests that a workspace user created WITHOUT readOnlyStorageAccess
+     * (empty projectReadOnlyRoleName) does NOT receive the DATA_VIEWER role
+     * and therefore cannot read storage bucket datasets.
+     */
+    public function testCreateWorkspaceUserWithoutReadOnlyAccess(): void
+    {
+        [
+            $wsCredentials,
+            $wsResponse,
+        ] = $this->createTestWorkspace($this->projectCredentials, $this->projectResponse);
+
+        $this->assertInstanceOf(GenericBackendCredentials::class, $wsCredentials);
+        $this->assertInstanceOf(CreateWorkspaceResponse::class, $wsResponse);
+
+        $projectCredentials = CredentialsHelper::getCredentialsArray($this->projectCredentials);
+        $projectId = $projectCredentials['project_id'];
+
+        // CREATE workspace user WITHOUT projectReadOnlyRoleName
+        $handler = new CreateWorkspaceUserHandler($this->clientManager);
+        $handler->setInternalLogger($this->log);
+
+        $shortWsId = 'WS' . self::getRand();
+        $command = (new CreateWorkspaceUserCommand())
+            ->setStackPrefix($this->getStackPrefix())
+            ->setWorkspaceId($shortWsId)
+            ->setWorkspaceObjectName($wsResponse->getWorkspaceObjectName());
+        // Note: projectReadOnlyRoleName is intentionally NOT set
+
+        $response = $handler(
+            $this->projectCredentials,
+            $command,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+
+        $this->assertInstanceOf(CreateWorkspaceUserResponse::class, $response);
+        $this->assertNotEmpty($response->getWorkspaceUserName());
+        $this->assertNotEmpty($response->getWorkspacePassword());
+
+        /** @var array<string, string> $newUserKeyData */
+        $newUserKeyData = json_decode($response->getWorkspaceUserName(), true, 512, JSON_THROW_ON_ERROR);
+        $newUserEmail = $newUserKeyData['client_email'];
+
+        // Verify the user has IAM bindings WITHOUT DATA_VIEWER
+        Helper::assertServiceAccountBindings(
+            $this->clientManager->getCloudResourceManager($this->projectCredentials),
+            'projects/' . $projectId,
+            $newUserEmail,
+            $this->log,
+            false, // includeDataViewer = false
+        );
+
+        // Build credentials for the new workspace user
+        $meta = new Any();
+        $meta->pack(
+            (new GenericBackendCredentials\BigQueryCredentialsMeta())
+                ->setRegion(self::DEFAULT_LOCATION),
+        );
+        $newUserCredentials = (new GenericBackendCredentials())
+            ->setHost($this->projectCredentials->getHost())
+            ->setPrincipal($response->getWorkspaceUserName())
+            ->setSecret($response->getWorkspacePassword())
+            ->setPort($this->projectCredentials->getPort());
+        $newUserCredentials->setMeta($meta);
+
+        $newUserBqClient = $this->clientManager->getBigQueryClient($this->testRunId, $newUserCredentials);
+
+        // Create a bucket with data
+        $tableName = 'testTable';
+        $bucketDatasetName = $this->createTestBucket($this->projectCredentials);
+        $this->createNonEmptyTableInBucket($bucketDatasetName->getCreateBucketObjectName(), $tableName);
+
+        // User CANNOT read from bucket tables (no DATA_VIEWER role)
+        try {
+            $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+                'SELECT * FROM %s.%s',
+                BigqueryQuote::quoteSingleIdentifier($bucketDatasetName->getCreateBucketObjectName()),
+                BigqueryQuote::quoteSingleIdentifier($tableName),
+            )));
+            $this->fail('Workspace user without RO access should not be able to read bucket tables');
+        } catch (ServiceException $e) {
+            $this->assertSame(403, $e->getCode());
+        }
+
+        // User CAN still create tables in own workspace
+        $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+            'CREATE TABLE %s.`test_no_ro_table` (`id` INTEGER)',
+            BigqueryQuote::quoteSingleIdentifier($wsResponse->getWorkspaceObjectName()),
+        )));
+
+        // Clean up
+        $newUserBqClient->runQuery($newUserBqClient->query(sprintf(
+            'DROP TABLE %s.`test_no_ro_table`',
+            BigqueryQuote::quoteSingleIdentifier($wsResponse->getWorkspaceObjectName()),
+        )));
+
+        $dropHandler = new DropWorkspaceUserHandler($this->clientManager);
+        $dropHandler->setInternalLogger($this->log);
+        $dropCommand = (new DropWorkspaceUserCommand())
+            ->setWorkspaceUserName($response->getWorkspaceUserName());
+        $dropHandler(
+            $this->projectCredentials,
+            $dropCommand,
+            [],
+            new RuntimeOptions(['runId' => $this->testRunId]),
+        );
+    }
+
     private function createNonEmptyTableInBucket(string $bucketDatasetName, string $tableName): void
     {
         $tableStructure = [

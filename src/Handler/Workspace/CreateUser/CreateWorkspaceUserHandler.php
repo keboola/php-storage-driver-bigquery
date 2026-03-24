@@ -45,10 +45,6 @@ final class CreateWorkspaceUserHandler extends BaseHandler
         assert($command->getStackPrefix() !== '', 'CreateWorkspaceUserCommand.stackPrefix is required');
         assert($command->getWorkspaceId() !== '', 'CreateWorkspaceUserCommand.workspaceId is required');
         assert($command->getWorkspaceObjectName() !== '', 'CreateWorkspaceUserCommand.workspaceObjectName is required');
-        assert(
-            $command->getProjectReadOnlyRoleName() !== '',
-            'CreateWorkspaceUserCommand.projectReadOnlyRoleName is required',
-        );
 
         $projectCredentials = CredentialsHelper::getCredentialsArray($credentials);
 
@@ -88,12 +84,14 @@ final class CreateWorkspaceUserHandler extends BaseHandler
         $dataset->update(['access' => $access]);
 
         // grant project-level IAM roles
+        $hasReadOnlyAccess = $command->getProjectReadOnlyRoleName() !== '';
         $cloudResourceManager = $this->clientManager->getCloudResourceManager($credentials);
         Helper::grantProjectIamRoles(
             $cloudResourceManager,
             $projectName,
             $wsServiceAcc,
             $this->internalLogger,
+            $hasReadOnlyAccess,
         );
 
         // generate credentials

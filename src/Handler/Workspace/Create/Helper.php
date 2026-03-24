@@ -72,6 +72,7 @@ class Helper
         string $projectName,
         ServiceAccount $wsServiceAcc,
         LoggerInterface $logger,
+        bool $includeDataViewer = true,
     ): void {
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($logger) {
             $logger->debug('Try set iam policy Err:' . $e->getMessage());
@@ -84,7 +85,13 @@ class Helper
         );
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
 
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAcc, $logger): void {
+        $proxy->call(function () use (
+            $cloudResourceManager,
+            $projectName,
+            $wsServiceAcc,
+            $logger,
+            $includeDataViewer,
+        ): void {
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $option = new GetPolicyOptions();
             $option->setRequestedPolicyVersion(self::REQUESTED_POLICY_VERSION);
@@ -96,6 +103,10 @@ class Helper
             $finalBinding[] = $actualPolicy->getBindings();
 
             foreach (CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES as $role) {
+                if ($role === IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER && !$includeDataViewer) {
+                    continue;
+                }
+
                 $bigQueryJobUserBinding = new Binding();
                 $bigQueryJobUserBinding->setMembers('serviceAccount:' . $wsServiceAcc->getEmail());
                 $bigQueryJobUserBinding->setRole($role);
@@ -130,6 +141,7 @@ class Helper
                 $projectName,
                 $wsServiceAcc->getEmail(),
                 $logger,
+                $includeDataViewer,
             );
         });
     }
@@ -139,6 +151,7 @@ class Helper
         string $projectName,
         string $wsServiceAccEmail,
         LoggerInterface $logger,
+        bool $includeDataViewer = true,
     ): void {
         $retryPolicy = new CallableRetryPolicy(function (Throwable $e) use ($logger) {
             $logger->debug('Try check iam policy Err:' . $e->getMessage());
@@ -154,7 +167,13 @@ class Helper
         }
 
         $proxy = new RetryProxy($retryPolicy, $backOffPolicy);
-        $proxy->call(function () use ($cloudResourceManager, $projectName, $wsServiceAccEmail, $logger): void {
+        $proxy->call(function () use (
+            $cloudResourceManager,
+            $projectName,
+            $wsServiceAccEmail,
+            $logger,
+            $includeDataViewer,
+        ): void {
             $logger->log(LogLevel::DEBUG, 'Try check iam policy for ' . $wsServiceAccEmail . ' in ' . $projectName);
             $getIamPolicyRequest = new GetIamPolicyRequest();
             $option = new GetPolicyOptions();
@@ -179,10 +198,16 @@ class Helper
             sort($serviceAccRoles);
 
             // ws service acc must have a job user role to be able to run queries
-            if ($serviceAccRoles !== CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES) {
+            $expectedRoles = $includeDataViewer
+                ? CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES
+                : array_values(array_filter(
+                    CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES,
+                    static fn(string $role) => $role !== IAmPermissions::ROLES_BIGQUERY_DATA_VIEWER,
+                ));
+            if ($serviceAccRoles !== $expectedRoles) {
                 throw new RuntimeException(sprintf(
                     'Workspace service account has incorrect roles. Expected roles: [%s], actual roles: [%s]',
-                    implode(',', CreateWorkspaceHandler::IAM_WORKSPACE_SERVICE_ACCOUNT_ROLES),
+                    implode(',', $expectedRoles),
                     implode(',', $serviceAccRoles),
                 ));
             }
