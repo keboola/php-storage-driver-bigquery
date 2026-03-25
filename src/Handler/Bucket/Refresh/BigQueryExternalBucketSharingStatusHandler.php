@@ -57,7 +57,7 @@ final class BigQueryExternalBucketSharingStatusHandler extends BaseHandler
         $accessToken = $authToken['access_token'];
 
         // 2. List subscriptions via REST API to find the one backing destinationDatasetName
-        $httpClient = new GuzzleClient();
+        $httpClient = new GuzzleClient(['timeout' => GCPClientManager::TIMEOUT]);
         $baseUrl = sprintf(
             'https://analyticshub.googleapis.com/v1/projects/%s/locations/%s/subscriptions',
             $projectId,
