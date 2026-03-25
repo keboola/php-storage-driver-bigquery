@@ -58,31 +58,46 @@ final class BigQueryExternalBucketSharingStatusHandler extends BaseHandler
 
         // 2. List subscriptions via REST API to find the one backing destinationDatasetName
         $httpClient = new GuzzleClient();
-        $url = sprintf(
+        $baseUrl = sprintf(
             'https://analyticshub.googleapis.com/v1/projects/%s/locations/%s/subscriptions',
             $projectId,
             strtolower($region),
         );
-        $response = $httpClient->get($url, [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-        ]);
-
-        /** @var array{subscriptions?: array<int, array{listing: string, linkedDatasetMap: array<string, array{linkedDataset: string}>}>} $body */
-        $body = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
 
         $listingName = null;
-        foreach ($body['subscriptions'] ?? [] as $subscription) {
-            foreach ($subscription['linkedDatasetMap'] ?? [] as $entry) {
-                // linkedDataset value is in the format "projects/{p}/datasets/{dataset}"
-                $linkedDataset = $entry['linkedDataset'] ?? '';
-                $parts = explode('/', $linkedDataset);
-                $datasetId = end($parts);
-                if ($datasetId === $destinationDatasetName) {
-                    $listingName = $subscription['listing'];
-                    break 2;
+        $pageToken = null;
+        do {
+            $query = $pageToken !== null ? ['pageToken' => $pageToken] : [];
+            $response = $httpClient->get($baseUrl, [
+                'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+                'query' => $query,
+            ]);
+
+            /** @var array{
+             *     subscriptions?: array<int, array{
+             *         listing: string,
+             *         linkedDatasetMap: array<string, array{linkedDataset: string}>,
+             *     }>,
+             *     nextPageToken?: string,
+             * } $body
+             */
+            $body = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+            foreach ($body['subscriptions'] ?? [] as $subscription) {
+                foreach ($subscription['linkedDatasetMap'] ?? [] as $entry) {
+                    // linkedDataset value is in the format "projects/{p}/datasets/{dataset}"
+                    $linkedDataset = $entry['linkedDataset'] ?? '';
+                    $parts = explode('/', $linkedDataset);
+                    $datasetId = end($parts);
+                    if ($datasetId === $destinationDatasetName) {
+                        $listingName = $subscription['listing'];
+                        break 3;
+                    }
                 }
             }
-        }
+
+            $pageToken = $body['nextPageToken'] ?? null;
+        } while ($pageToken !== null);
 
         if ($listingName === null) {
             throw new RuntimeException(sprintf(

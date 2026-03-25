@@ -120,7 +120,7 @@ class BigQueryExternalBucketSharingStatusTest extends BaseCase
                 $parsedName['data_exchange'],
                 $parsedName['listing'],
             ])
-            ->setDestinationObjectName('test_ext_status')
+            ->setDestinationObjectName('test_ext_status_reg')
             ->setBranchId('123')
             ->setStackPrefix($this->getStackPrefix());
         $meta = new Any();
