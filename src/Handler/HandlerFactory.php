@@ -15,6 +15,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Bucket\Drop\RevokeBucketAccessFromRea
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\GrantExternalBucketSubscriberHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\LinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Link\RevokeExternalBucketSubscriberHandler;
+use Keboola\StorageDriver\BigQuery\Handler\Bucket\Refresh\BigQueryExternalBucketSharingStatusHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\Share\ShareBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnLink\UnLinkBucketHandler;
 use Keboola\StorageDriver\BigQuery\Handler\Bucket\UnShare\UnShareBucketHandler;
@@ -48,6 +49,7 @@ use Keboola\StorageDriver\BigQuery\Handler\Workspace\Load\LoadTableToWorkspaceHa
 use Keboola\StorageDriver\BigQuery\Handler\Workspace\ResetPassword\ResetWorkspacePasswordHandler;
 use Keboola\StorageDriver\Command\Backend\InitBackendCommand;
 use Keboola\StorageDriver\Command\Backend\RemoveBackendCommand;
+use Keboola\StorageDriver\Command\Bucket\BigQueryExternalBucketSharingStatusCommand;
 use Keboola\StorageDriver\Command\Bucket\CreateBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\DropBucketCommand;
 use Keboola\StorageDriver\Command\Bucket\GrantBucketAccessToReadOnlyRoleCommand;
@@ -123,6 +125,8 @@ final class HandlerFactory
             DropWorkspaceCommand::class => new DropWorkspaceHandler($manager),
             DropWorkspaceUserCommand::class => new DropWorkspaceUserHandler($manager),
             DropWorkspaceObjectCommand::class => new DropWorkspaceObjectHandler($manager),
+            BigQueryExternalBucketSharingStatusCommand::class
+                => new BigQueryExternalBucketSharingStatusHandler($manager),
             ExecuteQueryCommand::class => new ExecuteQueryHandler($manager),
             GrantBucketAccessToReadOnlyRoleCommand::class => new GrantBucketAccessToReadOnlyRoleHandler($manager),
             GrantExternalBucketSubscriberCommand::class => new GrantExternalBucketSubscriberHandler($manager),
